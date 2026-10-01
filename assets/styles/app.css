@@ -108,3 +108,45 @@ button.link.danger svg { vertical-align: -3px; }
 .meal-form-row label.time { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
 .meal-form-row input[type=time] { padding: 0.4rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; }
 .target p.goal { font-size: 0.9rem; }
+/* Weight chart. Series colors: categorical slots 1 (trend) and 2 (weigh-ins), validated on #fff. */
+.viz-root {
+    --surface-1: #ffffff;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+}
+.chart-header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.chart-header h2 { margin-bottom: 0.5rem; }
+.range { display: flex; gap: 0.25rem; }
+.range a { padding: 0.2rem 0.6rem; border-radius: 6px; text-decoration: none; color: var(--muted); font-size: 0.85rem; }
+.range a:hover { background: var(--bg); }
+.range a[aria-current] { color: var(--text); font-weight: 600; background: var(--bg); }
+.weight-chart { position: relative; }
+.weight-chart svg[role=img] { width: 100%; height: auto; display: block; overflow: visible; }
+.weight-chart .legend { display: flex; gap: 1rem; list-style: none; padding: 0; margin: 0 0 0.25rem; color: var(--text-secondary); font-size: 0.8rem; }
+.weight-chart .legend li { display: flex; align-items: center; gap: 0.35rem; }
+.weight-chart .grid line { stroke: var(--gridline); stroke-width: 1; }
+.weight-chart text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+.weight-chart .y-tick { text-anchor: end; dominant-baseline: middle; }
+.weight-chart .x-tick { text-anchor: middle; }
+.weight-chart .trend-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.weight-chart .weigh-in { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
+.weight-chart .trend-end { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+.weight-chart .end-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; dominant-baseline: middle; }
+.weight-chart .crosshair { stroke: var(--text-muted); stroke-width: 1; }
+.weight-chart .hit-area { fill: transparent; cursor: crosshair; outline: none; }
+.weight-chart .hit-area:focus-visible { stroke: var(--series-1); stroke-width: 1; }
+.weight-chart .tooltip {
+    position: absolute; top: 1.75rem; pointer-events: none; background: var(--surface-1); color: var(--text-secondary);
+    border: 1px solid rgba(11, 11, 11, 0.1); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.8rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); white-space: nowrap;
+}
+.weight-chart .tooltip strong { color: var(--text-primary); }
+.weight-chart .tooltip .key { display: inline-block; width: 12px; height: 2px; margin-right: 0.4rem; vertical-align: middle; }
+.weight-chart .tooltip .tip-trend .key { background: var(--series-1); }
+.weight-chart .tooltip .tip-weigh-in .key { background: var(--series-2); }
+.weight-chart .tooltip .tip-date { margin-bottom: 0.15rem; }
+.chart-empty { margin: 0.5rem 0; }

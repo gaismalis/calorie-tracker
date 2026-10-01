@@ -14,6 +14,22 @@
 </section>
 
 <section class="card">
+    <div class="chart-header">
+        <h2>Weight and trend</h2>
+        <nav class="range" aria-label="Chart range">
+            {% for days in ranges %}
+                <a href="{{ path('app_weight', {range: days}) }}" {% if days == range %}aria-current="true"{% endif %}>{{ days == 365 ? '1 year' : days ~ ' days' }}</a>
+            {% endfor %}
+        </nav>
+    </div>
+    {% if chart %}
+        {{ include('weight/_chart.html.twig') }}
+    {% else %}
+        <p class="muted chart-empty">Log your weight on at least two days in this period to see a chart.</p>
+    {% endif %}
+</section>
+
+<section class="card">
     <h2>History</h2>
     <p class="muted">Your weight jumps around by up to 1–2 kg a day from water and food. <strong>Trend</strong> smooths that out and is what the app uses to work out what you really burn.</p>
     {% if rows is empty %}

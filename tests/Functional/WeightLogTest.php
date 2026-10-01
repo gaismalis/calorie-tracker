@@ -84,6 +84,37 @@ class WeightLogTest extends WebTestCase
         self::assertSame(['80.1', '80.0'], $trend, 'a 1 kg jump moves the trend only 0.1 kg');
     }
 
+    public function testChartShowsWeighInsAndTrendForTheChosenRange(): void
+    {
+        $today = $this->user->today();
+        foreach ([40, 20, 10, 0] as $daysAgo) {
+            $this->storeWeight($this->user, $today->modify("-$daysAgo days")->format('Y-m-d'), 80 - $daysAgo / 20);
+        }
+
+        $crawler = $this->client->request('GET', '/weight');
+        self::assertCount(4, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'), '90 days by default');
+        self::assertSelectorExists('.weight-chart path.trend-line');
+        self::assertSelectorTextContains('.weight-chart .end-label', 'kg');
+        self::assertSelectorTextContains('.range a[aria-current]', '90 days');
+        $days = json_decode($crawler->filter('.weight-chart')->attr('data-weight-chart-days-value'), true);
+        self::assertEquals(80.0, end($days)['kg']);
+
+        $crawler = $this->client->request('GET', '/weight?range=30');
+        self::assertCount(3, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'));
+        self::assertSelectorTextContains('.range a[aria-current]', '30 days');
+    }
+
+    public function testChartNeedsTwoWeighInsAndIgnoresUnknownRanges(): void
+    {
+        $this->storeWeight($this->user, $this->user->today()->format('Y-m-d'), 80.0);
+
+        $this->client->request('GET', '/weight?range=7');
+
+        self::assertSelectorNotExists('.weight-chart');
+        self::assertSelectorTextContains('.chart-empty', 'at least two days');
+        self::assertSelectorTextContains('.range a[aria-current]', '90 days');
+    }
+
     /** @return iterable<string, array{string, string, string}> */
     public static function invalidInput(): iterable
     {

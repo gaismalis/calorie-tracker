@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Chart\WeightChart;
 use App\Energy\WeightTrend;
 use App\Entity\User;
 use App\Entity\WeightEntry;
@@ -16,6 +17,10 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 class WeightController extends AbstractController
 {
+    /** Chart ranges in days. */
+    private const CHART_RANGES = [30, 90, 365];
+    private const DEFAULT_CHART_RANGE = 90;
+
     #[Route('/weight', name: 'app_weight')]
     public function index(
         #[CurrentUser] User $user,
@@ -60,7 +65,33 @@ class WeightController extends AbstractController
             ];
         }
 
-        return $this->render('weight/index.html.twig', ['form' => $form, 'rows' => $rows]);
+        $range = in_array($request->query->getInt('range'), self::CHART_RANGES, true) ? $request->query->getInt('range') : self::DEFAULT_CHART_RANGE;
+
+        return $this->render('weight/index.html.twig', [
+            'form' => $form,
+            'rows' => $rows,
+            'chart' => $this->chart($user, $weights, $range),
+            'range' => $range,
+            'ranges' => self::CHART_RANGES,
+        ]);
+    }
+
+    private function chart(User $user, WeightEntryRepository $weights, int $days): ?WeightChart
+    {
+        $today = $user->today()->format('Y-m-d');
+        $first = (new \DateTimeImmutable($today))->modify(sprintf('-%d days', $days - 1))->format('Y-m-d');
+        $inRange = fn (string $date) => $date >= $first && $date <= $today;
+
+        // Warm the trend up with earlier weigh-ins so it doesn't start at the first visible weight.
+        $all = $weights->weightsByDate($user, (new \DateTimeImmutable($first))->modify('-60 days'));
+        $trend = WeightTrend::daily($all);
+
+        return WeightChart::build(
+            array_filter($all, $inRange, ARRAY_FILTER_USE_KEY),
+            array_filter($trend, $inRange, ARRAY_FILTER_USE_KEY),
+            $today,
+            $days,
+        );
     }
 
     #[Route('/weight/{id}/delete', name: 'app_weight_delete', methods: ['POST'])]
