@@ -47,13 +47,31 @@ final class GeminiNutritionEstimator implements NutritionEstimator
         'required' => ['items'],
     ];
 
+    /** Attempts per model when Gemini reports overload (503) or rate limiting (429). */
+    private const ATTEMPTS_PER_MODEL = 2;
+    private const RETRY_DELAY_MS = 1000;
+    private const RETRY_SAME_MODEL_STATUSES = [429, 500, 503, 504];
+    /** These mean the key or request is wrong; another model won't help. */
+    private const FATAL_STATUSES = [400, 401, 403];
+
+    /** @var list<string> */
+    private readonly array $models;
+    private readonly \Closure $sleep;
+
+    /**
+     * @param string $models comma-separated, tried in order: on overload, timeouts or an unusable answer
+     *                       the next model is used, e.g. "gemini-3.5-flash-lite,gemini-3.5-flash"
+     */
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         #[Autowire(env: 'GEMINI_API_KEY')]
         private readonly string $apiKey,
         #[Autowire(env: 'GEMINI_MODEL')]
-        private readonly string $model,
+        string $models,
+        ?\Closure $sleep = null,
     ) {
+        $this->models = array_values(array_filter(array_map('trim', explode(',', $models))));
+        $this->sleep = $sleep ?? static fn (int $milliseconds) => usleep($milliseconds * 1000);
     }
 
     public function estimate(string $mealDescription): MealEstimate
@@ -61,9 +79,36 @@ final class GeminiNutritionEstimator implements NutritionEstimator
         if ('' === $this->apiKey) {
             throw new NutritionEstimationException('GEMINI_API_KEY is not set. Add it to .env.local.');
         }
+        if ([] === $this->models) {
+            throw new NutritionEstimationException('GEMINI_MODEL is empty.');
+        }
 
+        $failures = [];
+        foreach ($this->models as $model) {
+            for ($attempt = 1; $attempt <= self::ATTEMPTS_PER_MODEL; ++$attempt) {
+                try {
+                    return $this->estimateWith($model, $mealDescription);
+                } catch (GeminiAttemptFailed $e) {
+                    $failures[] = $model.': '.$e->getMessage();
+                    if (!$e->retrySameModel || $attempt === self::ATTEMPTS_PER_MODEL) {
+                        break;
+                    }
+                    ($this->sleep)(self::RETRY_DELAY_MS * $attempt);
+                }
+            }
+        }
+
+        throw new NutritionEstimationException('All Gemini models failed. '.implode(' | ', $failures));
+    }
+
+    /**
+     * @throws GeminiAttemptFailed          when retrying or another model may help
+     * @throws NutritionEstimationException when nothing will help (bad key, invalid request)
+     */
+    private function estimateWith(string $model, string $mealDescription): MealEstimate
+    {
         try {
-            $response = $this->httpClient->request('POST', sprintf(self::ENDPOINT, rawurlencode($this->model)), [
+            $response = $this->httpClient->request('POST', sprintf(self::ENDPOINT, rawurlencode($model)), [
                 'headers' => ['x-goog-api-key' => $this->apiKey],
                 'json' => [
                     'systemInstruction' => ['parts' => [['text' => self::INSTRUCTIONS]]],
@@ -74,34 +119,39 @@ final class GeminiNutritionEstimator implements NutritionEstimator
                         'responseSchema' => self::RESPONSE_SCHEMA,
                     ],
                 ],
-                'timeout' => 30,
+                'timeout' => 20,
+                'max_duration' => 25,
             ]);
 
             $status = $response->getStatusCode();
             $body = $response->toArray(false);
         } catch (HttpException $e) {
-            throw new NutritionEstimationException('Could not reach Gemini: '.$e->getMessage(), previous: $e);
+            throw new GeminiAttemptFailed('Could not reach Gemini: '.$e->getMessage(), retrySameModel: false, previous: $e);
         }
 
         if (200 !== $status) {
-            $message = $body['error']['message'] ?? 'unknown error';
-            throw new NutritionEstimationException(sprintf('Gemini returned HTTP %d: %s', $status, $message));
+            $message = sprintf('Gemini returned HTTP %d: %s', $status, $body['error']['message'] ?? 'unknown error');
+            if (in_array($status, self::FATAL_STATUSES, true)) {
+                throw new NutritionEstimationException($message);
+            }
+
+            throw new GeminiAttemptFailed($message, retrySameModel: in_array($status, self::RETRY_SAME_MODEL_STATUSES, true));
         }
 
         $text = $body['candidates'][0]['content']['parts'][0]['text'] ?? null;
         if (!is_string($text)) {
             $reason = $body['candidates'][0]['finishReason'] ?? $body['promptFeedback']['blockReason'] ?? 'no content';
-            throw new NutritionEstimationException('Gemini returned no estimate ('.$reason.').');
+            throw new GeminiAttemptFailed('Gemini returned no estimate ('.$reason.').', retrySameModel: false);
         }
 
         try {
             $data = json_decode($text, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
-            throw new NutritionEstimationException('Gemini returned invalid JSON.', previous: $e);
+            throw new GeminiAttemptFailed('Gemini returned invalid JSON.', retrySameModel: false, previous: $e);
         }
 
         if (!is_array($data['items'] ?? null)) {
-            throw new NutritionEstimationException('Gemini response is missing "items".');
+            throw new GeminiAttemptFailed('Gemini response is missing "items".', retrySameModel: false);
         }
 
         $items = [];
@@ -121,7 +171,7 @@ final class GeminiNutritionEstimator implements NutritionEstimator
             );
         }
 
-        return new MealEstimate($items, 'gemini:'.($body['modelVersion'] ?? $this->model));
+        return new MealEstimate($items, 'gemini:'.($body['modelVersion'] ?? $model));
     }
 
     private static function nonNegative(mixed $value): float

@@ -11,18 +11,17 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 
 class GeminiNutritionEstimatorTest extends TestCase
 {
+    /** @var list<int> milliseconds the estimator asked to sleep */
+    private array $sleeps = [];
+
     public function testParsesItemsFromStructuredResponse(): void
     {
-        $response = self::geminiReply([
+        $estimate = $this->estimator([self::geminiReply([
             'items' => [
                 ['name' => 'Greek yogurt', 'grams' => 400, 'kcal' => 380, 'protein' => 40, 'carbs' => 16, 'fat' => 16, 'assumption' => ''],
                 ['name' => 'Peanut butter', 'grams' => 20, 'kcal' => 118.44, 'protein' => 5, 'carbs' => 4, 'fat' => 10, 'assumption' => 'big tablespoon ≈ 20 g'],
             ],
-        ]);
-        $http = new MockHttpClient($response);
-
-        $estimate = (new GeminiNutritionEstimator($http, 'test-key', 'gemini-flash-latest'))
-            ->estimate('400 g yogurt and a big tablespoon of peanut butter');
+        ])])->estimate('400 g yogurt and a big tablespoon of peanut butter');
 
         self::assertCount(2, $estimate->items);
         self::assertSame('Greek yogurt', $estimate->items[0]->name);
@@ -30,18 +29,17 @@ class GeminiNutritionEstimatorTest extends TestCase
         self::assertNull($estimate->items[0]->assumption, 'empty assumption becomes null');
         self::assertSame(118.4, $estimate->items[1]->kcal, 'values are rounded to 1 decimal');
         self::assertSame('big tablespoon ≈ 20 g', $estimate->items[1]->assumption);
-        self::assertSame('gemini:gemini-2.5-flash-001', $estimate->estimatedBy);
+        self::assertSame('gemini:gemini-test-001', $estimate->estimatedBy);
     }
 
     public function testSendsKeyModelAndSchema(): void
     {
         $response = self::geminiReply(['items' => []]);
-        $http = new MockHttpClient($response);
 
-        (new GeminiNutritionEstimator($http, 'test-key', 'gemini-flash-latest'))->estimate('an apple');
+        $this->estimator([$response], 'gemini-3.5-flash-lite')->estimate('an apple');
 
         self::assertSame('POST', $response->getRequestMethod());
-        self::assertStringEndsWith('/models/gemini-flash-latest:generateContent', $response->getRequestUrl());
+        self::assertStringEndsWith('/models/gemini-3.5-flash-lite:generateContent', $response->getRequestUrl());
         self::assertContains('x-goog-api-key: test-key', $response->getRequestOptions()['headers']);
 
         $body = json_decode($response->getRequestOptions()['body'], true);
@@ -52,15 +50,13 @@ class GeminiNutritionEstimatorTest extends TestCase
 
     public function testClampsNegativeAndNonNumericValuesAndSkipsNamelessItems(): void
     {
-        $http = new MockHttpClient(self::geminiReply([
+        $estimate = $this->estimator([self::geminiReply([
             'items' => [
                 ['name' => 'Water', 'grams' => 500, 'kcal' => -3, 'protein' => 'n/a', 'carbs' => 0, 'fat' => 0],
                 ['name' => '  ', 'grams' => 10, 'kcal' => 10, 'protein' => 1, 'carbs' => 1, 'fat' => 1],
                 'garbage',
             ],
-        ]));
-
-        $estimate = (new GeminiNutritionEstimator($http, 'test-key', 'm'))->estimate('water');
+        ])])->estimate('water');
 
         self::assertCount(1, $estimate->items);
         self::assertSame(0.0, $estimate->items[0]->kcal);
@@ -75,60 +71,141 @@ class GeminiNutritionEstimatorTest extends TestCase
         (new GeminiNutritionEstimator(new MockHttpClient(), '', 'm'))->estimate('an apple');
     }
 
-    public function testFailsOnHttpError(): void
+    public function testFailsWithoutModels(): void
     {
-        $http = new MockHttpClient(new JsonMockResponse(
-            ['error' => ['message' => 'Quota exceeded']],
-            ['http_code' => 429],
-        ));
-
         $this->expectException(NutritionEstimationException::class);
-        $this->expectExceptionMessage('HTTP 429: Quota exceeded');
+        $this->expectExceptionMessage('GEMINI_MODEL is empty');
 
-        (new GeminiNutritionEstimator($http, 'test-key', 'm'))->estimate('an apple');
+        $this->estimator([], ' , ')->estimate('an apple');
     }
 
-    public function testFailsWhenNoCandidateIsReturned(): void
+    public function testModelListIsTrimmedAndEmptyEntriesIgnored(): void
     {
-        $http = new MockHttpClient(new JsonMockResponse(['promptFeedback' => ['blockReason' => 'SAFETY']]));
+        $first = self::overloaded();
+        $second = self::overloaded();
+        $third = self::geminiReply(['items' => []], modelVersion: null);
 
-        $this->expectException(NutritionEstimationException::class);
-        $this->expectExceptionMessage('SAFETY');
+        $estimate = $this->estimator([$first, $second, $third], ' model-a , ,model-b ')->estimate('an apple');
 
-        (new GeminiNutritionEstimator($http, 'test-key', 'm'))->estimate('an apple');
+        self::assertStringEndsWith('/models/model-a:generateContent', $first->getRequestUrl());
+        self::assertStringEndsWith('/models/model-b:generateContent', $third->getRequestUrl());
+        self::assertSame('gemini:model-b', $estimate->estimatedBy, 'falls back to the requested model name');
     }
 
-    public function testFailsOnInvalidJson(): void
+    public function testRetriesSameModelOnceAfterOverload(): void
     {
-        $http = new MockHttpClient(new JsonMockResponse([
-            'candidates' => [['content' => ['parts' => [['text' => '{not json']]]]],
-        ]));
+        $retry = self::geminiReply(['items' => []]);
 
-        $this->expectException(NutritionEstimationException::class);
-        $this->expectExceptionMessage('invalid JSON');
+        $this->estimator([self::overloaded(), $retry], 'model-a,model-b')->estimate('an apple');
 
-        (new GeminiNutritionEstimator($http, 'test-key', 'm'))->estimate('an apple');
+        self::assertStringEndsWith('/models/model-a:generateContent', $retry->getRequestUrl());
+        self::assertSame([1000], $this->sleeps);
     }
 
-    public function testFailsOnNetworkError(): void
+    public function testFallsBackToNextModelWhenFirstStaysOverloaded(): void
     {
-        $http = new MockHttpClient(new MockResponse(info: ['error' => 'Connection refused']));
+        $fallback = self::geminiReply(['items' => []], modelVersion: 'model-b-001');
+        $http = new MockHttpClient([self::overloaded(), self::overloaded(429), $fallback]);
+
+        $estimate = $this->make($http, 'model-a,model-b')->estimate('an apple');
+
+        self::assertSame(3, $http->getRequestsCount());
+        self::assertStringEndsWith('/models/model-b:generateContent', $fallback->getRequestUrl());
+        self::assertSame('gemini:model-b-001', $estimate->estimatedBy);
+        self::assertSame([1000], $this->sleeps, 'no wait before switching model');
+    }
+
+    /** @return iterable<string, array{MockResponse}> */
+    public static function nextModelWithoutRetry(): iterable
+    {
+        yield 'model not found' => [new JsonMockResponse(['error' => ['message' => 'no longer available']], ['http_code' => 404])];
+        yield 'timeout / network error' => [new MockResponse(info: ['error' => 'Idle timeout reached'])];
+        yield 'no candidate' => [new JsonMockResponse(['promptFeedback' => ['blockReason' => 'SAFETY']])];
+        yield 'invalid JSON' => [new JsonMockResponse(['candidates' => [['content' => ['parts' => [['text' => '{not json']]]]]])];
+        yield 'missing items' => [self::geminiReply(['foods' => []])];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('nextModelWithoutRetry')]
+    public function testSwitchesToNextModelWithoutRetryingWhen(MockResponse $failure): void
+    {
+        $fallback = self::geminiReply(['items' => []]);
+        $http = new MockHttpClient([$failure, $fallback]);
+
+        $this->make($http, 'model-a,model-b')->estimate('an apple');
+
+        self::assertSame(2, $http->getRequestsCount());
+        self::assertStringEndsWith('/models/model-b:generateContent', $fallback->getRequestUrl());
+        self::assertSame([], $this->sleeps);
+    }
+
+    /** @return iterable<string, array{int}> */
+    public static function fatalStatuses(): iterable
+    {
+        yield 'bad request' => [400];
+        yield 'unauthorized' => [401];
+        yield 'forbidden' => [403];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('fatalStatuses')]
+    public function testKeyOrRequestErrorsFailImmediatelyWithoutFallback(int $status): void
+    {
+        $http = new MockHttpClient([
+            new JsonMockResponse(['error' => ['message' => 'API key not valid']], ['http_code' => $status]),
+            self::geminiReply(['items' => []]),
+        ]);
+
+        try {
+            $this->make($http, 'model-a,model-b')->estimate('an apple');
+            self::fail('Expected exception');
+        } catch (NutritionEstimationException $e) {
+            self::assertSame(sprintf('Gemini returned HTTP %d: API key not valid', $status), $e->getMessage());
+        }
+        self::assertSame(1, $http->getRequestsCount());
+    }
+
+    public function testReportsEveryFailureWhenAllModelsFail(): void
+    {
+        $http = new MockHttpClient([
+            self::overloaded(),
+            self::overloaded(),
+            new MockResponse(info: ['error' => 'Connection refused']),
+        ]);
 
         $this->expectException(NutritionEstimationException::class);
-        $this->expectExceptionMessage('Could not reach Gemini');
+        $this->expectExceptionMessageMatches(
+            '/^All Gemini models failed\. model-a: Gemini returned HTTP 503: .* \| model-a: Gemini returned HTTP 503: .* \| model-b: Could not reach Gemini: .*Connection refused/'
+        );
 
-        (new GeminiNutritionEstimator($http, 'test-key', 'm'))->estimate('an apple');
+        $this->make($http, 'model-a,model-b')->estimate('an apple');
+    }
+
+    /** @param list<MockResponse> $responses */
+    private function estimator(array $responses, string $models = 'm'): GeminiNutritionEstimator
+    {
+        return $this->make(new MockHttpClient($responses), $models);
+    }
+
+    private function make(MockHttpClient $http, string $models): GeminiNutritionEstimator
+    {
+        return new GeminiNutritionEstimator($http, 'test-key', $models, function (int $ms): void {
+            $this->sleeps[] = $ms;
+        });
+    }
+
+    private static function overloaded(int $status = 503): JsonMockResponse
+    {
+        return new JsonMockResponse(['error' => ['message' => 'This model is currently experiencing high demand.']], ['http_code' => $status]);
     }
 
     /** @param array<string, mixed> $payload */
-    private static function geminiReply(array $payload): JsonMockResponse
+    private static function geminiReply(array $payload, ?string $modelVersion = 'gemini-test-001'): JsonMockResponse
     {
-        return new JsonMockResponse([
+        return new JsonMockResponse(array_filter([
             'candidates' => [[
                 'content' => ['role' => 'model', 'parts' => [['text' => json_encode($payload)]]],
                 'finishReason' => 'STOP',
             ]],
-            'modelVersion' => 'gemini-2.5-flash-001',
-        ]);
+            'modelVersion' => $modelVersion,
+        ]));
     }
 }
