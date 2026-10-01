@@ -43,14 +43,14 @@ final class MealEstimation
     }
 
     /**
-     * Saves a new meal and tries to estimate it within {@see QUICK_TIME_LIMIT}.
+     * Saves a new meal (eaten now unless $eatenAt is given) and tries to estimate it within {@see QUICK_TIME_LIMIT}.
      * A meal without any food is not kept.
      *
      * @return array{MealEntry, EstimationOutcome}
      */
-    public function logMeal(User $user, string $description): array
+    public function logMeal(User $user, string $description, ?\DateTimeImmutable $eatenAt = null): array
     {
-        $entry = new MealEntry($user, $description, $this->clock->now());
+        $entry = new MealEntry($user, $description, $eatenAt ?? $this->clock->now());
         $this->entityManager->persist($entry);
         $this->entityManager->flush();
 

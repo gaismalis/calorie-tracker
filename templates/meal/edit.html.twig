@@ -47,7 +47,7 @@
         </table>
         <input type="hidden" name="_token" value="{{ csrf_token('meal_edit_' ~ entry.id) }}">
         <button type="submit">Save</button>
-        <a href="{{ path('app_dashboard') }}" class="muted">Back</a>
+        <a href="{{ backUrl }}" class="muted">Back</a>
     </form>
 </section>
 {% endblock %}
