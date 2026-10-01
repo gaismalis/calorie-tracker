@@ -55,4 +55,29 @@ class EnergyChartTest extends TestCase
         self::assertGreaterThanOrEqual(2900, end($ticks));
         self::assertLessThanOrEqual(6, count($ticks));
     }
+
+    /** @return iterable<string, array{float}> */
+    public static function extremeDays(): iterable
+    {
+        yield 'huge day (regression: crashed the dashboard)' => [20850.0];
+        yield 'absurd day beyond the largest step' => [250000.0];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('extremeDays')]
+    public function testExtremeValuesStillRender(float $kcal): void
+    {
+        $burned = [];
+        for ($i = 13; $i >= 0; --$i) {
+            $burned[(new \DateTimeImmutable('2026-10-01'))->modify("-$i days")->format('Y-m-d')] = 2903.0;
+        }
+
+        $chart = EnergyChart::build(['2026-10-01' => $kcal], $burned, '2026-10-01', '2026-10-01');
+
+        $ticks = array_column($chart->yTicks, 'value');
+        self::assertGreaterThanOrEqual($kcal, end($ticks));
+        self::assertLessThanOrEqual(2903, $ticks[0]);
+        foreach ($chart->eatenDots as $dot) {
+            self::assertGreaterThanOrEqual($chart->plotTop, $dot['y']);
+        }
+    }
 }

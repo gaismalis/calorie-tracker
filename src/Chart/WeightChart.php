@@ -17,7 +17,7 @@ final readonly class WeightChart
     /** Centre of the y-axis when there's no weight at all yet. */
     private const DEFAULT_KG = 75.0;
     /** Candidate y-tick steps in kg; the first that gives at most 6 ticks wins. */
-    private const Y_STEPS = [0.5, 1, 2, 5, 10, 20];
+    private const Y_STEPS = [0.5, 1, 2, 5, 10, 20, 50];
 
     /**
      * @param list<array{x: float, y: float, date: string, kg: float}>                         $dots
@@ -143,7 +143,7 @@ final readonly class WeightChart
             }
         }
 
-        $step = end(self::Y_STEPS);
+        $step = self::Y_STEPS[array_key_last(self::Y_STEPS)];
 
         return [floor($low / $step) * $step, ceil($high / $step) * $step, $step];
     }

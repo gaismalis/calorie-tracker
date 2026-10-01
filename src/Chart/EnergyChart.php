@@ -14,7 +14,7 @@ final readonly class EnergyChart
     private const MARGIN_RIGHT = 16;
     private const MARGIN_TOP = 12;
     private const MARGIN_BOTTOM = 28;
-    private const Y_STEPS = [250, 500, 1000, 2000];
+    private const Y_STEPS = [250, 500, 1000, 2000, 5000, 10000];
 
     /**
      * @param list<string>                                                                          $eatenPaths  one SVG path per run of consecutive days
@@ -144,7 +144,7 @@ final readonly class EnergyChart
                 return [$min, $max, (float) $step];
             }
         }
-        $step = (float) end(self::Y_STEPS);
+        $step = (float) self::Y_STEPS[array_key_last(self::Y_STEPS)];
 
         return [max(0, floor($low / $step) * $step), ceil($high / $step) * $step, $step];
     }

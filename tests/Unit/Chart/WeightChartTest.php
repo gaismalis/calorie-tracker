@@ -111,4 +111,13 @@ class WeightChartTest extends TestCase
         self::assertSame('1 Oct', end($ticks)['label']);
         self::assertLessThanOrEqual(7, count($ticks));
     }
+
+    public function testWildlyDifferentWeightsStillRender(): void
+    {
+        $chart = WeightChart::build(['2026-09-20' => 60.0, '2026-09-25' => 400.0], [], '2026-10-01', 30);
+
+        $ticks = array_column($chart->yTicks, 'value');
+        self::assertLessThanOrEqual(60, $ticks[0]);
+        self::assertGreaterThanOrEqual(400, end($ticks));
+    }
 }
