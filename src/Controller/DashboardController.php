@@ -14,6 +14,7 @@ use App\Meal\MealEstimation;
 use App\Repository\ExerciseEntryRepository;
 use App\Repository\MealEntryRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
@@ -34,6 +35,7 @@ class DashboardController extends AbstractController
         EnergyCalculator $energyCalculator,
         MealEstimation $mealEstimation,
         ExerciseEstimation $exerciseEstimation,
+        Request $request,
         ?string $date = null,
     ): Response {
         $today = $user->today();
@@ -66,6 +68,8 @@ class DashboardController extends AbstractController
             }
         }
         $needsAttention = array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending() || $e->isFailed());
+        // Coming back from an action inside the log (delete, retry, adjust): keep it open on that tab.
+        $returnToLog = in_array($request->query->get('log'), ['food', 'exercise'], true) ? $request->query->get('log') : null;
 
         return $this->render('dashboard/index.html.twig', [
             'day' => $day,
@@ -82,7 +86,8 @@ class DashboardController extends AbstractController
             'chart' => $this->chart($user, $mealRepository, $exerciseRepository, $energy, $day, $today),
             'retryAt' => $retryAt,
             'hasPending' => array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending()),
-            'openLog' => $needsAttention,
+            'openLog' => $needsAttention || null !== $returnToLog,
+            'returnToLog' => $returnToLog,
         ]);
     }
 

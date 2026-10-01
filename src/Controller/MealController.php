@@ -60,7 +60,7 @@ class MealController extends AbstractController
     {
         $this->denyUnlessOwner($user, $entry);
         if ($entry->isPending() || $entry->isFailed()) {
-            return $this->flashAndGoToDay($user, $entry->getEatenAt(), 'error', 'This meal has no estimate yet.');
+            return $this->flashAndGoToLog('food', $user, $entry->getEatenAt(), 'error', 'This meal has no estimate yet.');
         }
 
         $errors = [];
@@ -101,20 +101,20 @@ class MealController extends AbstractController
                     $entityManager->remove($entry);
                     $entityManager->flush();
 
-                    return $this->flashAndGoToDay($user, $entry->getEatenAt(), 'success', 'All items set to 0 g, so the meal was removed.');
+                    return $this->flashAndGoToLog('food', $user, $entry->getEatenAt(), 'success', 'All items set to 0 g, so the meal was removed.');
                 }
 
                 $entry->recalculateTotals();
                 $entityManager->flush();
 
-                return $this->flashAndGoToDay($user, $entry->getEatenAt(), 'success', sprintf('Logged ~%d kcal.', round($entry->getKcal())));
+                return $this->flashAndGoToLog('food', $user, $entry->getEatenAt(), 'success', sprintf('Logged ~%d kcal.', round($entry->getKcal())));
             }
         }
 
         return $this->render('meal/edit.html.twig', [
             'entry' => $entry,
             'errors' => $errors,
-            'backUrl' => $this->dayUrl($user, $entry->getEatenAt()),
+            'backUrl' => $this->dayUrl($user, $entry->getEatenAt(), 'food'),
         ], new Response(status: $errors ? 422 : 200));
     }
 
@@ -127,13 +127,13 @@ class MealController extends AbstractController
         }
         $day = $entry->getEatenAt();
         if (!$estimation->canRetryManually($entry)) {
-            return $this->flashAndGoToDay($user, $day, 'error', 'You can retry this meal once per hour.');
+            return $this->flashAndGoToLog('food', $user, $day, 'error', 'You can retry this meal once per hour.');
         }
 
         return match ($estimation->retryManually($entry)) {
             EstimationOutcome::Estimated => $this->redirectToRoute('app_meal_edit', ['id' => $entry->getId()]),
-            EstimationOutcome::NoFood => $this->flashAndGoToDay($user, $day, 'error', "The AI couldn't find any food in that meal. You can delete it and log it again."),
-            default => $this->flashAndGoToDay($user, $day, 'error', 'Still could not estimate it. You can try again in an hour.'),
+            EstimationOutcome::NoFood => $this->flashAndGoToLog('food', $user, $day, 'error', "The AI couldn't find any food in that meal. You can delete it and log it again."),
+            default => $this->flashAndGoToLog('food', $user, $day, 'error', 'Still could not estimate it. You can try again in an hour.'),
         };
     }
 
@@ -153,7 +153,7 @@ class MealController extends AbstractController
         $entityManager->remove($entry);
         $entityManager->flush();
 
-        return $this->redirect($this->dayUrl($user, $day));
+        return $this->redirect($this->dayUrl($user, $day, 'food'));
     }
 
 }

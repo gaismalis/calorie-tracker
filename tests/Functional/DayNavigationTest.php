@@ -151,13 +151,13 @@ class DayNavigationTest extends WebTestCase
         $entry = $this->storeEntry('old meal', $day->setTime(9, 0));
 
         $crawler = $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
-        self::assertSame('/day/'.$day->format('Y-m-d'), $crawler->filter('a:contains("Back")')->attr('href'));
+        self::assertSame('/day/'.$day->format('Y-m-d').'?log=food', $crawler->filter('a:contains("Back")')->attr('href'), 'back opens the log');
         $this->client->submitForm('Save');
-        self::assertResponseRedirects('/day/'.$day->format('Y-m-d'));
+        self::assertResponseRedirects('/day/'.$day->format('Y-m-d').'?log=food');
 
         $this->client->request('GET', '/day/'.$day->format('Y-m-d'));
         $this->client->submitForm('✕');
-        self::assertResponseRedirects('/day/'.$day->format('Y-m-d'));
+        self::assertResponseRedirects('/day/'.$day->format('Y-m-d').'?log=food', message: 'the log stays open after deleting');
     }
 
     public function testEstimatedPastMealGoesToReviewThenBackToItsDay(): void
@@ -170,7 +170,7 @@ class DayNavigationTest extends WebTestCase
         $this->client->followRedirect();
         $this->client->submitForm('Save');
 
-        self::assertResponseRedirects('/day/'.$day->format('Y-m-d'));
+        self::assertResponseRedirects('/day/'.$day->format('Y-m-d').'?log=food');
         self::assertSame(EstimationStatus::Estimated, $this->onlyEntry()->getStatus());
     }
 
@@ -192,7 +192,7 @@ class DayNavigationTest extends WebTestCase
         $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
         $this->client->submitForm('Save', ['eaten_date' => $target->format('Y-m-d'), 'eaten_time' => '19:30']);
 
-        self::assertResponseRedirects('/day/'.$target->format('Y-m-d'), message: 'goes to the new day');
+        self::assertResponseRedirects('/day/'.$target->format('Y-m-d').'?log=food', message: 'goes to the new day');
         self::assertSame($target->setTime(19, 30)->getTimestamp(), $this->onlyEntry()->getEatenAt()->getTimestamp());
     }
 

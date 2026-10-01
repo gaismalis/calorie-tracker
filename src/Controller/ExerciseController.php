@@ -61,7 +61,7 @@ class ExerciseController extends AbstractController
     {
         $this->denyUnlessOwner($user, $entry);
         if ($entry->isPending() || $entry->isFailed()) {
-            return $this->flashAndGoToDay($user, $entry->getPerformedAt(), 'error', 'This exercise has no estimate yet.');
+            return $this->flashAndGoToLog('exercise', $user, $entry->getPerformedAt(), 'error', 'This exercise has no estimate yet.');
         }
 
         $errors = [];
@@ -102,20 +102,20 @@ class ExerciseController extends AbstractController
                     $entityManager->remove($entry);
                     $entityManager->flush();
 
-                    return $this->flashAndGoToDay($user, $entry->getPerformedAt(), 'success', 'All activities set to 0 kcal, so the entry was removed.');
+                    return $this->flashAndGoToLog('exercise', $user, $entry->getPerformedAt(), 'success', 'All activities set to 0 kcal, so the entry was removed.');
                 }
 
                 $entry->recalculateTotals();
                 $entityManager->flush();
 
-                return $this->flashAndGoToDay($user, $entry->getPerformedAt(), 'success', sprintf('Saved: ~%d kcal burned.', round($entry->getKcal())));
+                return $this->flashAndGoToLog('exercise', $user, $entry->getPerformedAt(), 'success', sprintf('Saved: ~%d kcal burned.', round($entry->getKcal())));
             }
         }
 
         return $this->render('exercise/edit.html.twig', [
             'entry' => $entry,
             'errors' => $errors,
-            'backUrl' => $this->dayUrl($user, $entry->getPerformedAt()),
+            'backUrl' => $this->dayUrl($user, $entry->getPerformedAt(), 'exercise'),
         ], new Response(status: $errors ? 422 : 200));
     }
 
@@ -128,13 +128,13 @@ class ExerciseController extends AbstractController
         }
         $day = $entry->getPerformedAt();
         if (!$estimation->canRetryManually($entry)) {
-            return $this->flashAndGoToDay($user, $day, 'error', 'You can retry this once per hour.');
+            return $this->flashAndGoToLog('exercise', $user, $day, 'error', 'You can retry this once per hour.');
         }
 
         return match ($estimation->retryManually($entry)) {
-            EstimationOutcome::Estimated => $this->flashAndGoToDay($user, $day, 'success', sprintf('Logged ~%d kcal burned.', round($entry->getKcal()))),
-            EstimationOutcome::NoFood => $this->flashAndGoToDay($user, $day, 'error', "The AI couldn't find any activity in that. You can delete it and log it again."),
-            default => $this->flashAndGoToDay($user, $day, 'error', 'Still could not estimate it. You can try again in an hour.'),
+            EstimationOutcome::Estimated => $this->flashAndGoToLog('exercise', $user, $day, 'success', sprintf('Logged ~%d kcal burned.', round($entry->getKcal()))),
+            EstimationOutcome::NoFood => $this->flashAndGoToLog('exercise', $user, $day, 'error', "The AI couldn't find any activity in that. You can delete it and log it again."),
+            default => $this->flashAndGoToLog('exercise', $user, $day, 'error', 'Still could not estimate it. You can try again in an hour.'),
         };
     }
 
@@ -150,6 +150,6 @@ class ExerciseController extends AbstractController
         $entityManager->remove($entry);
         $entityManager->flush();
 
-        return $this->redirect($this->dayUrl($user, $day));
+        return $this->redirect($this->dayUrl($user, $day, 'exercise'));
     }
 }

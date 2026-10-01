@@ -1,8 +1,8 @@
 {# The day's food and exercise, collapsed unless something needs attention (estimating or failed). #}
 {% set exerciseNeedsAttention = exercises|filter(e => e.pending or e.failed) is not empty %}
 {% set mealsNeedAttention = meals|filter(e => e.pending or e.failed) is not empty %}
-{% set firstTab = exerciseNeedsAttention and not mealsNeedAttention ? 'exercise' : 'food' %}
-<details class="card log"{% if openLog %} open{% endif %}>
+{% set firstTab = returnToLog ?? (exerciseNeedsAttention and not mealsNeedAttention ? 'exercise' : 'food') %}
+<details class="card log" id="log"{% if openLog %} open{% endif %}{% if returnToLog %} data-controller="scroll-into-view"{% endif %}>
     <summary>
         <span class="log-title">{{ isToday ? "Today's" : day|date('l', app.user.timezone) ~ "'s" }} log</span>
         <span class="muted">{{ meals|length }} {{ meals|length == 1 ? 'meal' : 'meals' }} · {{ exercises|length }} {{ exercises|length == 1 ? 'activity' : 'activities' }}</span>

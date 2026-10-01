@@ -50,7 +50,7 @@ class MealLoggingTest extends WebTestCase
         self::assertSelectorTextContains('table.adjust', 'Peanut butter');
         $this->client->submitForm('Save');
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/?log=food');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash-success', 'Logged ~500 kcal');
         self::assertSelectorTextContains('.stat-eaten', '500');
@@ -169,7 +169,7 @@ class MealLoggingTest extends WebTestCase
         $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
         $this->client->submitForm('Save', ['grams['.$yogurt->getId().']' => '300', 'grams['.$jam->getId().']' => '25,5']);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/?log=food');
         $this->em()->clear();
         $entry = $this->em()->find(MealEntry::class, $entry->getId());
         [$yogurt, $jam] = $entry->getItems()->toArray();
@@ -249,7 +249,7 @@ class MealLoggingTest extends WebTestCase
 
         $failed = $this->storeFailedEntry(new \DateTimeImmutable());
         $this->client->request('GET', '/meals/'.$failed->getId().'/edit');
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/?log=food');
     }
 
     public function testTextWithoutFoodIsNotStored(): void
@@ -469,7 +469,7 @@ class MealLoggingTest extends WebTestCase
         $this->client->request('GET', '/');
         $this->client->submitForm('✕');
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/?log=food');
         self::assertSame(0, $this->em()->getRepository(MealEntry::class)->count([]));
     }
 

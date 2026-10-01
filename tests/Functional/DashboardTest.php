@@ -48,6 +48,39 @@ class DashboardTest extends WebTestCase
         self::assertSelectorTextContains('#panel-exercise', 'No exercise logged yet today');
     }
 
+    public function testComingBackFromTheLogKeepsItOpenOnThatTabAndScrollsToIt(): void
+    {
+        $this->storeMeal('lunch');
+
+        $crawler = $this->client->request('GET', '/?log=exercise');
+        self::assertNotNull($crawler->filter('details.log')->attr('open'));
+        self::assertSame('true', $crawler->filter('#tab-exercise')->attr('aria-selected'));
+        self::assertNull($crawler->filter('#panel-exercise')->attr('hidden'));
+        self::assertNotNull($crawler->filter('#panel-food')->attr('hidden'));
+        self::assertSame('scroll-into-view', $crawler->filter('details.log')->attr('data-controller'));
+
+        $crawler = $this->client->request('GET', '/?log=food');
+        self::assertSame('true', $crawler->filter('#tab-food')->attr('aria-selected'));
+
+        $crawler = $this->client->request('GET', '/?log=nonsense');
+        self::assertNull($crawler->filter('details.log')->attr('open'), 'unknown values are ignored');
+        self::assertNull($crawler->filter('details.log')->attr('data-controller'));
+    }
+
+    public function testDeletingFromTheLogReturnsWithItOpen(): void
+    {
+        $this->storeMeal('lunch');
+        $this->storeMeal('dinner');
+
+        $this->client->request('GET', '/');
+        $this->client->submit($this->client->getCrawler()->filter('#panel-food form[action$="/delete"]')->first()->form());
+        self::assertResponseRedirects('/?log=food');
+
+        $crawler = $this->client->followRedirect();
+        self::assertNotNull($crawler->filter('details.log')->attr('open'));
+        self::assertCount(1, $crawler->filter('#panel-food .entry'));
+    }
+
     public function testAddButtonOffersMealAndExerciseDialogs(): void
     {
         $crawler = $this->client->request('GET', '/');

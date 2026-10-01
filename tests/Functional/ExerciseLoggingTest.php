@@ -115,7 +115,7 @@ class ExerciseLoggingTest extends WebTestCase
         $this->client->request('GET', '/exercises/'.$entry->getId().'/edit');
         self::assertSelectorTextContains('h1', 'Adjust exercise');
         $this->client->submitForm('Save', ['kcal['.$item->getId().']' => '450']);
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/?log=exercise');
         self::assertSame(450.0, $this->onlyEntry()->getKcal());
 
         $this->client->request('GET', '/');
@@ -172,7 +172,7 @@ class ExerciseLoggingTest extends WebTestCase
         $this->client->request('GET', '/');
         $this->client->submit($this->client->getCrawler()->filter('#panel-exercise .retry form')->form());
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/?log=exercise');
         self::assertSame(EstimationStatus::Estimated, $this->onlyEntry()->getStatus());
     }
 

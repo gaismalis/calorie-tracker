@@ -80,13 +80,29 @@ trait DayAwareController
     }
 
 
-    /** Dashboard URL of the user's local day that contains $moment ("/" for today). */
-    private function dayUrl(User $user, \DateTimeImmutable $moment): string
+    /**
+     * After an action taken inside the day's log (delete, retry, adjust): back to that day with the log
+     * open on the same tab ("food" or "exercise"), so the user can carry on where they were.
+     */
+    private function flashAndGoToLog(string $log, User $user, \DateTimeImmutable $moment, string $type, string $message): Response
+    {
+        $this->addFlash($type, $message);
+
+        return $this->redirect($this->dayUrl($user, $moment, $log));
+    }
+
+    /**
+     * Dashboard URL of the user's local day that contains $moment ("/" for today).
+     *
+     * @param string|null $log "food" or "exercise" to open the day's log on that tab
+     */
+    private function dayUrl(User $user, \DateTimeImmutable $moment, ?string $log = null): string
     {
         $date = $moment->setTimezone($user->getDateTimeZone())->format('Y-m-d');
+        $query = null === $log ? [] : ['log' => $log];
 
         return $date === $user->today()->format('Y-m-d')
-            ? $this->generateUrl('app_dashboard')
-            : $this->generateUrl('app_day', ['date' => $date]);
+            ? $this->generateUrl('app_dashboard', $query)
+            : $this->generateUrl('app_day', ['date' => $date] + $query);
     }
 }
