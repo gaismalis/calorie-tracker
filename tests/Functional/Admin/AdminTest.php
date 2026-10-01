@@ -2,11 +2,7 @@
 
 namespace App\Tests\Functional\Admin;
 
-use App\Entity\MealEntry;
 use App\Entity\User;
-use App\Entity\WeightEntry;
-use App\Nutrition\EstimatedItem;
-use App\Nutrition\MealEstimate;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -36,7 +32,7 @@ class AdminTest extends WebTestCase
     {
         $this->client->loginUser($this->user('user@example.com')); // app session only
 
-        foreach (['/admin', '/admin/user', '/admin/meal-entry', '/admin/weight-entry'] as $url) {
+        foreach (['/admin', '/admin/user'] as $url) {
             $this->client->request('GET', $url);
             self::assertResponseRedirects('/admin/login', message: $url);
         }
@@ -59,7 +55,7 @@ class AdminTest extends WebTestCase
 
         $this->client->loginUser($user, 'admin');
         $this->client->request('GET', '/logout');
-        $this->client->request('GET', '/admin');
+        $this->client->request('GET', '/admin/user');
         self::assertResponseIsSuccessful('still logged into the admin after app logout');
         $this->client->request('GET', '/');
         self::assertResponseRedirects('/login');
@@ -86,8 +82,10 @@ class AdminTest extends WebTestCase
         $this->client->submitForm('Sign in', ['_username' => 'admin@example.com', '_password' => 'secret-pass']);
         self::assertResponseRedirects('/admin');
         $this->client->followRedirect();
+        self::assertResponseRedirects('/admin/user');
+        $this->client->followRedirect();
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', 'Overview');
+        self::assertSelectorTextContains('body', 'Users');
 
         $this->client->request('GET', '/', server: []);
         self::assertResponseRedirects('/login', message: 'the admin session does not log you into the app');
@@ -95,6 +93,23 @@ class AdminTest extends WebTestCase
         $this->client->request('GET', '/admin/logout');
         $this->client->request('GET', '/admin');
         self::assertResponseRedirects('/admin/login');
+    }
+
+    public function testAdminOnlyManagesUsers(): void
+    {
+        $this->client->loginUser($this->user('admin@example.com', admin: true), 'admin');
+
+        $this->client->request('GET', '/admin');
+        self::assertResponseRedirects('/admin/user', message: 'the start page is the user list');
+
+        $this->client->followRedirect();
+        $menu = $this->client->getCrawler()->filter('.ea-sidebar-item-label')->each(fn ($n) => trim($n->text()));
+        self::assertSame(['Users'], $menu);
+
+        foreach (['/admin/meal-entry', '/admin/weight-entry'] as $url) {
+            $this->client->request('GET', $url);
+            self::assertResponseStatusCodeSame(404, $url);
+        }
     }
 
     public function testAppAndAdminDoNotLinkToEachOther(): void
@@ -106,25 +121,9 @@ class AdminTest extends WebTestCase
         $this->client->request('GET', '/');
         self::assertSelectorNotExists('a[href^="/admin"]');
 
-        $this->client->request('GET', '/admin');
+        $this->client->request('GET', '/admin/user');
         self::assertSelectorNotExists('a[href="/"]');
         self::assertSelectorTextNotContains('body', 'Back to the app');
-    }
-
-    public function testOverviewShowsCounts(): void
-    {
-        $admin = $this->user('admin@example.com', admin: true);
-        $this->meal($admin, 'apple');
-        $this->meal($admin, 'stuck', estimated: false);
-        $this->client->loginUser($admin, 'admin');
-
-        $crawler = $this->client->request('GET', '/admin');
-        self::assertResponseIsSuccessful();
-        $stats = $crawler->filter('.card-body')->each(fn ($c) => trim(preg_replace('/\s+/', ' ', $c->text())));
-        self::assertContains('Users 1', $stats);
-        self::assertContains('Meals logged 2', $stats);
-        self::assertContains('Meals waiting for the AI 1', $stats);
-        self::assertSelectorTextContains('body', 'make worker');
     }
 
     public function testUsersListAndRoleChange(): void
@@ -183,46 +182,6 @@ class AdminTest extends WebTestCase
         $this->client->request('POST', '/admin/user/'.$admin->getId().'/delete', ['token' => $token]);
     }
 
-    public function testMealsListAndDetailShowEstimateAndFailure(): void
-    {
-        $admin = $this->user('admin@example.com', admin: true);
-        $meal = $this->meal($this->user('eater@example.com'), '400 g yogurt');
-        $failed = $this->meal($admin, 'mystery', estimated: false, error: 'HTTP 503: overloaded');
-        $this->client->loginUser($admin, 'admin');
-
-        $this->client->request('GET', '/admin/meal-entry');
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('table', '400 g yogurt');
-        self::assertSelectorTextContains('table', 'eater@example.com');
-
-        $this->client->request('GET', '/admin/meal-entry/'.$meal->getId());
-        self::assertResponseIsSuccessful();
-        $row = $this->client->getCrawler()->filter('table.table-sm tbody tr')->first()->filter('td')->each(fn ($td) => $td->text());
-        self::assertSame(['Yogurt', '400', '240', '16', '18', '12', 'plain'], $row);
-
-        $this->client->request('GET', '/admin/meal-entry/'.$failed->getId());
-        self::assertSelectorTextContains('body', 'HTTP 503: overloaded');
-    }
-
-    public function testMealsAndWeightsCannotBeEditedOrCreated(): void
-    {
-        $admin = $this->user('admin@example.com', admin: true);
-        $meal = $this->meal($admin, 'apple');
-        $weight = new WeightEntry($admin, new \DateTimeImmutable('2026-09-01'), 80);
-        $this->em()->persist($weight);
-        $this->em()->flush();
-        $this->client->loginUser($admin, 'admin');
-
-        foreach (['/admin/meal-entry/'.$meal->getId().'/edit', '/admin/meal-entry/new', '/admin/weight-entry/'.$weight->getId().'/edit', '/admin/weight-entry/new'] as $url) {
-            $this->client->request('GET', $url);
-            self::assertResponseStatusCodeSame(403, $url);
-        }
-
-        $this->client->request('GET', '/admin/weight-entry');
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('table', '80.0');
-    }
-
     private function userWithPassword(string $email, string $password, bool $admin): User
     {
         $user = (new User())->setEmail($email)->setRoles($admin ? ['ROLE_ADMIN'] : []);
@@ -240,20 +199,6 @@ class AdminTest extends WebTestCase
         $this->em()->flush();
 
         return $user;
-    }
-
-    private function meal(User $user, string $text, bool $estimated = true, ?string $error = null): MealEntry
-    {
-        $entry = new MealEntry($user, $text, new \DateTimeImmutable());
-        if ($estimated) {
-            $entry->applyEstimate(new MealEstimate([new EstimatedItem('Yogurt', 400, 240, 16, 18, 12, 'plain')], 'test'), new \DateTimeImmutable());
-        } elseif ($error) {
-            $entry->estimationFailed($error, new \DateTimeImmutable(), giveUp: true);
-        }
-        $this->em()->persist($entry);
-        $this->em()->flush();
-
-        return $entry;
     }
 
     private function em(): EntityManagerInterface
