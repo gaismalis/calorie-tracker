@@ -5,7 +5,7 @@ namespace App\Tests\Unit\Entity;
 use App\Entity\MealEntry;
 use App\Entity\MealItem;
 use App\Entity\User;
-use App\Meal\MealStatus;
+use App\Estimation\EstimationStatus;
 use App\Nutrition\EstimatedItem;
 use App\Nutrition\MealEstimate;
 use PHPUnit\Framework\TestCase;
@@ -35,7 +35,7 @@ class MealEntryTest extends TestCase
     {
         $entry = new MealEntry(new User(), 'x', new \DateTimeImmutable());
 
-        self::assertSame(MealStatus::Pending, $entry->getStatus());
+        self::assertSame(EstimationStatus::Pending, $entry->getStatus());
         self::assertNull($entry->getEstimatedBy());
         self::assertSame(0, $entry->getEstimationAttempts());
         self::assertSame(0.0, $entry->getKcal());
@@ -48,7 +48,7 @@ class MealEntryTest extends TestCase
         $entry->applyEstimate(new MealEstimate([new EstimatedItem('Old', 10, 10, 1, 1, 1)], 'm1'), new \DateTimeImmutable());
         $entry->applyEstimate(new MealEstimate([new EstimatedItem('Rice', 150, 195, 4, 42, 0.4)], 'm2'), new \DateTimeImmutable('2026-10-01 12:05'));
 
-        self::assertSame(MealStatus::Estimated, $entry->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $entry->getStatus());
         self::assertSame(['Rice'], $entry->getItems()->map(fn ($i) => $i->getName())->getValues());
         self::assertSame(195.0, $entry->getKcal());
         self::assertSame('m2', $entry->getEstimatedBy());

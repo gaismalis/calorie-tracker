@@ -4,9 +4,9 @@ namespace App\Tests\Integration;
 
 use App\Entity\MealEntry;
 use App\Entity\User;
-use App\Meal\EstimationOutcome;
+use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
-use App\Meal\MealStatus;
+use App\Estimation\EstimationStatus;
 use App\Message\EstimateMeal;
 use App\MessageHandler\EstimateMealHandler;
 use App\Nutrition\EstimatedItem;
@@ -42,7 +42,7 @@ class MealEstimationTest extends KernelTestCase
         [$entry, $outcome] = $this->estimation()->logMeal($this->user, 'an apple');
 
         self::assertSame(EstimationOutcome::Estimated, $outcome);
-        self::assertSame(MealStatus::Estimated, $entry->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $entry->getStatus());
         self::assertSame(95.0, $entry->getKcal());
         self::assertSame(1, $entry->getEstimationAttempts());
         self::assertSame([5.0], $this->estimator()->timeLimits);
@@ -75,7 +75,7 @@ class MealEstimationTest extends KernelTestCase
 
         [$entry, $outcome] = $this->estimation()->logMeal($this->user, 'an apple');
         self::assertSame(EstimationOutcome::Retrying, $outcome);
-        self::assertSame(MealStatus::Pending, $entry->getStatus());
+        self::assertSame(EstimationStatus::Pending, $entry->getStatus());
         self::assertSame([10_000], $this->takeQueuedDelays($entry));
 
         self::assertSame(EstimationOutcome::Retrying, $this->estimation()->runScheduledAttempt($entry->getId()));
@@ -88,7 +88,7 @@ class MealEstimationTest extends KernelTestCase
         self::assertSame([], $this->takeQueuedDelays($entry), 'nothing more is scheduled');
 
         $entry = $this->reload($entry);
-        self::assertSame(MealStatus::Failed, $entry->getStatus());
+        self::assertSame(EstimationStatus::Failed, $entry->getStatus());
         self::assertSame(4, $entry->getEstimationAttempts(), '1 quick try + 3 retries');
         self::assertSame('HTTP 503', $entry->getLastEstimationError());
         self::assertSame([5.0, null, null, null], $this->estimator()->timeLimits, 'background attempts have no 5 s limit');
@@ -103,7 +103,7 @@ class MealEstimationTest extends KernelTestCase
         self::assertSame(EstimationOutcome::Estimated, $this->estimation()->runScheduledAttempt($entry->getId()));
 
         $entry = $this->reload($entry);
-        self::assertSame(MealStatus::Estimated, $entry->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $entry->getStatus());
         self::assertSame(95.0, $entry->getKcal());
         self::assertNull($entry->getLastEstimationError());
     }
@@ -116,7 +116,7 @@ class MealEstimationTest extends KernelTestCase
         $this->estimator()->willReturn(new MealEstimate([], 'test'));
         self::assertSame(EstimationOutcome::NoFood, $this->estimation()->runScheduledAttempt($entry->getId()));
 
-        self::assertSame(MealStatus::Failed, $this->reload($entry)->getStatus());
+        self::assertSame(EstimationStatus::Failed, $this->reload($entry)->getStatus());
     }
 
     public function testScheduledAttemptIgnoresDeletedAndAlreadyEstimatedMeals(): void
@@ -137,7 +137,7 @@ class MealEstimationTest extends KernelTestCase
 
         static::getContainer()->get(EstimateMealHandler::class)(new EstimateMeal($entry->getId()));
 
-        self::assertSame(MealStatus::Estimated, $this->reload($entry)->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $this->reload($entry)->getStatus());
     }
 
     public function testManualRetryIsAllowedOncePerHour(): void
@@ -162,7 +162,7 @@ class MealEstimationTest extends KernelTestCase
 
         self::assertSame(EstimationOutcome::Failed, $this->estimation()->retryManually($entry));
 
-        self::assertSame(MealStatus::Failed, $entry->getStatus());
+        self::assertSame(EstimationStatus::Failed, $entry->getStatus());
         self::assertSame([5.0], array_slice($this->estimator()->timeLimits, -1), 'manual retry waits at most 5 s');
         self::assertSame([], $this->transport()->getSent(), 'no automatic retries after a manual one');
         self::assertFalse($this->estimation()->canRetryManually($entry));
@@ -175,7 +175,7 @@ class MealEstimationTest extends KernelTestCase
         $this->estimator()->willReturn(self::apple());
 
         self::assertSame(EstimationOutcome::Estimated, $this->estimation()->retryManually($entry));
-        self::assertSame(MealStatus::Estimated, $this->reload($entry)->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $this->reload($entry)->getStatus());
     }
 
     public function testManualRetryTooEarlyIsRefused(): void
@@ -194,7 +194,7 @@ class MealEstimationTest extends KernelTestCase
             $this->estimation()->runScheduledAttempt($entry->getId());
         }
         $this->transport()->reset();
-        self::assertSame(MealStatus::Failed, $entry->getStatus());
+        self::assertSame(EstimationStatus::Failed, $entry->getStatus());
 
         return $entry;
     }

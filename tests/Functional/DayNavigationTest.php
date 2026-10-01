@@ -4,7 +4,7 @@ namespace App\Tests\Functional;
 
 use App\Entity\MealEntry;
 use App\Entity\User;
-use App\Meal\MealStatus;
+use App\Estimation\EstimationStatus;
 use App\Nutrition\EstimatedItem;
 use App\Nutrition\MealEstimate;
 use App\Nutrition\NutritionEstimator;
@@ -170,7 +170,7 @@ class DayNavigationTest extends WebTestCase
         $this->client->submitForm('Save');
 
         self::assertResponseRedirects('/day/'.$day->format('Y-m-d'));
-        self::assertSame(MealStatus::Estimated, $this->onlyEntry()->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $this->onlyEntry()->getStatus());
     }
 
     public function testAdjustPageShowsWhenTheMealWasEatenInLocalTime(): void

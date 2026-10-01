@@ -2,7 +2,8 @@
 
 namespace App\Entity;
 
-use App\Meal\MealStatus;
+use App\Estimation\Estimable;
+use App\Estimation\EstimationState;
 use App\Nutrition\MealEstimate;
 use App\Repository\MealEntryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -15,8 +16,10 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: MealEntryRepository::class)]
 #[ORM\Index(columns: ['user_id', 'eaten_at'])]
-class MealEntry
+class MealEntry implements Estimable
 {
+    use EstimationState;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -34,24 +37,6 @@ class MealEntry
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
-
-    #[ORM\Column(length: 20, enumType: MealStatus::class, options: ['default' => 'estimated'])]
-    private MealStatus $status = MealStatus::Pending;
-
-    /** Which model produced the estimate, so entries can be re-parsed or audited later. Null until estimated. */
-    #[ORM\Column(length: 100, nullable: true)]
-    private ?string $estimatedBy = null;
-
-    /** How many times estimation has been tried (automatic and manual). */
-    #[ORM\Column(options: ['default' => 0])]
-    private int $estimationAttempts = 0;
-
-    #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $lastEstimationAttemptAt = null;
-
-    /** Technical reason of the last failure, for logs/support. Not shown to the user verbatim. */
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $lastEstimationError = null;
 
     #[ORM\Column]
     private float $kcal = 0;
@@ -84,7 +69,6 @@ class MealEntry
     /** Replaces any items with the estimate and marks the entry Estimated. */
     public function applyEstimate(MealEstimate $estimate, \DateTimeImmutable $at): void
     {
-        $this->recordAttempt($at);
         $this->items->clear();
         foreach ($estimate->items as $item) {
             $this->items->add(new MealItem(
@@ -92,23 +76,7 @@ class MealEntry
             ));
         }
         $this->recalculateTotals();
-        $this->estimatedBy = $estimate->estimatedBy;
-        $this->lastEstimationError = null;
-        $this->status = MealStatus::Estimated;
-    }
-
-    /** Records a failed attempt. The entry becomes Failed when $giveUp, otherwise stays Pending for another try. */
-    public function estimationFailed(string $error, \DateTimeImmutable $at, bool $giveUp): void
-    {
-        $this->recordAttempt($at);
-        $this->lastEstimationError = $error;
-        $this->status = $giveUp ? MealStatus::Failed : MealStatus::Pending;
-    }
-
-    private function recordAttempt(\DateTimeImmutable $at): void
-    {
-        ++$this->estimationAttempts;
-        $this->lastEstimationAttemptAt = $at;
+        $this->estimationSucceeded($estimate->estimatedBy, $at);
     }
 
     public function addItem(MealItem $item): void
@@ -156,41 +124,6 @@ class MealEntry
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
-    }
-
-    public function getStatus(): MealStatus
-    {
-        return $this->status;
-    }
-
-    public function isPending(): bool
-    {
-        return MealStatus::Pending === $this->status;
-    }
-
-    public function isFailed(): bool
-    {
-        return MealStatus::Failed === $this->status;
-    }
-
-    public function getEstimatedBy(): ?string
-    {
-        return $this->estimatedBy;
-    }
-
-    public function getEstimationAttempts(): int
-    {
-        return $this->estimationAttempts;
-    }
-
-    public function getLastEstimationAttemptAt(): ?\DateTimeImmutable
-    {
-        return $this->lastEstimationAttemptAt;
-    }
-
-    public function getLastEstimationError(): ?string
-    {
-        return $this->lastEstimationError;
     }
 
     public function getKcal(): float

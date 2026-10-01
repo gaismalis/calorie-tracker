@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Meal;
+namespace App\Estimation;
 
 enum EstimationOutcome
 {

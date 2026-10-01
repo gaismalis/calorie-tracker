@@ -5,7 +5,7 @@ namespace App\Tests\Functional;
 use App\Entity\MealEntry;
 use App\Entity\WeightEntry;
 use App\Meal\MealEstimation;
-use App\Meal\MealStatus;
+use App\Estimation\EstimationStatus;
 use App\Profile\ActivityLevel;
 use App\Profile\Sex;
 use App\Entity\User;
@@ -58,7 +58,7 @@ class MealLoggingTest extends WebTestCase
         self::assertSelectorTextContains('.entry .assumption', 'big tablespoon ≈ 20 g');
 
         self::assertSame('400 g yogurt + big tbsp peanut butter', $entry->getRawText());
-        self::assertSame(MealStatus::Estimated, $entry->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $entry->getStatus());
         self::assertSame('gemini:test', $entry->getEstimatedBy());
         self::assertSame(500.0, $entry->getKcal(), 'totals are summed from items');
         self::assertSame(45.0, $entry->getProtein());
@@ -102,7 +102,7 @@ class MealLoggingTest extends WebTestCase
         self::assertSame('10', $crawler->filter('meta[http-equiv="refresh"]')->attr('content'), 'page refreshes while pending');
 
         $entry = $this->em()->getRepository(MealEntry::class)->findOneBy(['user' => $this->user]);
-        self::assertSame(MealStatus::Pending, $entry->getStatus());
+        self::assertSame(EstimationStatus::Pending, $entry->getStatus());
     }
 
     public function testNoAutoRefreshWithoutPendingMeals(): void
@@ -125,7 +125,7 @@ class MealLoggingTest extends WebTestCase
 
         self::assertResponseRedirects('/meals/'.$entry->getId().'/edit');
         $this->em()->clear();
-        self::assertSame(MealStatus::Estimated, $this->em()->find(MealEntry::class, $entry->getId())->getStatus());
+        self::assertSame(EstimationStatus::Estimated, $this->em()->find(MealEntry::class, $entry->getId())->getStatus());
     }
 
     public function testFailedMealShowsWhenRetryIsPossibleAndRejectsEarlyRetry(): void

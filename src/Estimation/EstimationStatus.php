@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Meal;
+namespace App\Estimation;
 
-enum MealStatus: string
+enum EstimationStatus: string
 {
     /** Saved, waiting for the AI (first try timed out or failed; retrying in the background). */
     case Pending = 'pending';

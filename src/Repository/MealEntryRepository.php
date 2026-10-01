@@ -4,7 +4,7 @@ namespace App\Repository;
 
 use App\Entity\MealEntry;
 use App\Entity\User;
-use App\Meal\MealStatus;
+use App\Estimation\EstimationStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -61,7 +61,7 @@ class MealEntryRepository extends ServiceEntityRepository
             ->andWhere('m.status = :estimated')
             ->andWhere('m.eatenAt >= :start AND m.eatenAt < :end')
             ->setParameter('user', $user)
-            ->setParameter('estimated', MealStatus::Estimated)
+            ->setParameter('estimated', EstimationStatus::Estimated)
             ->setParameter('start', $start->setTimezone($utc))
             ->setParameter('end', $end->setTimezone($utc))
             ->getQuery()

@@ -5,7 +5,7 @@ namespace App\Controller;
 use App\Energy\EnergyCalculator;
 use App\Entity\MealEntry;
 use App\Entity\User;
-use App\Meal\EstimationOutcome;
+use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
 use App\Repository\MealEntryRepository;
 use Doctrine\ORM\EntityManagerInterface;
