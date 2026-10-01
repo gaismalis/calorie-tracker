@@ -20,24 +20,81 @@ class AdminTest extends WebTestCase
         $this->client = static::createClient();
     }
 
-    public function testAnonymousUsersAreSentToLogin(): void
+    public function testAnonymousUsersGetTheAdminLoginScreen(): void
     {
         $this->client->request('GET', '/admin');
 
-        self::assertResponseRedirects('/login');
+        self::assertResponseRedirects('/admin/login');
+        $this->client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('input[name=_username]');
+        // A real per-session token, not the placeholder of a stateless token that needs JavaScript to fill in.
+        self::assertGreaterThan(20, strlen($this->client->getCrawler()->filter('input[name=_csrf_token]')->attr('value')));
     }
 
-    public function testRegularUsersAreForbiddenEverywhereInAdmin(): void
+    public function testUsersLoggedIntoTheAppGetTheAdminLoginScreenNotAnError(): void
     {
-        $this->client->loginUser($this->user('user@example.com'));
+        $this->client->loginUser($this->user('user@example.com')); // app session only
 
         foreach (['/admin', '/admin/user', '/admin/meal-entry', '/admin/weight-entry'] as $url) {
             $this->client->request('GET', $url);
-            self::assertResponseStatusCodeSame(403, $url);
+            self::assertResponseRedirects('/admin/login', message: $url);
         }
 
         $this->client->request('GET', '/');
         self::assertSelectorNotExists('.topbar a[href="/admin"]');
+    }
+
+    public function testLoggingOutOfOneDoesNotLogYouOutOfTheOther(): void
+    {
+        $user = $this->userWithPassword('admin@example.com', 'secret-pass', admin: true);
+        $this->client->loginUser($user);           // app
+        $this->client->loginUser($user, 'admin');  // admin
+
+        $this->client->request('GET', '/admin/logout');
+        $this->client->request('GET', '/');
+        self::assertResponseIsSuccessful('still logged into the app after admin logout');
+        $this->client->request('GET', '/admin');
+        self::assertResponseRedirects('/admin/login');
+
+        $this->client->loginUser($user, 'admin');
+        $this->client->request('GET', '/logout');
+        $this->client->request('GET', '/admin');
+        self::assertResponseIsSuccessful('still logged into the admin after app logout');
+        $this->client->request('GET', '/');
+        self::assertResponseRedirects('/login');
+    }
+
+    public function testRegularUsersCannotLogInToAdmin(): void
+    {
+        $this->userWithPassword('user@example.com', 'secret-pass', admin: false);
+
+        $this->client->request('GET', '/admin/login');
+        $this->client->submitForm('Sign in', ['_username' => 'user@example.com', '_password' => 'secret-pass']);
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('body', "This account doesn't have admin access.");
+        $this->client->request('GET', '/admin');
+        self::assertResponseRedirects('/admin/login');
+    }
+
+    public function testAdminsLogInSeparatelyAndCanLogOut(): void
+    {
+        $this->userWithPassword('admin@example.com', 'secret-pass', admin: true);
+
+        $this->client->request('GET', '/admin/login');
+        $this->client->submitForm('Sign in', ['_username' => 'admin@example.com', '_password' => 'secret-pass']);
+        self::assertResponseRedirects('/admin');
+        $this->client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'Overview');
+
+        $this->client->request('GET', '/', server: []);
+        self::assertResponseRedirects('/login', message: 'the admin session does not log you into the app');
+
+        $this->client->request('GET', '/admin/logout');
+        $this->client->request('GET', '/admin');
+        self::assertResponseRedirects('/admin/login');
     }
 
     public function testOverviewShowsCountsAndAdminLinkIsVisible(): void
@@ -45,8 +102,9 @@ class AdminTest extends WebTestCase
         $admin = $this->user('admin@example.com', admin: true);
         $this->meal($admin, 'apple');
         $this->meal($admin, 'stuck', estimated: false);
-        $this->client->loginUser($admin);
+        $this->client->loginUser($admin, 'admin');
 
+        $this->client->loginUser($admin); // app session too, to see the link
         $this->client->request('GET', '/');
         self::assertSelectorExists('.topbar a[href="/admin"]');
 
@@ -63,7 +121,7 @@ class AdminTest extends WebTestCase
     {
         $admin = $this->user('admin@example.com', admin: true);
         $member = $this->user('member@example.com');
-        $this->client->loginUser($admin);
+        $this->client->loginUser($admin, 'admin');
 
         $this->client->request('GET', '/admin/user');
         self::assertResponseIsSuccessful();
@@ -80,7 +138,7 @@ class AdminTest extends WebTestCase
 
     public function testUsersCannotBeCreatedFromAdmin(): void
     {
-        $this->client->loginUser($this->user('admin@example.com', admin: true));
+        $this->client->loginUser($this->user('admin@example.com', admin: true), 'admin');
 
         $this->client->request('GET', '/admin/user/new');
 
@@ -91,7 +149,7 @@ class AdminTest extends WebTestCase
     {
         $admin = $this->user('admin@example.com', admin: true);
         $other = $this->user('other@example.com');
-        $this->client->loginUser($admin);
+        $this->client->loginUser($admin, 'admin');
 
         $this->client->request('GET', '/admin/user/'.$admin->getId());
         self::assertSelectorNotExists('.action-delete');
@@ -103,7 +161,7 @@ class AdminTest extends WebTestCase
     public function testAdminCannotDeleteThemselves(): void
     {
         $admin = $this->user('admin@example.com', admin: true);
-        $this->client->loginUser($admin);
+        $this->client->loginUser($admin, 'admin');
         $this->client->catchExceptions(false);
 
         $crawler = $this->client->request('GET', '/admin/user');
@@ -120,7 +178,7 @@ class AdminTest extends WebTestCase
         $admin = $this->user('admin@example.com', admin: true);
         $meal = $this->meal($this->user('eater@example.com'), '400 g yogurt');
         $failed = $this->meal($admin, 'mystery', estimated: false, error: 'HTTP 503: overloaded');
-        $this->client->loginUser($admin);
+        $this->client->loginUser($admin, 'admin');
 
         $this->client->request('GET', '/admin/meal-entry');
         self::assertResponseIsSuccessful();
@@ -143,7 +201,7 @@ class AdminTest extends WebTestCase
         $weight = new WeightEntry($admin, new \DateTimeImmutable('2026-09-01'), 80);
         $this->em()->persist($weight);
         $this->em()->flush();
-        $this->client->loginUser($admin);
+        $this->client->loginUser($admin, 'admin');
 
         foreach (['/admin/meal-entry/'.$meal->getId().'/edit', '/admin/meal-entry/new', '/admin/weight-entry/'.$weight->getId().'/edit', '/admin/weight-entry/new'] as $url) {
             $this->client->request('GET', $url);
@@ -153,6 +211,16 @@ class AdminTest extends WebTestCase
         $this->client->request('GET', '/admin/weight-entry');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('table', '80.0');
+    }
+
+    private function userWithPassword(string $email, string $password, bool $admin): User
+    {
+        $user = (new User())->setEmail($email)->setRoles($admin ? ['ROLE_ADMIN'] : []);
+        $user->setPassword(static::getContainer()->get('security.user_password_hasher')->hashPassword($user, $password));
+        $this->em()->persist($user);
+        $this->em()->flush();
+
+        return $user;
     }
 
     private function user(string $email, bool $admin = false): User

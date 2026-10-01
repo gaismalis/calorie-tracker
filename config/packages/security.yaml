@@ -12,6 +12,24 @@ security:
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+        # Back office: own login page and session, separate from the app. Only admins can log in.
+        admin:
+            pattern: ^/admin
+            lazy: true
+            provider: app_user_provider
+            user_checker: App\Security\AdminUserChecker
+            form_login:
+                login_path: admin_login
+                check_path: admin_login
+                enable_csrf: true
+                # Session-based token: EasyAdmin's login page doesn't load the JS that the app's stateless "authenticate" token needs.
+                csrf_token_id: admin_authenticate
+                default_target_path: admin
+            logout:
+                path: admin_logout
+                target: admin_login
+                # Only drop the admin login; keep the app login (both live in one PHP session).
+                invalidate_session: false
         main:
             lazy: true
             provider: app_user_provider
@@ -23,12 +41,15 @@ security:
             logout:
                 path: app_logout
                 target: app_login
+                # Only drop the app login; keep a separate admin login.
+                invalidate_session: false
             remember_me:
                 secret: '%kernel.secret%'
                 lifetime: 2592000
 
     access_control:
         - { path: ^/(login|register)$, roles: PUBLIC_ACCESS }
+        - { path: ^/admin/login$, roles: PUBLIC_ACCESS }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/, roles: ROLE_USER }
 
