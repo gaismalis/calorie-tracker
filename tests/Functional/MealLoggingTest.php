@@ -120,6 +120,26 @@ class MealLoggingTest extends WebTestCase
         self::assertStringNotContainsString('someone else meal', $text);
     }
 
+    public function testEntriesFromTheRandomProviderAreMarkedAsFake(): void
+    {
+        $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Rice', 100, 130, 3, 28, 0)], 'random'));
+
+        $this->client->request('GET', '/');
+        $this->client->submitForm('Log meal', ['description' => 'rice']);
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('.entry .badge', 'fake');
+    }
+
+    public function testEntriesFromRealProvidersAreNotMarkedAsFake(): void
+    {
+        $this->storeEntry($this->user, 'real meal', new \DateTimeImmutable());
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorNotExists('.entry .badge');
+    }
+
     public function testUserCanDeleteOwnMeal(): void
     {
         $this->storeEntry($this->user, 'to delete', new \DateTimeImmutable());

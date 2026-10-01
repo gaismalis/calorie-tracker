@@ -25,6 +25,7 @@
             <header>
                 <span class="time">{{ entry.eatenAt|date('H:i') }}</span>
                 <span class="raw">“{{ entry.rawText }}”</span>
+                {% if entry.estimatedBy == 'random' %}<span class="badge" title="Numbers from the random fake provider">fake</span>{% endif %}
                 <span class="kcal">{{ entry.kcal|round }} kcal</span>
                 <form method="post" action="{{ path('app_meal_delete', {id: entry.id}) }}" onsubmit="return confirm('Delete this meal?')">
                     <input type="hidden" name="_token" value="{{ csrf_token('meal_delete_' ~ entry.id) }}">

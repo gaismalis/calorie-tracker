@@ -61,3 +61,4 @@ ul { padding-left: 1.1rem; color: var(--danger); font-size: 0.85rem; }
 .entry th:first-child, .entry td:first-child { text-align: left; }
 .entry td { text-align: right; padding: 0.25rem 0 0.25rem 0.75rem; font-variant-numeric: tabular-nums; vertical-align: top; }
 .entry .assumption { color: var(--muted); font-size: 0.8rem; }
+.badge { font-size: 0.7rem; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 4px; background: #fff3cd; color: #7a5b00; }
