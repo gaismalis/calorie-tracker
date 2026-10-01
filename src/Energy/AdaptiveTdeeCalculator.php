@@ -3,6 +3,7 @@
 namespace App\Energy;
 
 use App\Entity\User;
+use App\Repository\ExerciseEntryRepository;
 use App\Repository\MealEntryRepository;
 use App\Repository\WeightEntryRepository;
 use Psr\Clock\ClockInterface;
@@ -13,6 +14,8 @@ use Psr\Clock\ClockInterface;
  *     TDEE ≈ average daily intake − (trend weight change in kg × 7700 kcal/kg) / days
  *
  * over the last {@see WINDOW_DAYS} complete days (today is excluded because it isn't over yet).
+ * Logged exercise is averaged over the same days and subtracted to get the baseline
+ * ({@see AdaptiveTdee::$baseline}); each day's own exercise is then added back on top of it.
  * Consistent logging errors cancel out: if someone always under-reports by 10 %, the result is
  * 10 % low too, which is exactly the intake that keeps their weight stable *as they log it*.
  */
@@ -32,6 +35,7 @@ final class AdaptiveTdeeCalculator
     public function __construct(
         private readonly MealEntryRepository $meals,
         private readonly WeightEntryRepository $weights,
+        private readonly ExerciseEntryRepository $exercises,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -46,15 +50,17 @@ final class AdaptiveTdeeCalculator
             $this->meals->dailyIntake($user, new \DateTimeImmutable($windowStart), new \DateTimeImmutable($today)),
             $this->weights->weightsByDate($user, new \DateTimeImmutable($historyStart)),
             $today,
+            $this->exercises->dailyExercise($user, new \DateTimeImmutable($windowStart), new \DateTimeImmutable($today)),
         );
     }
 
     /**
      * @param array<string, float> $intakeByDay kcal by local date ('Y-m-d'); days without meals are absent
      * @param array<string, float> $weightsByDay kg by date ('Y-m-d')
-     * @param string               $today       local date; this day is not included
+     * @param string               $today        local date; this day is not included
+     * @param array<string, float> $exerciseByDay kcal of logged exercise by local date
      */
-    public static function calculate(array $intakeByDay, array $weightsByDay, string $today): AdaptiveTdee
+    public static function calculate(array $intakeByDay, array $weightsByDay, string $today, array $exerciseByDay = []): AdaptiveTdee
     {
         $lastCompleteDay = self::shift($today, -1);
         $trend = WeightTrend::daily(array_filter($weightsByDay, fn (string $date) => $date <= $lastCompleteDay, ARRAY_FILTER_USE_KEY));
@@ -88,7 +94,10 @@ final class AdaptiveTdeeCalculator
             return new AdaptiveTdee(null, $days, $loggedDays, round($averageIntake), round($trendChange, 2), missing: 'implausible');
         }
 
-        return new AdaptiveTdee($tdee, $days, $loggedDays, round($averageIntake), round($trendChange, 2));
+        $exercise = array_filter($exerciseByDay, fn (string $date) => $date >= $start && $date < $end, ARRAY_FILTER_USE_KEY);
+        $averageExercise = round(array_sum($exercise) / $days);
+
+        return new AdaptiveTdee($tdee, $days, $loggedDays, round($averageIntake), round($trendChange, 2), averageExercise: $averageExercise);
     }
 
     private static function shift(string $date, int $days): string

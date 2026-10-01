@@ -116,6 +116,31 @@ class AdaptiveTdeeCalculatorTest extends TestCase
         self::assertSame(2500.0, AdaptiveTdeeCalculator::calculate($intake, $weights, self::TODAY)->tdee);
     }
 
+    public function testLoggedExerciseIsSubtractedForTheBaseline(): void
+    {
+        // Every other day a 600 kcal workout; weight stable on 2600 kcal/day → total burn 2600, baseline 2300.
+        $exercise = self::days(28, fn (int $i) => 0 === $i % 2 ? 600.0 : 0.0);
+
+        $result = AdaptiveTdeeCalculator::calculate(self::days(28, fn () => 2600.0), self::days(28, fn () => 80.0), self::TODAY, $exercise);
+
+        self::assertSame(2600.0, $result->tdee);
+        self::assertSame(311.0, $result->averageExercise, '14 workouts in the 27-day window (8400 / 27)');
+        self::assertSame(2289.0, $result->baseline);
+    }
+
+    public function testTodaysExerciseDoesNotCountForTheBaseline(): void
+    {
+        $result = AdaptiveTdeeCalculator::calculate(
+            self::days(28, fn () => 2500.0),
+            self::days(28, fn () => 80.0),
+            self::TODAY,
+            [self::TODAY => 1000.0],
+        );
+
+        self::assertSame(0.0, $result->averageExercise);
+        self::assertSame(2500.0, $result->baseline);
+    }
+
     public function testOnlyTheLast28DaysCount(): void
     {
         $intake = self::days(60, fn (int $i) => $i < 32 ? 5000.0 : 2500.0); // a feast more than 4 weeks ago

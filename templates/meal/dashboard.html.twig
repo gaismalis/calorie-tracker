@@ -35,7 +35,7 @@
     <h2>{{ isToday ? 'Today' : day|date('l, j F', app.user.timezone) }}</h2>
     {% set adaptive = energy.adaptive %}
     {% if energy.complete %}
-        {% set tdee = energy.tdee %}
+        {% set tdee = energy.baseline %}
         {% set goal = app.user.weeklyGoalKg %}
         {% set target = energy.targetFor(goal) %}
         {% set remaining = target - totals.kcal %}

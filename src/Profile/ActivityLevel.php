@@ -2,7 +2,10 @@
 
 namespace App\Profile;
 
-/** Standard multipliers applied to BMR to estimate total daily energy expenditure. */
+/**
+ * Everyday activity WITHOUT workouts: workouts are logged as exercise and added on top. Standard
+ * multipliers applied to BMR.
+ */
 enum ActivityLevel: string
 {
     case Sedentary = 'sedentary';
@@ -25,11 +28,11 @@ enum ActivityLevel: string
     public function label(): string
     {
         return match ($this) {
-            self::Sedentary => 'Sedentary (desk job, little exercise)',
-            self::Light => 'Light (exercise 1–3 days/week)',
-            self::Moderate => 'Moderate (exercise 3–5 days/week)',
-            self::Active => 'Active (exercise 6–7 days/week)',
-            self::VeryActive => 'Very active (physical job or training twice a day)',
+            self::Sedentary => 'Mostly sitting (desk job, little walking)',
+            self::Light => 'Lightly active (some walking or standing)',
+            self::Moderate => 'Active (on your feet most of the day)',
+            self::Active => 'Very active (physical job)',
+            self::VeryActive => 'Extremely active (heavy physical work all day)',
         };
     }
 }

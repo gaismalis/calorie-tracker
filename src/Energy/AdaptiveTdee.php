@@ -5,7 +5,11 @@ namespace App\Energy;
 /** Daily energy expenditure computed from the user's own intake and weight trend, or why it isn't available yet. */
 final readonly class AdaptiveTdee
 {
+    /** Average daily burn without logged exercise: {@see $tdee} minus {@see $averageExercise}. */
+    public ?float $baseline;
+
     public function __construct(
+        /** Average total daily burn over the window, logged exercise included. */
         public ?float $tdee,
         /** Days covered (from window start to end). */
         public int $days = 0,
@@ -18,7 +22,10 @@ final readonly class AdaptiveTdee
         public ?string $missing = null,
         /** For 'weight' and 'meals': how many more days are needed. */
         public int $daysNeeded = 0,
+        /** Logged exercise per day, averaged over all days of the window. */
+        public float $averageExercise = 0.0,
     ) {
+        $this->baseline = null === $tdee ? null : round($tdee - $averageExercise);
     }
 
     public function isAvailable(): bool

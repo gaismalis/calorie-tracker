@@ -12,7 +12,7 @@ class EnergyEstimateTest extends TestCase
     {
         $estimate = (new EnergyEstimate(1780, 2759))->withAdaptive(new AdaptiveTdee(2500));
 
-        self::assertSame(2500.0, $estimate->getTdee());
+        self::assertSame(2500.0, $estimate->getBaseline());
         self::assertSame('adaptive', $estimate->getSource());
     }
 
@@ -20,7 +20,7 @@ class EnergyEstimateTest extends TestCase
     {
         $estimate = (new EnergyEstimate(1780, 2759))->withAdaptive(new AdaptiveTdee(null, missing: 'weight'));
 
-        self::assertSame(2759.0, $estimate->getTdee());
+        self::assertSame(2759.0, $estimate->getBaseline());
         self::assertSame('formula', $estimate->getSource());
         self::assertNull((new EnergyEstimate(null, null))->getSource());
     }
@@ -54,5 +54,22 @@ class EnergyEstimateTest extends TestCase
     {
         self::assertSame(-550.0, EnergyEstimate::dailyAdjustment(-0.5));
         self::assertSame(825.0, EnergyEstimate::dailyAdjustment(0.75));
+    }
+
+    public function testLoggedExerciseIsAddedOnTopOfTheBaseline(): void
+    {
+        $estimate = new EnergyEstimate(null, 2200);
+
+        self::assertSame(2800.0, $estimate->burnedWith(600));
+        self::assertSame(2250.0, $estimate->targetFor(-0.5, 600), '2200 + 600 − 550');
+        self::assertSame(1650.0, $estimate->targetFor(-0.5));
+    }
+
+    public function testAdaptiveBaselineExcludesAverageLoggedExercise(): void
+    {
+        $estimate = (new EnergyEstimate(null, 2759))->withAdaptive(new AdaptiveTdee(2700, averageExercise: 300));
+
+        self::assertSame(2400.0, $estimate->getBaseline());
+        self::assertSame(2900.0, $estimate->burnedWith(500));
     }
 }
