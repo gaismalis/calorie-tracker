@@ -26,7 +26,7 @@
                             <span class="status failed">Couldn't estimate</span>
                         {% else %}
                             <span class="kcal">{{ entry.kcal|round }} kcal</span>
-                            <a href="{{ path('app_meal_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust amounts">Adjust</a>
+                            <a href="{{ path('app_meal_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust amounts" data-action="entry-dialog#open:prevent">Adjust</a>
                         {% endif %}
                         <form method="post" action="{{ path('app_meal_delete', {id: entry.id}) }}" data-controller="confirm-delete">
                             <input type="hidden" name="_token" value="{{ csrf_token('meal_delete_' ~ entry.id) }}">
@@ -71,7 +71,7 @@
                             <span class="status failed">Couldn't estimate</span>
                         {% else %}
                             <span class="kcal">{{ entry.kcal|round }} kcal burned</span>
-                            <a href="{{ path('app_exercise_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust calories">Adjust</a>
+                            <a href="{{ path('app_exercise_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust calories" data-action="entry-dialog#open:prevent">Adjust</a>
                         {% endif %}
                         <form method="post" action="{{ path('app_exercise_delete', {id: entry.id}) }}" data-controller="confirm-delete">
                             <input type="hidden" name="_token" value="{{ csrf_token('exercise_delete_' ~ entry.id) }}">

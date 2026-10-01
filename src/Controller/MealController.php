@@ -20,6 +20,16 @@ class MealController extends AbstractController
     private const MAX_DESCRIPTION_LENGTH = 1000;
     private const MAX_ITEM_GRAMS = 5000;
 
+    /** The "what did you eat?" form; shown inside the dialog on the main page (Turbo frame), or as a page. */
+    #[Route('/meals/new', name: 'app_meal_new', methods: ['GET'])]
+    public function new(#[CurrentUser] User $user, Request $request): Response
+    {
+        $day = $this->parseLocalDate($user, $request->query->getString('date'));
+        $isPast = null !== $day && $day < $user->today();
+
+        return $this->render('meal/new.html.twig', ['day' => $isPast ? $day : null]);
+    }
+
     #[Route('/meals', name: 'app_meal_create', methods: ['POST'])]
     public function create(#[CurrentUser] User $user, Request $request, MealEstimation $estimation): Response
     {
@@ -47,7 +57,7 @@ class MealController extends AbstractController
         $back = $eatenAt ?? $user->today();
 
         return match ($outcome) {
-            EstimationOutcome::Estimated => $this->redirectToRoute('app_meal_edit', ['id' => $entry->getId()]),
+            EstimationOutcome::Estimated => $this->redirectToRoute('app_meal_edit', ['id' => $entry->getId(), 'new' => 1]),
             EstimationOutcome::NoFood => $this->flashAndGoToDay($user, $back, 'error', "I couldn't find any food in that. Try e.g. \"2 eggs and a slice of toast\"."),
             EstimationOutcome::Retrying => $this->flashAndGoToDay($user, $back, 'info', "Saved. The AI is slow right now, so we'll estimate it in the background. The numbers will appear here shortly."),
             EstimationOutcome::Failed => $this->flashAndGoToDay($user, $back, 'error', 'Saved, but we could not estimate it. You can retry later.'),
@@ -113,6 +123,7 @@ class MealController extends AbstractController
 
         return $this->render('meal/edit.html.twig', [
             'entry' => $entry,
+            'isNew' => $request->query->getBoolean('new'),
             'errors' => $errors,
             'backUrl' => $this->dayUrl($user, $entry->getEatenAt(), 'food'),
         ], new Response(status: $errors ? 422 : 200));

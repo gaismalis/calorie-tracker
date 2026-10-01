@@ -1,0 +1,6 @@
+{# Inside the add/adjust dialog: tells the browser to load {{ to }} as a whole page. Without JS, the link does it. #}
+<turbo-frame id="entry-panel">
+    <div data-controller="frame-exit" data-frame-exit-url-value="{{ to }}">
+        <p class="muted"><a href="{{ to }}" data-turbo-frame="_top">Continue</a></p>
+    </div>
+</turbo-frame>

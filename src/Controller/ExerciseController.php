@@ -20,6 +20,16 @@ class ExerciseController extends AbstractController
     private const MAX_DESCRIPTION_LENGTH = 1000;
     private const MAX_ITEM_KCAL = 10000;
 
+    /** The "what did you do?" form; shown inside the dialog on the main page (Turbo frame), or as a page. */
+    #[Route('/exercises/new', name: 'app_exercise_new', methods: ['GET'])]
+    public function new(#[CurrentUser] User $user, Request $request): Response
+    {
+        $day = $this->parseLocalDate($user, $request->query->getString('date'));
+        $isPast = null !== $day && $day < $user->today();
+
+        return $this->render('exercise/new.html.twig', ['day' => $isPast ? $day : null]);
+    }
+
     #[Route('/exercises', name: 'app_exercise_create', methods: ['POST'])]
     public function create(#[CurrentUser] User $user, Request $request, ExerciseEstimation $estimation): Response
     {
@@ -46,9 +56,10 @@ class ExerciseController extends AbstractController
         $back = $performedAt ?? $user->today();
 
         return match ($outcome) {
-            EstimationOutcome::Estimated => $this->flashAndGoToDay($user, $back, 'success', ExerciseEstimation::ESTIMATED_BY_USER === $entry->getEstimatedBy()
-                ? sprintf('Logged %d kcal burned, as you entered.', round($entry->getKcal()))
-                : sprintf('Logged ~%d kcal burned.', round($entry->getKcal()))),
+            // The user's own number needs no review; an AI estimate gets the "we think it's X kcal" slider.
+            EstimationOutcome::Estimated => ExerciseEstimation::ESTIMATED_BY_USER === $entry->getEstimatedBy()
+                ? $this->flashAndGoToDay($user, $back, 'success', sprintf('Logged %d kcal burned, as you entered.', round($entry->getKcal())))
+                : $this->redirectToRoute('app_exercise_edit', ['id' => $entry->getId(), 'new' => 1]),
             EstimationOutcome::NoFood => $this->flashAndGoToDay($user, $back, 'error', "I couldn't find any activity in that. Try e.g. \"30 min running\" or \"workout, burned 400 kcal\"."),
             EstimationOutcome::Retrying => $this->flashAndGoToDay($user, $back, 'info', "Saved. The AI is slow right now, so we'll estimate it in the background. The numbers will appear here shortly."),
             EstimationOutcome::Failed => $this->flashAndGoToDay($user, $back, 'error', 'Saved, but we could not estimate it. You can retry later.'),
@@ -114,6 +125,7 @@ class ExerciseController extends AbstractController
 
         return $this->render('exercise/edit.html.twig', [
             'entry' => $entry,
+            'isNew' => $request->query->getBoolean('new'),
             'errors' => $errors,
             'backUrl' => $this->dayUrl($user, $entry->getPerformedAt(), 'exercise'),
         ], new Response(status: $errors ? 422 : 200));

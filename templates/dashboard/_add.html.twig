@@ -1,42 +1,15 @@
-{# Floating "+" → choose Meal or Exercise → a dialog with the text box. #}
-<div class="add-entry" data-controller="add-entry" data-action="keydown.esc@window->add-entry#closeMenu click@window->add-entry#outside">
-    <div class="add-menu" data-add-entry-target="menu" hidden>
-        <button type="button" data-action="add-entry#open" data-add-entry-kind-param="meal">🍽 Meal</button>
-        <button type="button" data-action="add-entry#open" data-add-entry-kind-param="exercise">🏃 Exercise</button>
+{# Floating "+" → Meal or Exercise → one dialog. Its Turbo frame loads the form, then the "we think it's X kcal" review. #}
+{% set dateParam = isToday ? {} : {date: day|date('Y-m-d', app.user.timezone)} %}
+<div class="add-entry">
+    <div class="add-menu" data-entry-dialog-target="menu" hidden>
+        <a href="{{ path('app_meal_new', dateParam) }}" role="button" data-action="entry-dialog#open">🍽 Meal</a>
+        <a href="{{ path('app_exercise_new', dateParam) }}" role="button" data-action="entry-dialog#open">🏃 Exercise</a>
     </div>
     <button type="button" class="fab" aria-label="Add a meal or exercise" aria-expanded="false" aria-haspopup="true"
-            data-add-entry-target="toggle" data-action="add-entry#toggle">+</button>
+            data-entry-dialog-target="toggle" data-action="entry-dialog#toggle">+</button>
 
-    <dialog class="entry-dialog" data-add-entry-target="dialog" data-kind="meal" aria-labelledby="meal-dialog-title" data-action="click->add-entry#backdrop">
-        <form method="post" action="{{ path('app_meal_create') }}" class="meal-form">
-            <h2 id="meal-dialog-title">{{ isToday ? 'What did you eat?' : 'What did you eat on ' ~ day|date('l', app.user.timezone) ~ '?' }}</h2>
-            <textarea name="description" rows="3" maxlength="1000" required
-                placeholder="e.g. 400 g yogurt, 50 g jam, 50 g granola and a big tablespoon of peanut butter"></textarea>
-            <div class="meal-form-row">
-                <label class="time">At <input type="time" name="time" aria-label="Time eaten">
-                    <span class="muted">{{ isToday ? 'empty = now' : 'empty = 12:00' }}</span></label>
-                {% if not isToday %}<input type="hidden" name="date" value="{{ day|date('Y-m-d', app.user.timezone) }}">{% endif %}
-                <input type="hidden" name="_token" value="{{ csrf_token('meal_create') }}">
-                <button type="button" class="secondary" data-action="add-entry#close">Cancel</button>
-                <button type="submit">Log meal</button>
-            </div>
-        </form>
-    </dialog>
-
-    <dialog class="entry-dialog" data-add-entry-target="dialog" data-kind="exercise" aria-labelledby="exercise-dialog-title" data-action="click->add-entry#backdrop">
-        <form method="post" action="{{ path('app_exercise_create') }}" class="exercise-form">
-            <h2 id="exercise-dialog-title">{{ isToday ? 'What did you do?' : 'What did you do on ' ~ day|date('l', app.user.timezone) ~ '?' }}</h2>
-            <textarea name="description" rows="3" maxlength="1000" required
-                placeholder="e.g. played basketball for 2 hours, or: workout, burned 600 kcal"></textarea>
-            <p class="muted hint">Mention the calories if you know them (e.g. from your watch) and we'll use your number.</p>
-            <div class="meal-form-row">
-                <label class="time">At <input type="time" name="time" aria-label="Time of exercise">
-                    <span class="muted">{{ isToday ? 'empty = now' : 'empty = 12:00' }}</span></label>
-                {% if not isToday %}<input type="hidden" name="date" value="{{ day|date('Y-m-d', app.user.timezone) }}">{% endif %}
-                <input type="hidden" name="_token" value="{{ csrf_token('exercise_create') }}">
-                <button type="button" class="secondary" data-action="add-entry#close">Cancel</button>
-                <button type="submit">Log exercise</button>
-            </div>
-        </form>
+    <dialog class="entry-dialog" data-entry-dialog-target="dialog" aria-labelledby="entry-title"
+            data-action="click->entry-dialog#backdrop close->entry-dialog#closed">
+        <turbo-frame id="entry-panel" data-entry-dialog-target="frame" data-action="turbo:frame-missing->entry-dialog#leaveFrame"></turbo-frame>
     </dialog>
 </div>

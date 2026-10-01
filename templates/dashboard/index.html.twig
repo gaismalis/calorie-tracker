@@ -16,8 +16,11 @@
     {% endif %}
 </nav>
 
-{{ include('dashboard/_overview.html.twig') }}
-{{ include('dashboard/_chart.html.twig') }}
-{{ include('dashboard/_log.html.twig') }}
-{{ include('dashboard/_add.html.twig') }}
+<div data-controller="entry-dialog"
+     data-action="keydown.esc@window->entry-dialog#closeMenu click@window->entry-dialog#outside turbo:frame-load->entry-dialog#loaded">
+    {{ include('dashboard/_overview.html.twig') }}
+    {{ include('dashboard/_chart.html.twig') }}
+    {{ include('dashboard/_log.html.twig') }}
+    {{ include('dashboard/_add.html.twig') }}
+</div>
 {% endblock %}

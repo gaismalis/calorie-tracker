@@ -1,47 +1,69 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Adjust exercise · Calorie Tracker{% endblock %}
+{% block title %}Your exercise · Calorie Tracker{% endblock %}
 
 {% block body %}
 <section class="card">
-    <h1>Adjust exercise</h1>
-    <p class="raw">“{{ entry.rawText }}”</p>
-    <p class="muted">Calories burned on top of what your body uses anyway. Set an activity to 0 to remove it.</p>
+<turbo-frame id="entry-panel">
+    <form method="post" action="{{ path('app_exercise_edit', {id: entry.id}) }}" class="review" data-controller="portion-slider"
+          {% if isNew %}data-reload-on-close{% endif %}>
+        <p class="raw">“{{ entry.rawText }}”</p>
+        <h2 id="entry-title" class="review-headline">
+            {{ isNew ? 'We think you burned about' : 'You burned about' }}
+            <strong><span data-portion-slider-target="total">{{ entry.kcal|round }}</span> kcal</strong>
+        </h2>
 
-    <form method="post">
-        <div class="eaten-at">
-            <label>Done on
-                <input type="date" name="performed_date" required max="{{ 'now'|date('Y-m-d', app.user.timezone) }}"
-                       value="{{ app.request.request.get('performed_date') ?? entry.performedAt|date('Y-m-d', app.user.timezone) }}">
-            </label>
-            <label>at
-                <input type="time" name="performed_time" required
-                       value="{{ app.request.request.get('performed_time') ?? entry.performedAt|date('H:i', app.user.timezone) }}">
-            </label>
-            {% if errors.performedAt is defined %}<ul><li>{{ errors.performedAt }}</li></ul>{% endif %}
+        <label class="slider-label" for="portion">{{ isNew ? 'Was it less or more? Slide to adjust.' : 'Slide to adjust.' }}</label>
+        <div class="slider-row">
+            <span class="muted">Less</span>
+            <input type="range" id="portion" min="-100" max="100" step="1" value="0" aria-describedby="entry-title" aria-valuetext="100% of the estimate"
+                   data-portion-slider-target="slider" data-action="input->portion-slider#slide">
+            <span class="muted">More</span>
         </div>
-        <table class="adjust">
-            <thead><tr><th>Activity</th><th>min</th><th>kcal</th></tr></thead>
-            <tbody>
-            {% for item in entry.items %}
-                <tr>
-                    <td>
-                        {{ item.name }}
-                        {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
-                        {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
-                    </td>
-                    <td>{{ item.minutes is not null ? item.minutes|round : '–' }}</td>
-                    <td>
-                        <input type="number" name="kcal[{{ item.id }}]" value="{{ app.request.request.all('kcal')[item.id] ?? item.kcal|round }}"
-                               min="0" max="10000" step="any" inputmode="decimal" aria-label="kcal burned by {{ item.name }}">
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        <p class="slider-value muted"><span data-portion-slider-target="percent">100</span>% of {{ isNew ? 'our estimate' : 'what you logged' }}</p>
+
+        <details class="review-details"{% if errors is not empty %} open{% endif %}>
+            <summary>Details: calories per activity and time</summary>
+            <div class="eaten-at">
+                <label>Done on
+                    <input type="date" name="performed_date" required max="{{ 'now'|date('Y-m-d', app.user.timezone) }}"
+                           value="{{ app.request.request.get('performed_date') ?? entry.performedAt|date('Y-m-d', app.user.timezone) }}">
+                </label>
+                <label>at
+                    <input type="time" name="performed_time" required
+                           value="{{ app.request.request.get('performed_time') ?? entry.performedAt|date('H:i', app.user.timezone) }}">
+                </label>
+                {% if errors.performedAt is defined %}<ul><li>{{ errors.performedAt }}</li></ul>{% endif %}
+            </div>
+            <table class="adjust">
+                <thead><tr><th>Activity</th><th>min</th><th>kcal</th></tr></thead>
+                <tbody>
+                {% for item in entry.items %}
+                    <tr data-portion-slider-target="row" data-base="{{ item.kcal }}" data-kcal="{{ item.kcal }}">
+                        <td>
+                            {{ item.name }}
+                            {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
+                            {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
+                        </td>
+                        <td>{{ item.minutes is not null ? item.minutes|round : '–' }}</td>
+                        <td>
+                            <input type="number" name="kcal[{{ item.id }}]" value="{{ app.request.request.all('kcal')[item.id] ?? item.kcal|round }}"
+                                   min="0" max="10000" step="any" inputmode="decimal" aria-label="kcal burned by {{ item.name }}"
+                                   data-action="input->portion-slider#edit">
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <p class="muted small">Set an activity to 0 to remove it.</p>
+        </details>
+
         <input type="hidden" name="_token" value="{{ csrf_token('exercise_edit_' ~ entry.id) }}">
-        <button type="submit">Save</button>
-        <a href="{{ backUrl }}" class="muted">Back</a>
+        <div class="review-actions">
+            <a href="{{ backUrl }}" class="muted" data-turbo-frame="_top">{{ isNew ? 'Keep estimate' : 'Cancel' }}</a>
+            <button type="submit">Save</button>
+        </div>
     </form>
+</turbo-frame>
 </section>
 {% endblock %}

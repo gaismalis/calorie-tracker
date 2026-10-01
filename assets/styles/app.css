@@ -210,3 +210,22 @@ button.secondary { background: none; color: var(--muted); border: 1px solid var(
 main.container { padding-bottom: 5rem; } /* room for the floating button */
 .add-menu button { display: flex; gap: 0.5rem; align-items: center; }
 .energy-chart .legend-dot { stroke: none; }
+.add-menu a { display: flex; gap: 0.5rem; align-items: center; padding: 0.6rem 1.1rem; border-radius: 6px; text-decoration: none;
+    background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); }
+.add-menu a:hover { background: var(--bg); }
+
+/* "We think it's about X kcal" review with slider */
+.review .raw { margin: 0 0 0.25rem; color: var(--muted); }
+.review-headline { font-size: 1.15rem; font-weight: normal; margin: 0; }
+.review-headline strong { font-size: 1.6rem; }
+.review-macros { margin: 0.15rem 0 0.9rem; font-size: 0.9rem; }
+.slider-label { margin: 0 0 0.25rem; font-size: 0.9rem; }
+.slider-row { display: flex; align-items: center; gap: 0.6rem; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--accent); height: 1.5rem; }
+.slider-value { margin: 0.1rem 0 0.75rem; text-align: center; font-size: 0.85rem; }
+.review-details { border-top: 1px solid var(--border); padding-top: 0.6rem; }
+.review-details > summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+.review-details[open] > summary { margin-bottom: 0.6rem; }
+.review-actions { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 0.75rem; }
+.review-actions button { margin: 0; }
+p.small { font-size: 0.8rem; margin: 0.4rem 0 0; }

@@ -76,7 +76,22 @@ trait DayAwareController
     {
         $this->addFlash($type, $message);
 
-        return $this->redirect($this->dayUrl($user, $moment));
+        return $this->goTo($this->dayUrl($user, $moment));
+    }
+
+    /**
+     * Redirect to a page. Inside the add/adjust dialog (Turbo frame "entry-panel") a plain redirect
+     * would only refresh the frame, so the frame is sent to a tiny page that makes the browser
+     * visit the URL as a whole page instead.
+     */
+    private function goTo(string $url): Response
+    {
+        $request = $this->container->get('request_stack')->getCurrentRequest();
+        if ('entry-panel' === $request?->headers->get('Turbo-Frame')) {
+            return $this->redirectToRoute('app_frame_exit', ['to' => $url]);
+        }
+
+        return $this->redirect($url);
     }
 
 
@@ -88,7 +103,7 @@ trait DayAwareController
     {
         $this->addFlash($type, $message);
 
-        return $this->redirect($this->dayUrl($user, $moment, $log));
+        return $this->goTo($this->dayUrl($user, $moment, $log));
     }
 
     /**

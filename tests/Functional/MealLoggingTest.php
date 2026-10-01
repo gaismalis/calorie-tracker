@@ -38,16 +38,17 @@ class MealLoggingTest extends WebTestCase
             new EstimatedItem('Peanut butter', 20, 120, 5, 4, 10, 'big tablespoon ≈ 20 g'),
         ], 'gemini:test'));
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/meals/new');
         $this->client->submitForm('Log meal', ['description' => '400 g yogurt + big tbsp peanut butter']);
 
         $entry = $this->em()->getRepository(MealEntry::class)->findOneBy(['user' => $this->user]);
-        self::assertResponseRedirects('/meals/'.$entry->getId().'/edit', message: 'goes to the review page first');
+        self::assertResponseRedirects('/meals/'.$entry->getId().'/edit?new=1', message: 'goes to the review ("we think it is …") first');
         self::assertSame([MealEstimation::QUICK_TIME_LIMIT], $this->estimator()->timeLimits, 'waits at most 5 s');
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('h1', 'Does this look right?');
-        self::assertSelectorTextContains('table.adjust', 'Peanut butter');
+        self::assertSelectorTextContains('#entry-title', "We think it's about 500 kcal");
+        self::assertSelectorExists('turbo-frame#entry-panel form.review[data-reload-on-close] input[type=range]');
+        self::assertSelectorTextContains('.review-details table.adjust', 'Peanut butter');
         $this->client->submitForm('Save');
 
         self::assertResponseRedirects('/?log=food');
@@ -68,7 +69,7 @@ class MealLoggingTest extends WebTestCase
 
     public function testEmptyDescriptionIsRejectedWithoutCallingTheAi(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/meals/new');
         $this->client->submitForm('Log meal', ['description' => '   ']);
         $this->client->followRedirect();
 
@@ -78,7 +79,7 @@ class MealLoggingTest extends WebTestCase
 
     public function testTooLongDescriptionIsRejected(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/meals/new');
         $form = $this->client->getCrawler()->selectButton('Log meal')->form();
         $form->disableValidation()->setValues(['description' => str_repeat('a', 1001)]);
         $this->client->submit($form);
@@ -92,7 +93,7 @@ class MealLoggingTest extends WebTestCase
     {
         $this->estimator()->willFail('Time limit of 5s reached.');
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/meals/new');
         $this->client->submitForm('Log meal', ['description' => 'an apple']);
 
         self::assertResponseRedirects('/');
@@ -256,7 +257,7 @@ class MealLoggingTest extends WebTestCase
     {
         $this->estimator()->willReturn(new MealEstimate([], 'gemini:test'));
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/meals/new');
         $this->client->submitForm('Log meal', ['description' => 'hello there']);
         $this->client->followRedirect();
 
@@ -446,7 +447,7 @@ class MealLoggingTest extends WebTestCase
     {
         $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Rice', 100, 130, 3, 28, 0)], 'random'));
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/meals/new');
         $this->client->submitForm('Log meal', ['description' => 'rice']);
         $this->client->request('GET', '/');
 

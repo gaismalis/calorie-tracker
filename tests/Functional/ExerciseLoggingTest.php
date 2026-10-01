@@ -31,7 +31,7 @@ class ExerciseLoggingTest extends WebTestCase
 
     public function testStatedCaloriesAreLoggedWithoutAi(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => 'I had a workout and burned 600kcal']);
 
         self::assertResponseRedirects('/');
@@ -45,18 +45,23 @@ class ExerciseLoggingTest extends WebTestCase
     {
         $this->estimator()->willReturn(new ExerciseEstimate([new EstimatedActivity('Basketball', 120, 950, null)], 'gemini:test'));
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => 'played basketball for 2h']);
+        $entry = $this->onlyEntry();
+        self::assertResponseRedirects('/exercises/'.$entry->getId().'/edit?new=1', message: 'an AI estimate gets the review with the slider');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('#entry-title', 'We think you burned about 950 kcal');
+        $this->client->submitForm('Save');
         $this->client->followRedirect();
 
-        self::assertSelectorTextContains('.flash-success', 'Logged ~950 kcal burned.');
+        self::assertSelectorTextContains('.flash-success', 'Saved: ~950 kcal burned.');
         self::assertSame('played basketball for 2h', $this->estimator()->calls[0]['description']);
         self::assertSame(950.0, $this->onlyEntry()->getKcal());
     }
 
     public function testNoActivityIsNotStored(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => 'watched a movie']);
         $this->client->followRedirect();
 
@@ -68,7 +73,7 @@ class ExerciseLoggingTest extends WebTestCase
     {
         $this->estimator()->willFail('Time limit of 5s reached.');
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => 'yoga']);
         $crawler = $this->client->followRedirect();
 
@@ -84,7 +89,7 @@ class ExerciseLoggingTest extends WebTestCase
     {
         $day = $this->user->today()->modify('-2 days');
 
-        $this->client->request('GET', '/day/'.$day->format('Y-m-d'));
+        $this->client->request('GET', '/exercises/new?date='.$day->format('Y-m-d'));
         $this->client->submitForm('Log exercise', ['description' => 'run, 400 kcal', 'time' => '07:15']);
 
         self::assertResponseRedirects('/day/'.$day->format('Y-m-d'));
@@ -93,11 +98,12 @@ class ExerciseLoggingTest extends WebTestCase
 
     public function testEmptyAndTooLongDescriptionsAreRejected(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => '  ']);
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash-error', 'Tell me what you did first');
 
+        $this->client->request('GET', '/exercises/new');
         $form = $this->client->getCrawler()->selectButton('Log exercise')->form();
         $form->disableValidation()->setValues(['description' => str_repeat('a', 1001)]);
         $this->client->submit($form);
@@ -107,13 +113,13 @@ class ExerciseLoggingTest extends WebTestCase
 
     public function testAdjustingCaloriesAndDeleting(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => 'workout 600 kcal']);
         $entry = $this->onlyEntry();
         $item = $entry->getItems()->first();
 
         $this->client->request('GET', '/exercises/'.$entry->getId().'/edit');
-        self::assertSelectorTextContains('h1', 'Adjust exercise');
+        self::assertSelectorTextContains('#entry-title', 'You burned about 600 kcal');
         $this->client->submitForm('Save', ['kcal['.$item->getId().']' => '450']);
         self::assertResponseRedirects('/?log=exercise');
         self::assertSame(450.0, $this->onlyEntry()->getKcal());
@@ -126,7 +132,7 @@ class ExerciseLoggingTest extends WebTestCase
 
     public function testInvalidAdjustmentIsRejected(): void
     {
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => 'workout 600 kcal']);
         $entry = $this->onlyEntry();
         $item = $entry->getItems()->first();
@@ -184,7 +190,7 @@ class ExerciseLoggingTest extends WebTestCase
         $this->em()->persist(new WeightEntry($user, $user->today(), 80));
         $this->em()->flush();
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/exercises/new');
         $this->client->submitForm('Log exercise', ['description' => 'workout, burned 500 kcal']);
         $this->client->followRedirect();
 

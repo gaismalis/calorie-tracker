@@ -40,14 +40,27 @@ class DayNavigationTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.day-title', $yesterday->format('l, j F Y'), 'title is the local day, not shifted by UTC');
-        self::assertSelectorTextContains('#meal-dialog-title', 'What did you eat on '.$yesterday->format('l').'?');
-        self::assertSelectorTextContains('#exercise-dialog-title', 'What did you do on '.$yesterday->format('l').'?');
         $text = $crawler->filter('main')->text();
         self::assertStringContainsString('yesterday lunch', $text);
         self::assertStringNotContainsString('today breakfast', $text);
         self::assertSame('/day/'.$yesterday->modify('-1 day')->format('Y-m-d'), $crawler->filter('.day-nav a.prev')->attr('href'));
         self::assertSame('/', $crawler->filter('.day-nav a.next')->attr('href'), 'the day after yesterday is "/"');
+        self::assertSame('/meals/new?date='.$yesterday->format('Y-m-d'), $crawler->filter('.add-menu a')->eq(0)->attr('href'));
+        self::assertSame('/exercises/new?date='.$yesterday->format('Y-m-d'), $crawler->filter('.add-menu a')->eq(1)->attr('href'));
+
+        $crawler = $this->client->request('GET', '/meals/new?date='.$yesterday->format('Y-m-d'));
+        self::assertSelectorTextContains('#entry-title', 'What did you eat on '.$yesterday->format('l').'?');
         self::assertSame($yesterday->format('Y-m-d'), $crawler->filter('.meal-form input[name=date]')->attr('value'));
+        $this->client->request('GET', '/exercises/new?date='.$yesterday->format('Y-m-d'));
+        self::assertSelectorTextContains('#entry-title', 'What did you do on '.$yesterday->format('l').'?');
+    }
+
+    public function testNewFormIgnoresTodayAndFutureDates(): void
+    {
+        $crawler = $this->client->request('GET', '/meals/new?date='.$this->today->modify('+1 day')->format('Y-m-d'));
+
+        self::assertSelectorTextContains('#entry-title', 'What did you eat?');
+        self::assertCount(0, $crawler->filter('.meal-form input[name=date]'));
     }
 
     public function testTodayHasNoNextDayAndNoDateField(): void
@@ -57,7 +70,7 @@ class DayNavigationTest extends WebTestCase
         self::assertSelectorTextContains('.day-title', 'Today');
         self::assertSelectorExists('.day-nav .next.disabled');
         self::assertSame('/day/'.$this->today->modify('-1 day')->format('Y-m-d'), $crawler->filter('.day-nav a.prev')->attr('href'));
-        self::assertSelectorNotExists('.meal-form input[name=date]');
+        self::assertSame('/meals/new', $crawler->filter('.add-menu a')->eq(0)->attr('href'));
     }
 
     public function testTodayAndFutureDatesRedirectToTheDashboard(): void
@@ -81,7 +94,7 @@ class DayNavigationTest extends WebTestCase
         $day = $this->today->modify('-3 days');
         $this->estimator()->willFail(); // stays pending → back to that day
 
-        $this->client->request('GET', '/day/'.$day->format('Y-m-d'));
+        $this->client->request('GET', '/meals/new?date='.$day->format('Y-m-d'));
         $this->client->submitForm('Log meal', ['description' => 'pancakes', 'time' => '19:45']);
 
         self::assertResponseRedirects('/day/'.$day->format('Y-m-d'));
@@ -93,7 +106,7 @@ class DayNavigationTest extends WebTestCase
         $day = $this->today->modify('-1 day');
         $this->estimator()->willFail();
 
-        $this->client->request('GET', '/day/'.$day->format('Y-m-d'));
+        $this->client->request('GET', '/meals/new?date='.$day->format('Y-m-d'));
         $this->client->submitForm('Log meal', ['description' => 'pancakes']);
 
         self::assertSame($day->setTime(12, 0)->getTimestamp(), $this->onlyEntry()->getEatenAt()->getTimestamp());
@@ -102,7 +115,7 @@ class DayNavigationTest extends WebTestCase
     public function testTodayWithTimeAndWithoutTime(): void
     {
         $this->estimator()->willFail();
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/meals/new');
         $this->client->submitForm('Log meal', ['description' => 'just now']);
         self::assertEqualsWithDelta(time(), $this->onlyEntry()->getEatenAt()->getTimestamp(), 5, 'empty time today = now');
     }
@@ -117,7 +130,7 @@ class DayNavigationTest extends WebTestCase
         $this->client->request('POST', '/meals', [
             'description' => 'later',
             'time' => (new \DateTimeImmutable('+2 hours', $this->user->getDateTimeZone()))->format('H:i'),
-            '_token' => $this->formToken('/'),
+            '_token' => $this->formToken('/meals/new'),
         ]);
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash-error', "You can't log meals in the future");
@@ -128,7 +141,7 @@ class DayNavigationTest extends WebTestCase
     {
         $day = $this->today->modify('-2 days')->format('Y-m-d');
 
-        $this->client->request('POST', '/meals', ['description' => 'x', 'date' => $day, 'time' => '25:99', '_token' => $this->formToken('/day/'.$day)]);
+        $this->client->request('POST', '/meals', ['description' => 'x', 'date' => $day, 'time' => '25:99', '_token' => $this->formToken('/meals/new?date='.$day)]);
 
         self::assertResponseRedirects('/day/'.$day);
         $this->client->followRedirect();
@@ -139,7 +152,7 @@ class DayNavigationTest extends WebTestCase
     {
         $day = $this->today->modify('-2 days')->format('Y-m-d');
 
-        $this->client->request('GET', '/day/'.$day);
+        $this->client->request('GET', '/meals/new?date='.$day);
         $this->client->submitForm('Log meal', ['description' => ' ']);
 
         self::assertResponseRedirects('/day/'.$day);
@@ -151,7 +164,9 @@ class DayNavigationTest extends WebTestCase
         $entry = $this->storeEntry('old meal', $day->setTime(9, 0));
 
         $crawler = $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
-        self::assertSame('/day/'.$day->format('Y-m-d').'?log=food', $crawler->filter('a:contains("Back")')->attr('href'), 'back opens the log');
+        self::assertSame('/day/'.$day->format('Y-m-d').'?log=food', $crawler->filter('.review-actions a')->attr('href'), 'cancel goes back with the log open');
+        self::assertSelectorTextContains('.review-actions a', 'Cancel');
+        self::assertSelectorNotExists('form.review[data-reload-on-close]', 'adjusting an existing meal needs no reload when closed');
         $this->client->submitForm('Save');
         self::assertResponseRedirects('/day/'.$day->format('Y-m-d').'?log=food');
 
@@ -165,7 +180,7 @@ class DayNavigationTest extends WebTestCase
         $day = $this->today->modify('-1 day');
         $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Soup', 300, 150, 5, 20, 5)], 'test'));
 
-        $this->client->request('GET', '/day/'.$day->format('Y-m-d'));
+        $this->client->request('GET', '/meals/new?date='.$day->format('Y-m-d'));
         $this->client->submitForm('Log meal', ['description' => 'soup', 'time' => '18:00']);
         $this->client->followRedirect();
         $this->client->submitForm('Save');

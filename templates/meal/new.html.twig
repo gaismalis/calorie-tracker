@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Log a meal · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card">
+    <turbo-frame id="entry-panel">
+        <form method="post" action="{{ path('app_meal_create') }}" class="meal-form">
+            <h2 id="entry-title">{{ day ? 'What did you eat on ' ~ day|date('l', app.user.timezone) ~ '?' : 'What did you eat?' }}</h2>
+            <textarea name="description" rows="3" maxlength="1000" required autofocus
+                placeholder="e.g. 400 g yogurt, 50 g jam, 50 g granola and a big tablespoon of peanut butter"></textarea>
+            <div class="meal-form-row">
+                <label class="time">At <input type="time" name="time" aria-label="Time eaten">
+                    <span class="muted">{{ day ? 'empty = 12:00' : 'empty = now' }}</span></label>
+                {% if day %}<input type="hidden" name="date" value="{{ day|date('Y-m-d', app.user.timezone) }}">{% endif %}
+                <input type="hidden" name="_token" value="{{ csrf_token('meal_create') }}">
+                <button type="button" class="secondary" data-action="entry-dialog#close">Cancel</button>
+                <button type="submit" data-busy-label="Estimating…">Log meal</button>
+            </div>
+        </form>
+    </turbo-frame>
+</section>
+{% endblock %}

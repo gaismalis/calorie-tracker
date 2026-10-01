@@ -1,64 +1,78 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Check your meal · Calorie Tracker{% endblock %}
+{% block title %}Your meal · Calorie Tracker{% endblock %}
 
 {% block body %}
 <section class="card">
-    <h1>Does this look right?</h1>
-    <p class="raw">“{{ entry.rawText }}”</p>
-    <p class="muted">Adjust the grams if the AI guessed wrong. Calories and macros change with the amount. Set an item to 0 to remove it.</p>
+<turbo-frame id="entry-panel">
+    <form method="post" action="{{ path('app_meal_edit', {id: entry.id}) }}" class="review" data-controller="portion-slider"
+          {% if isNew %}data-reload-on-close{% endif %}>
+        <p class="raw">“{{ entry.rawText }}”</p>
+        <h2 id="entry-title" class="review-headline">
+            {{ isNew ? "We think it's about" : 'About' }}
+            <strong><span data-portion-slider-target="total">{{ entry.kcal|round }}</span> kcal</strong>
+        </h2>
+        <p class="review-macros muted">
+            P <span data-portion-slider-target="protein">{{ entry.protein|round }}</span> g ·
+            C <span data-portion-slider-target="carbs">{{ entry.carbs|round }}</span> g ·
+            F <span data-portion-slider-target="fat">{{ entry.fat|round }}</span> g
+        </p>
 
-    <form method="post" data-controller="meal-adjust">
-        <div class="eaten-at">
-            <label>Eaten on
-                <input type="date" name="eaten_date" required max="{{ 'now'|date('Y-m-d', app.user.timezone) }}"
-                       value="{{ app.request.request.get('eaten_date') ?? entry.eatenAt|date('Y-m-d', app.user.timezone) }}">
-            </label>
-            <label>at
-                <input type="time" name="eaten_time" required
-                       value="{{ app.request.request.get('eaten_time') ?? entry.eatenAt|date('H:i', app.user.timezone) }}">
-            </label>
-            {% if errors.eatenAt is defined %}<ul><li>{{ errors.eatenAt }}</li></ul>{% endif %}
+        <label class="slider-label" for="portion">{{ isNew ? 'Was it less or more? Slide to adjust.' : 'Slide to adjust the amount.' }}</label>
+        <div class="slider-row">
+            <span class="muted">Less</span>
+            <input type="range" id="portion" min="-100" max="100" step="1" value="0" aria-describedby="entry-title" aria-valuetext="100% of the estimate"
+                   data-portion-slider-target="slider" data-action="input->portion-slider#slide">
+            <span class="muted">More</span>
         </div>
-        <table class="adjust">
-            <thead>
-                <tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr>
-            </thead>
-            <tbody>
-            {% for item in entry.items %}
-                <tr data-meal-adjust-target="row"
-                    data-grams="{{ item.grams }}" data-kcal="{{ item.kcal }}"
-                    data-protein="{{ item.protein }}" data-carbs="{{ item.carbs }}" data-fat="{{ item.fat }}">
-                    <td>
-                        {{ item.name }}
-                        {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
-                        {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
-                    </td>
-                    <td>
-                        <input type="number" name="grams[{{ item.id }}]" value="{{ app.request.request.all('grams')[item.id] ?? item.grams|round(1) }}"
-                               min="0" max="5000" step="any" inputmode="decimal" aria-label="Grams of {{ item.name }}"
-                               data-action="input->meal-adjust#recalculate">
-                    </td>
-                    <td data-field="kcal">{{ item.kcal|round }}</td>
-                    <td data-field="protein">{{ item.protein|round(1) }}</td>
-                    <td data-field="carbs">{{ item.carbs|round(1) }}</td>
-                    <td data-field="fat">{{ item.fat|round(1) }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <th>Total</th><th></th>
-                    <th data-meal-adjust-target="total" data-field="kcal">{{ entry.kcal|round }}</th>
-                    <th data-meal-adjust-target="total" data-field="protein">{{ entry.protein|round(1) }}</th>
-                    <th data-meal-adjust-target="total" data-field="carbs">{{ entry.carbs|round(1) }}</th>
-                    <th data-meal-adjust-target="total" data-field="fat">{{ entry.fat|round(1) }}</th>
-                </tr>
-            </tfoot>
-        </table>
+        <p class="slider-value muted"><span data-portion-slider-target="percent">100</span>% of {{ isNew ? 'our estimate' : 'what you logged' }}</p>
+
+        <details class="review-details"{% if errors is not empty %} open{% endif %}>
+            <summary>Details: amounts and time</summary>
+            <div class="eaten-at">
+                <label>Eaten on
+                    <input type="date" name="eaten_date" required max="{{ 'now'|date('Y-m-d', app.user.timezone) }}"
+                           value="{{ app.request.request.get('eaten_date') ?? entry.eatenAt|date('Y-m-d', app.user.timezone) }}">
+                </label>
+                <label>at
+                    <input type="time" name="eaten_time" required
+                           value="{{ app.request.request.get('eaten_time') ?? entry.eatenAt|date('H:i', app.user.timezone) }}">
+                </label>
+                {% if errors.eatenAt is defined %}<ul><li>{{ errors.eatenAt }}</li></ul>{% endif %}
+            </div>
+            <table class="adjust">
+                <thead><tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr></thead>
+                <tbody>
+                {% for item in entry.items %}
+                    <tr data-portion-slider-target="row" data-base="{{ item.grams }}"
+                        data-kcal="{{ item.kcal }}" data-protein="{{ item.protein }}" data-carbs="{{ item.carbs }}" data-fat="{{ item.fat }}">
+                        <td>
+                            {{ item.name }}
+                            {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
+                            {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
+                        </td>
+                        <td>
+                            <input type="number" name="grams[{{ item.id }}]" value="{{ app.request.request.all('grams')[item.id] ?? item.grams|round(1) }}"
+                                   min="0" max="5000" step="any" inputmode="decimal" aria-label="Grams of {{ item.name }}"
+                                   data-action="input->portion-slider#edit">
+                        </td>
+                        <td data-field="kcal">{{ item.kcal|round }}</td>
+                        <td data-field="protein">{{ item.protein|round(1) }}</td>
+                        <td data-field="carbs">{{ item.carbs|round(1) }}</td>
+                        <td data-field="fat">{{ item.fat|round(1) }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <p class="muted small">Set an item to 0 to remove it.</p>
+        </details>
+
         <input type="hidden" name="_token" value="{{ csrf_token('meal_edit_' ~ entry.id) }}">
-        <button type="submit">Save</button>
-        <a href="{{ backUrl }}" class="muted">Back</a>
+        <div class="review-actions">
+            <a href="{{ backUrl }}" class="muted" data-turbo-frame="_top">{{ isNew ? 'Keep estimate' : 'Cancel' }}</a>
+            <button type="submit">Save</button>
+        </div>
     </form>
+</turbo-frame>
 </section>
 {% endblock %}
