@@ -45,7 +45,5 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linkTo(UserCrudController::class, 'Users', 'fa fa-user');
         yield MenuItem::linkTo(MealEntryCrudController::class, 'Meals', 'fa fa-utensils');
         yield MenuItem::linkTo(WeightEntryCrudController::class, 'Weights', 'fa fa-weight-scale');
-        yield MenuItem::section();
-        yield MenuItem::linkToRoute('Back to the app', 'fa fa-arrow-left', 'app_dashboard');
     }
 }

@@ -97,16 +97,26 @@ class AdminTest extends WebTestCase
         self::assertResponseRedirects('/admin/login');
     }
 
-    public function testOverviewShowsCountsAndAdminLinkIsVisible(): void
+    public function testAppAndAdminDoNotLinkToEachOther(): void
+    {
+        $admin = $this->user('admin@example.com', admin: true);
+        $this->client->loginUser($admin);
+        $this->client->loginUser($admin, 'admin');
+
+        $this->client->request('GET', '/');
+        self::assertSelectorNotExists('a[href^="/admin"]');
+
+        $this->client->request('GET', '/admin');
+        self::assertSelectorNotExists('a[href="/"]');
+        self::assertSelectorTextNotContains('body', 'Back to the app');
+    }
+
+    public function testOverviewShowsCounts(): void
     {
         $admin = $this->user('admin@example.com', admin: true);
         $this->meal($admin, 'apple');
         $this->meal($admin, 'stuck', estimated: false);
         $this->client->loginUser($admin, 'admin');
-
-        $this->client->loginUser($admin); // app session too, to see the link
-        $this->client->request('GET', '/');
-        self::assertSelectorExists('.topbar a[href="/admin"]');
 
         $crawler = $this->client->request('GET', '/admin');
         self::assertResponseIsSuccessful();
