@@ -2,6 +2,8 @@
 
 namespace App\Nutrition;
 
+use Psr\Clock\ClockInterface;
+use Symfony\Component\Clock\Clock;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -49,14 +51,17 @@ final class GeminiNutritionEstimator implements NutritionEstimator
 
     /** Attempts per model when Gemini reports overload (503) or rate limiting (429). */
     private const ATTEMPTS_PER_MODEL = 2;
-    private const RETRY_DELAY_MS = 1000;
+    private const RETRY_DELAY_SECONDS = 1;
+    private const ATTEMPT_IDLE_TIMEOUT = 20;
+    private const ATTEMPT_MAX_DURATION = 25;
+    /** Don't start an attempt with less time left than this. */
+    private const MIN_ATTEMPT_SECONDS = 0.5;
     private const RETRY_SAME_MODEL_STATUSES = [429, 500, 503, 504];
     /** These mean the key or request is wrong; another model won't help. */
     private const FATAL_STATUSES = [400, 401, 403];
 
     /** @var list<string> */
     private readonly array $models;
-    private readonly \Closure $sleep;
 
     /**
      * @param string $models comma-separated, tried in order: on overload, timeouts or an unusable answer
@@ -68,13 +73,12 @@ final class GeminiNutritionEstimator implements NutritionEstimator
         private readonly string $apiKey,
         #[Autowire(env: 'GEMINI_MODEL')]
         string $models,
-        ?\Closure $sleep = null,
+        private readonly ClockInterface $clock = new Clock(),
     ) {
         $this->models = array_values(array_filter(array_map('trim', explode(',', $models))));
-        $this->sleep = $sleep ?? static fn (int $milliseconds) => usleep($milliseconds * 1000);
     }
 
-    public function estimate(string $mealDescription): MealEstimate
+    public function estimate(string $mealDescription, ?float $timeLimit = null): MealEstimate
     {
         if ('' === $this->apiKey) {
             throw new NutritionEstimationException('GEMINI_API_KEY is not set. Add it to .env.local.');
@@ -83,29 +87,50 @@ final class GeminiNutritionEstimator implements NutritionEstimator
             throw new NutritionEstimationException('GEMINI_MODEL is empty.');
         }
 
+        $deadline = null === $timeLimit ? null : $this->now() + $timeLimit;
         $failures = [];
         foreach ($this->models as $model) {
             for ($attempt = 1; $attempt <= self::ATTEMPTS_PER_MODEL; ++$attempt) {
+                $remaining = null === $deadline ? null : $deadline - $this->now();
+                if (null !== $remaining && $remaining < self::MIN_ATTEMPT_SECONDS) {
+                    throw new NutritionEstimationException(self::failureMessage(sprintf('Time limit of %ss reached.', $timeLimit), $failures));
+                }
+
                 try {
-                    return $this->estimateWith($model, $mealDescription);
+                    return $this->estimateWith($model, $mealDescription, $remaining);
                 } catch (GeminiAttemptFailed $e) {
                     $failures[] = $model.': '.$e->getMessage();
                     if (!$e->retrySameModel || $attempt === self::ATTEMPTS_PER_MODEL) {
                         break;
                     }
-                    ($this->sleep)(self::RETRY_DELAY_MS * $attempt);
+                    $delay = self::RETRY_DELAY_SECONDS * $attempt;
+                    if (null !== $deadline && $this->now() + $delay + self::MIN_ATTEMPT_SECONDS > $deadline) {
+                        break; // no time to wait for this model; try the next one if time allows
+                    }
+                    $this->clock->sleep($delay);
                 }
             }
         }
 
-        throw new NutritionEstimationException('All Gemini models failed. '.implode(' | ', $failures));
+        throw new NutritionEstimationException(self::failureMessage('All Gemini models failed.', $failures));
+    }
+
+    /** @param list<string> $failures */
+    private static function failureMessage(string $summary, array $failures): string
+    {
+        return [] === $failures ? $summary : $summary.' '.implode(' | ', $failures);
+    }
+
+    private function now(): float
+    {
+        return (float) $this->clock->now()->format('U.u');
     }
 
     /**
      * @throws GeminiAttemptFailed          when retrying or another model may help
      * @throws NutritionEstimationException when nothing will help (bad key, invalid request)
      */
-    private function estimateWith(string $model, string $mealDescription): MealEstimate
+    private function estimateWith(string $model, string $mealDescription, ?float $remaining): MealEstimate
     {
         try {
             $response = $this->httpClient->request('POST', sprintf(self::ENDPOINT, rawurlencode($model)), [
@@ -119,8 +144,8 @@ final class GeminiNutritionEstimator implements NutritionEstimator
                         'responseSchema' => self::RESPONSE_SCHEMA,
                     ],
                 ],
-                'timeout' => 20,
-                'max_duration' => 25,
+                'timeout' => min(self::ATTEMPT_IDLE_TIMEOUT, $remaining ?? INF),
+                'max_duration' => min(self::ATTEMPT_MAX_DURATION, $remaining ?? INF),
             ]);
 
             $status = $response->getStatusCode();

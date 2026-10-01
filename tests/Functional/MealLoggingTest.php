@@ -3,8 +3,9 @@
 namespace App\Tests\Functional;
 
 use App\Entity\MealEntry;
-use App\Entity\MealItem;
 use App\Entity\WeightEntry;
+use App\Meal\MealEstimation;
+use App\Meal\MealStatus;
 use App\Profile\ActivityLevel;
 use App\Profile\Sex;
 use App\Entity\User;
@@ -15,6 +16,7 @@ use App\Tests\Support\FakeNutritionEstimator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 class MealLoggingTest extends WebTestCase
 {
@@ -39,6 +41,15 @@ class MealLoggingTest extends WebTestCase
         $this->client->request('GET', '/');
         $this->client->submitForm('Log meal', ['description' => '400 g yogurt + big tbsp peanut butter']);
 
+        $entry = $this->em()->getRepository(MealEntry::class)->findOneBy(['user' => $this->user]);
+        self::assertResponseRedirects('/meals/'.$entry->getId().'/edit', message: 'goes to the review page first');
+        self::assertSame([MealEstimation::QUICK_TIME_LIMIT], $this->estimator()->timeLimits, 'waits at most 5 s');
+
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('h1', 'Does this look right?');
+        self::assertSelectorTextContains('table.adjust', 'Peanut butter');
+        $this->client->submitForm('Save');
+
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash-success', 'Logged ~500 kcal');
@@ -46,8 +57,8 @@ class MealLoggingTest extends WebTestCase
         self::assertSelectorTextContains('.entry', 'Greek yogurt');
         self::assertSelectorTextContains('.entry .assumption', 'big tablespoon ≈ 20 g');
 
-        $entry = $this->em()->getRepository(MealEntry::class)->findOneBy(['user' => $this->user]);
         self::assertSame('400 g yogurt + big tbsp peanut butter', $entry->getRawText());
+        self::assertSame(MealStatus::Estimated, $entry->getStatus());
         self::assertSame('gemini:test', $entry->getEstimatedBy());
         self::assertSame(500.0, $entry->getKcal(), 'totals are summed from items');
         self::assertSame(45.0, $entry->getProtein());
@@ -76,16 +87,168 @@ class MealLoggingTest extends WebTestCase
         self::assertSame([], $this->estimator()->received);
     }
 
-    public function testProviderFailureShowsFriendlyErrorAndStoresNothing(): void
+    public function testSlowOrFailingProviderSavesMealAndEstimatesInBackground(): void
     {
-        $this->estimator()->willFail('HTTP 429: Quota exceeded');
+        $this->estimator()->willFail('Time limit of 5s reached.');
 
         $this->client->request('GET', '/');
         $this->client->submitForm('Log meal', ['description' => 'an apple']);
+
+        self::assertResponseRedirects('/');
+        self::assertCount(1, $this->asyncTransport()->getSent(), 'background retry is queued'); // before the next request resets the transport
+        $crawler = $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash-info', "we'll estimate it in the background");
+        self::assertSelectorTextContains('.entry-pending', 'Estimating…');
+        self::assertSame('10', $crawler->filter('meta[http-equiv="refresh"]')->attr('content'), 'page refreshes while pending');
+
+        $entry = $this->em()->getRepository(MealEntry::class)->findOneBy(['user' => $this->user]);
+        self::assertSame(MealStatus::Pending, $entry->getStatus());
+    }
+
+    public function testNoAutoRefreshWithoutPendingMeals(): void
+    {
+        $this->storeEntry($this->user, 'done', new \DateTimeImmutable());
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorNotExists('meta[http-equiv="refresh"]');
+    }
+
+    public function testFailedMealOffersRetryAfterAnHour(): void
+    {
+        $entry = $this->storeFailedEntry(new \DateTimeImmutable('-61 minutes'));
+        $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Apple', 180, 95, 0.5, 25, 0.3)], 'gemini:test'));
+
+        $this->client->request('GET', '/');
+        self::assertSelectorTextContains('.entry-failed', "Couldn't estimate");
+        $this->client->submitForm('Retry');
+
+        self::assertResponseRedirects('/meals/'.$entry->getId().'/edit');
+        $this->em()->clear();
+        self::assertSame(MealStatus::Estimated, $this->em()->find(MealEntry::class, $entry->getId())->getStatus());
+    }
+
+    public function testFailedMealShowsWhenRetryIsPossibleAndRejectsEarlyRetry(): void
+    {
+        $lastAttempt = new \DateTimeImmutable('-10 minutes');
+        $entry = $this->storeFailedEntry($lastAttempt);
+
+        $this->client->request('GET', '/');
+        $expected = $lastAttempt->modify('+1 hour')->setTimezone($this->user->getDateTimeZone())->format('H:i');
+        self::assertSelectorTextContains('.entry-failed .retry', 'You can retry at '.$expected);
+        self::assertSelectorExists('.entry-failed .retry button[disabled]');
+
+        // Submit anyway (e.g. a stale page or a crafted request)
+        $form = $this->client->getCrawler()->filter('.entry-failed .retry form')->form();
+        $this->client->request('POST', $form->getUri(), $form->getValues());
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash-error', 'once per hour');
+        self::assertSame([], $this->estimator()->received);
+    }
+
+    public function testRetryRequiresValidCsrfTokenAndOwnership(): void
+    {
+        $entry = $this->storeFailedEntry(new \DateTimeImmutable('-2 hours'));
+        $this->client->request('POST', '/meals/'.$entry->getId().'/retry', ['_token' => 'nope']);
+        self::assertResponseStatusCodeSame(403);
+
+        $other = $this->storeFailedEntry(new \DateTimeImmutable('-2 hours'), $this->createUser('other@example.com'));
+        $this->client->request('POST', '/meals/'.$other->getId().'/retry', ['_token' => 'x']);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testAdjustingGramsScalesNutritionProportionally(): void
+    {
+        $entry = $this->storeEntry($this->user, 'yogurt and jam', new \DateTimeImmutable(), [
+            new EstimatedItem('Yogurt', 400, 240, 16, 18, 12),
+            new EstimatedItem('Jam', 50, 125, 0.2, 30, 0.1),
+        ]);
+        [$yogurt, $jam] = $entry->getItems()->toArray();
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $this->client->submitForm('Save', ['grams['.$yogurt->getId().']' => '300', 'grams['.$jam->getId().']' => '25,5']);
+
+        self::assertResponseRedirects('/');
+        $this->em()->clear();
+        $entry = $this->em()->find(MealEntry::class, $entry->getId());
+        [$yogurt, $jam] = $entry->getItems()->toArray();
+        self::assertSame(300.0, $yogurt->getGrams());
+        self::assertSame(180.0, $yogurt->getKcal());
+        self::assertSame(12.0, $yogurt->getProtein());
+        self::assertSame(25.5, $jam->getGrams());
+        self::assertEqualsWithDelta(63.75, $jam->getKcal(), 0.001);
+        self::assertEqualsWithDelta(243.75, $entry->getKcal(), 0.001, 'meal total is recalculated');
+    }
+
+    public function testSettingAnItemToZeroRemovesIt(): void
+    {
+        $entry = $this->storeEntry($this->user, 'yogurt and jam', new \DateTimeImmutable(), [
+            new EstimatedItem('Yogurt', 400, 240, 16, 18, 12),
+            new EstimatedItem('Jam', 50, 125, 0.2, 30, 0.1),
+        ]);
+        [$yogurt, $jam] = $entry->getItems()->toArray();
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $this->client->submitForm('Save', ['grams['.$yogurt->getId().']' => '400', 'grams['.$jam->getId().']' => '0']);
+
+        $this->em()->clear();
+        $entry = $this->em()->find(MealEntry::class, $entry->getId());
+        self::assertCount(1, $entry->getItems());
+        self::assertSame(240.0, $entry->getKcal());
+    }
+
+    public function testSettingAllItemsToZeroRemovesTheMeal(): void
+    {
+        $entry = $this->storeEntry($this->user, 'x', new \DateTimeImmutable());
+        $item = $entry->getItems()->first();
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $this->client->submitForm('Save', ['grams['.$item->getId().']' => '0']);
         $this->client->followRedirect();
 
-        self::assertSelectorTextContains('.flash-error', 'Could not estimate that meal');
+        self::assertSelectorTextContains('.flash-success', 'meal was removed');
         self::assertSame(0, $this->em()->getRepository(MealEntry::class)->count([]));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function invalidGrams(): iterable
+    {
+        yield 'negative' => ['-5'];
+        yield 'too much' => ['5001'];
+        yield 'not a number' => ['lots'];
+        yield 'empty' => [''];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidGrams')]
+    public function testInvalidGramsAreRejectedAndNothingChanges(string $grams): void
+    {
+        $entry = $this->storeEntry($this->user, 'x', new \DateTimeImmutable());
+        $item = $entry->getItems()->first();
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $form = $this->client->getCrawler()->selectButton('Save')->form();
+        $form->disableValidation()->setValues(['grams['.$item->getId().']' => $grams]);
+        $this->client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('table.adjust', 'Enter grams between 0 and 5000');
+        $this->em()->clear();
+        self::assertSame(100.0, $this->em()->find(MealEntry::class, $entry->getId())->getItems()->first()->getGrams());
+    }
+
+    public function testEditRequiresOwnershipCsrfAndAnEstimate(): void
+    {
+        $other = $this->storeEntry($this->createUser('other@example.com'), 'x', new \DateTimeImmutable());
+        $this->client->request('GET', '/meals/'.$other->getId().'/edit');
+        self::assertResponseStatusCodeSame(404);
+
+        $own = $this->storeEntry($this->user, 'x', new \DateTimeImmutable());
+        $this->client->request('POST', '/meals/'.$own->getId().'/edit', ['_token' => 'nope']);
+        self::assertResponseStatusCodeSame(403);
+
+        $failed = $this->storeFailedEntry(new \DateTimeImmutable());
+        $this->client->request('GET', '/meals/'.$failed->getId().'/edit');
+        self::assertResponseRedirects('/');
     }
 
     public function testTextWithoutFoodIsNotStored(): void
@@ -190,7 +353,7 @@ class MealLoggingTest extends WebTestCase
 
         $this->client->request('GET', '/');
         $this->client->submitForm('Log meal', ['description' => 'rice']);
-        $this->client->followRedirect();
+        $this->client->request('GET', '/');
 
         self::assertSelectorTextContains('.entry .badge', 'fake');
     }
@@ -250,13 +413,31 @@ class MealLoggingTest extends WebTestCase
         return $user;
     }
 
-    private function storeEntry(User $user, string $text, \DateTimeImmutable $eatenAt): MealEntry
+    /** @param list<EstimatedItem>|null $items */
+    private function storeEntry(User $user, string $text, \DateTimeImmutable $eatenAt, ?array $items = null): MealEntry
     {
-        $entry = new MealEntry($user, $text, $eatenAt, 'fake');
-        $entry->addItem(new MealItem($entry, 'Something', 100, 200, 10, 20, 5));
+        $entry = new MealEntry($this->em()->find(User::class, $user->getId()), $text, $eatenAt);
+        $entry->applyEstimate(new MealEstimate($items ?? [new EstimatedItem('Something', 100, 200, 10, 20, 5)], 'fake'), new \DateTimeImmutable());
         $this->em()->persist($entry);
         $this->em()->flush();
 
         return $entry;
     }
+
+    private function storeFailedEntry(\DateTimeImmutable $lastAttemptAt, ?User $user = null): MealEntry
+    {
+        // Re-fetch: the service resetter clears the entity manager between requests.
+        $entry = new MealEntry($user ?? $this->em()->find(User::class, $this->user->getId()), 'mystery meal', new \DateTimeImmutable());
+        $entry->estimationFailed('Provider is down', $lastAttemptAt, giveUp: true);
+        $this->em()->persist($entry);
+        $this->em()->flush();
+
+        return $entry;
+    }
+
+    private function asyncTransport(): InMemoryTransport
+    {
+        return static::getContainer()->get('messenger.transport.async');
+    }
+
 }

@@ -5,14 +5,19 @@ namespace App\Tests\Unit\Nutrition;
 use App\Nutrition\GeminiNutritionEstimator;
 use App\Nutrition\NutritionEstimationException;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 class GeminiNutritionEstimatorTest extends TestCase
 {
-    /** @var list<int> milliseconds the estimator asked to sleep */
-    private array $sleeps = [];
+    private MockClock $clock;
+
+    protected function setUp(): void
+    {
+        $this->clock = new MockClock('2026-10-01 12:00:00');
+    }
 
     public function testParsesItemsFromStructuredResponse(): void
     {
@@ -99,7 +104,7 @@ class GeminiNutritionEstimatorTest extends TestCase
         $this->estimator([self::overloaded(), $retry], 'model-a,model-b')->estimate('an apple');
 
         self::assertStringEndsWith('/models/model-a:generateContent', $retry->getRequestUrl());
-        self::assertSame([1000], $this->sleeps);
+        self::assertSame(1.0, $this->waited());
     }
 
     public function testFallsBackToNextModelWhenFirstStaysOverloaded(): void
@@ -112,7 +117,7 @@ class GeminiNutritionEstimatorTest extends TestCase
         self::assertSame(3, $http->getRequestsCount());
         self::assertStringEndsWith('/models/model-b:generateContent', $fallback->getRequestUrl());
         self::assertSame('gemini:model-b-001', $estimate->estimatedBy);
-        self::assertSame([1000], $this->sleeps, 'no wait before switching model');
+        self::assertSame(1.0, $this->waited(), 'only the retry waits, not the switch to the next model');
     }
 
     /** @return iterable<string, array{MockResponse}> */
@@ -135,7 +140,7 @@ class GeminiNutritionEstimatorTest extends TestCase
 
         self::assertSame(2, $http->getRequestsCount());
         self::assertStringEndsWith('/models/model-b:generateContent', $fallback->getRequestUrl());
-        self::assertSame([], $this->sleeps);
+        self::assertSame(0.0, $this->waited());
     }
 
     /** @return iterable<string, array{int}> */
@@ -179,6 +184,54 @@ class GeminiNutritionEstimatorTest extends TestCase
         $this->make($http, 'model-a,model-b')->estimate('an apple');
     }
 
+    public function testWithoutTimeLimitAttemptsUseDefaultTimeouts(): void
+    {
+        $response = self::geminiReply(['items' => []]);
+
+        $this->estimator([$response])->estimate('an apple');
+
+        self::assertSame(20.0, (float) $response->getRequestOptions()['timeout']);
+        self::assertSame(25.0, (float) $response->getRequestOptions()['max_duration']);
+    }
+
+    public function testTimeLimitCapsTheRequestDuration(): void
+    {
+        $response = self::geminiReply(['items' => []]);
+
+        $this->estimator([$response])->estimate('an apple', timeLimit: 5);
+
+        self::assertEqualsWithDelta(5.0, $response->getRequestOptions()['max_duration'], 0.001);
+        self::assertEqualsWithDelta(5.0, $response->getRequestOptions()['timeout'], 0.001);
+    }
+
+    public function testTimeLimitSkipsRetryWaitThatWouldNotFitAndFallsBackInstead(): void
+    {
+        $fallback = self::geminiReply(['items' => []]);
+        $http = new MockHttpClient([self::overloaded(), $fallback]);
+
+        $this->make($http, 'model-a,model-b')->estimate('an apple', timeLimit: 1.2);
+
+        self::assertSame(0.0, $this->waited(), 'a 1 s wait + 0.5 s minimum attempt does not fit in 1.2 s');
+        self::assertStringEndsWith('/models/model-b:generateContent', $fallback->getRequestUrl());
+    }
+
+    public function testStopsWhenTimeLimitIsUsedUp(): void
+    {
+        $http = new MockHttpClient(function () {
+            $this->clock->sleep(4.8); // the overloaded answer took 4.8 s
+
+            return self::overloaded();
+        });
+
+        try {
+            $this->make($http, 'model-a,model-b')->estimate('an apple', timeLimit: 5);
+            self::fail('Expected exception');
+        } catch (NutritionEstimationException $e) {
+            self::assertStringStartsWith('Time limit of 5s reached. model-a: Gemini returned HTTP 503', $e->getMessage());
+        }
+        self::assertSame(1, $http->getRequestsCount(), 'model-b is not tried with only 0.2 s left');
+    }
+
     /** @param list<MockResponse> $responses */
     private function estimator(array $responses, string $models = 'm'): GeminiNutritionEstimator
     {
@@ -187,9 +240,12 @@ class GeminiNutritionEstimatorTest extends TestCase
 
     private function make(MockHttpClient $http, string $models): GeminiNutritionEstimator
     {
-        return new GeminiNutritionEstimator($http, 'test-key', $models, function (int $ms): void {
-            $this->sleeps[] = $ms;
-        });
+        return new GeminiNutritionEstimator($http, 'test-key', $models, $this->clock);
+    }
+
+    private function waited(): float
+    {
+        return (float) $this->clock->now()->format('U.u') - (float) (new \DateTimeImmutable('2026-10-01 12:00:00'))->format('U.u');
     }
 
     private static function overloaded(int $status = 503): JsonMockResponse

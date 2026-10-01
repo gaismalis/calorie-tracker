@@ -8,6 +8,10 @@ namespace App\Nutrition;
  */
 interface NutritionEstimator
 {
-    /** @throws NutritionEstimationException when the provider fails or returns something unusable */
-    public function estimate(string $mealDescription): MealEstimate;
+    /**
+     * @param float|null $timeLimit seconds the whole estimate (including retries) may take; null = provider default
+     *
+     * @throws NutritionEstimationException when the provider fails, runs out of time or returns something unusable
+     */
+    public function estimate(string $mealDescription, ?float $timeLimit = null): MealEstimate;
 }

@@ -81,4 +81,23 @@ class MealItem
     {
         return $this->assumption;
     }
+
+    /**
+     * Changes the amount and scales kcal and macros proportionally (same food, different portion).
+     * Call {@see MealEntry::recalculateTotals()} afterwards.
+     */
+    public function changeGrams(float $grams): void
+    {
+        if ($grams < 0) {
+            throw new \InvalidArgumentException('Grams cannot be negative.');
+        }
+        if ($this->grams > 0) {
+            $factor = $grams / $this->grams;
+            $this->kcal *= $factor;
+            $this->protein *= $factor;
+            $this->carbs *= $factor;
+            $this->fat *= $factor;
+        }
+        $this->grams = $grams;
+    }
 }

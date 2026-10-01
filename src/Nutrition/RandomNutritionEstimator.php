@@ -23,7 +23,7 @@ final class RandomNutritionEstimator implements NutritionEstimator
         $this->randomizer = $randomizer ?? new Randomizer();
     }
 
-    public function estimate(string $mealDescription): MealEstimate
+    public function estimate(string $mealDescription, ?float $timeLimit = null): MealEstimate
     {
         $items = [];
         foreach (preg_split(self::SEPARATORS, $mealDescription, flags: PREG_SPLIT_NO_EMPTY) as $part) {

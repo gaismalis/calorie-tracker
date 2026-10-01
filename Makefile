@@ -5,7 +5,7 @@ PORT ?= 8000
 CONSOLE = php bin/console
 
 .DEFAULT_GOAL := help
-.PHONY: help setup start server db stop migrate test test-db provider
+.PHONY: help setup start server worker db stop migrate test test-db provider
 
 help: ## Show available commands
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -16,12 +16,20 @@ setup: ## First-time setup: dependencies, database, migrations, test database
 	@test -f .env.local || printf 'NUTRITION_PROVIDER=random\n' > .env.local
 	@echo "\nReady. Run: make start"
 
-start: db migrate server ## Start Postgres, apply migrations and run the app (http://127.0.0.1:8000, override with PORT=...)
+start: db migrate ## Start Postgres, migrations, the app (http://127.0.0.1:8000, PORT=... to change) and the background worker
+	@$(MAKE) --no-print-directory provider
+	@echo "App: http://127.0.0.1:$(PORT)  + background worker  (Ctrl+C stops both)"
+	@trap 'kill 0' INT TERM EXIT; \
+		$(CONSOLE) messenger:consume async --quiet & \
+		php -S 127.0.0.1:$(PORT) -t public
 
 server: ## Run only the PHP dev server (Ctrl+C to stop)
 	@$(MAKE) --no-print-directory provider
 	@echo "App: http://127.0.0.1:$(PORT)  (Ctrl+C to stop)"
 	php -S 127.0.0.1:$(PORT) -t public
+
+worker: ## Run only the background worker that retries meal estimates (-vv shows what it does)
+	$(CONSOLE) messenger:consume async -vv
 
 db: ## Start the Postgres container
 	docker compose up -d --wait

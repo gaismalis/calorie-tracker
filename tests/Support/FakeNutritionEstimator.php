@@ -14,6 +14,9 @@ final class FakeNutritionEstimator implements NutritionEstimator
     /** @var list<string> */
     public array $received = [];
 
+    /** @var list<float|null> time limit passed with each call */
+    public array $timeLimits = [];
+
     public function willReturn(MealEstimate $estimate): void
     {
         $this->next = $estimate;
@@ -24,9 +27,10 @@ final class FakeNutritionEstimator implements NutritionEstimator
         $this->next = new NutritionEstimationException($message);
     }
 
-    public function estimate(string $mealDescription): MealEstimate
+    public function estimate(string $mealDescription, ?float $timeLimit = null): MealEstimate
     {
         $this->received[] = $mealDescription;
+        $this->timeLimits[] = $timeLimit;
         $next = $this->next ?? new MealEstimate([], 'fake');
 
         if ($next instanceof NutritionEstimationException) {

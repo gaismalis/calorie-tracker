@@ -1,5 +1,9 @@
 {% extends 'base.html.twig' %}
 
+{% block head %}
+    {% if hasPending %}<meta http-equiv="refresh" content="10">{% endif %}
+{% endblock %}
+
 {% block body %}
 <section class="card">
     <h1>What did you eat?</h1>
@@ -40,17 +44,37 @@
     </div>
 
     {% for entry in entries %}
-        <article class="entry">
+        <article class="entry entry-{{ entry.status.value }}">
             <header>
                 <span class="time">{{ entry.eatenAt|date('H:i', app.user.timezone) }}</span>
                 <span class="raw">“{{ entry.rawText }}”</span>
                 {% if entry.estimatedBy == 'random' %}<span class="badge" title="Numbers from the random fake provider">fake</span>{% endif %}
-                <span class="kcal">{{ entry.kcal|round }} kcal</span>
+                {% if entry.pending %}
+                    <span class="status">⏳ Estimating…</span>
+                {% elseif entry.failed %}
+                    <span class="status failed">Couldn't estimate</span>
+                {% else %}
+                    <span class="kcal">{{ entry.kcal|round }} kcal</span>
+                    <a href="{{ path('app_meal_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust amounts">Adjust</a>
+                {% endif %}
                 <form method="post" action="{{ path('app_meal_delete', {id: entry.id}) }}" onsubmit="return confirm('Delete this meal?')">
                     <input type="hidden" name="_token" value="{{ csrf_token('meal_delete_' ~ entry.id) }}">
                     <button type="submit" class="link danger" title="Delete">✕</button>
                 </form>
             </header>
+            {% if entry.failed %}
+                <div class="retry">
+                    <form method="post" action="{{ path('app_meal_retry', {id: entry.id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('meal_retry_' ~ entry.id) }}">
+                        {% if retryAvailableAt[entry.id] is null %}
+                            <button type="submit">Retry</button>
+                        {% else %}
+                            <button type="submit" disabled>Retry</button>
+                            <span class="muted">You can retry at {{ retryAvailableAt[entry.id]|date('H:i', app.user.timezone) }}.</span>
+                        {% endif %}
+                    </form>
+                </div>
+            {% elseif not entry.pending %}
             <table>
                 <thead>
                     <tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr>
@@ -71,6 +95,7 @@
                 {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </article>
     {% else %}
         <p class="muted">Nothing logged yet today.</p>

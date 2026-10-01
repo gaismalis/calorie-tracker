@@ -80,3 +80,19 @@ table.weights .change { color: var(--muted); }
 .target p { margin: 0.4rem 0 0; }
 .target .bar { height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
 .target .bar div { height: 100%; background: var(--accent); }
+.flash-info { background: #e8f1fb; color: #1a4a7a; }
+.entry .status { color: var(--muted); white-space: nowrap; }
+.entry .status.failed { color: var(--danger); }
+.entry .adjust-link { font-size: 0.85rem; }
+.entry .retry { margin-top: 0.4rem; }
+.entry .retry form { margin: 0; }
+.entry .retry button { margin-top: 0; padding: 0.35rem 0.8rem; }
+p.raw { font-style: italic; }
+table.adjust { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-bottom: 0.5rem; }
+table.adjust th { color: var(--muted); font-weight: normal; font-size: 0.8rem; text-align: right; }
+table.adjust th:first-child, table.adjust td:first-child { text-align: left; }
+table.adjust td { text-align: right; padding: 0.35rem 0 0.35rem 0.6rem; border-top: 1px solid var(--border); vertical-align: top; }
+table.adjust tfoot th { color: var(--text); font-weight: 600; border-top: 2px solid var(--border); padding: 0.4rem 0 0 0.6rem; }
+table.adjust input { width: 5.5rem; padding: 0.35rem; font: inherit; text-align: right; border: 1px solid var(--border); border-radius: 6px; }
+table.adjust .assumption { color: var(--muted); font-size: 0.8rem; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }

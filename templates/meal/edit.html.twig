@@ -1,0 +1,53 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Check your meal · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card">
+    <h1>Does this look right?</h1>
+    <p class="raw">“{{ entry.rawText }}”</p>
+    <p class="muted">Adjust the grams if the AI guessed wrong. Calories and macros change with the amount. Set an item to 0 to remove it.</p>
+
+    <form method="post" data-controller="meal-adjust">
+        <table class="adjust">
+            <thead>
+                <tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr>
+            </thead>
+            <tbody>
+            {% for item in entry.items %}
+                <tr data-meal-adjust-target="row"
+                    data-grams="{{ item.grams }}" data-kcal="{{ item.kcal }}"
+                    data-protein="{{ item.protein }}" data-carbs="{{ item.carbs }}" data-fat="{{ item.fat }}">
+                    <td>
+                        {{ item.name }}
+                        {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
+                        {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
+                    </td>
+                    <td>
+                        <input type="number" name="grams[{{ item.id }}]" value="{{ app.request.request.all('grams')[item.id] ?? item.grams|round(1) }}"
+                               min="0" max="5000" step="any" inputmode="decimal" aria-label="Grams of {{ item.name }}"
+                               data-action="input->meal-adjust#recalculate">
+                    </td>
+                    <td data-field="kcal">{{ item.kcal|round }}</td>
+                    <td data-field="protein">{{ item.protein|round(1) }}</td>
+                    <td data-field="carbs">{{ item.carbs|round(1) }}</td>
+                    <td data-field="fat">{{ item.fat|round(1) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th>Total</th><th></th>
+                    <th data-meal-adjust-target="total" data-field="kcal">{{ entry.kcal|round }}</th>
+                    <th data-meal-adjust-target="total" data-field="protein">{{ entry.protein|round(1) }}</th>
+                    <th data-meal-adjust-target="total" data-field="carbs">{{ entry.carbs|round(1) }}</th>
+                    <th data-meal-adjust-target="total" data-field="fat">{{ entry.fat|round(1) }}</th>
+                </tr>
+            </tfoot>
+        </table>
+        <input type="hidden" name="_token" value="{{ csrf_token('meal_edit_' ~ entry.id) }}">
+        <button type="submit">Save</button>
+        <a href="{{ path('app_dashboard') }}" class="muted">Back</a>
+    </form>
+</section>
+{% endblock %}
