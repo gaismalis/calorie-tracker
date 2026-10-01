@@ -173,6 +173,53 @@ class DayNavigationTest extends WebTestCase
         self::assertSame(MealStatus::Estimated, $this->onlyEntry()->getStatus());
     }
 
+    public function testAdjustPageShowsWhenTheMealWasEatenInLocalTime(): void
+    {
+        $entry = $this->storeEntry('late snack', $this->today->modify('-1 day')->setTime(23, 40)); // 20:40 UTC
+
+        $crawler = $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+
+        self::assertSame($this->today->modify('-1 day')->format('Y-m-d'), $crawler->filter('input[name=eaten_date]')->attr('value'));
+        self::assertSame('23:40', $crawler->filter('input[name=eaten_time]')->attr('value'));
+    }
+
+    public function testMovingAMealToAnotherDayAndTime(): void
+    {
+        $entry = $this->storeEntry('dinner', $this->today->setTime(0, 10));
+        $target = $this->today->modify('-2 days');
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $this->client->submitForm('Save', ['eaten_date' => $target->format('Y-m-d'), 'eaten_time' => '19:30']);
+
+        self::assertResponseRedirects('/day/'.$target->format('Y-m-d'), message: 'goes to the new day');
+        self::assertSame($target->setTime(19, 30)->getTimestamp(), $this->onlyEntry()->getEatenAt()->getTimestamp());
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function invalidMoves(): iterable
+    {
+        yield 'future' => ['+2 days', '12:00', "You can't log meals in the future"];
+        yield 'bad time' => ['-1 day', '7pm', 'Enter a valid date and time'];
+        yield 'bad date' => ['2026-02-30', '12:00', 'Enter a valid date and time'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidMoves')]
+    public function testInvalidMoveIsRejectedAndNothingChanges(string $date, string $time, string $error): void
+    {
+        $original = $this->today->modify('-1 day')->setTime(8, 0);
+        $entry = $this->storeEntry('breakfast', $original);
+        $dateValue = str_starts_with($date, '20') ? $date : $this->today->modify($date)->format('Y-m-d');
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $form = $this->client->getCrawler()->selectButton('Save')->form();
+        $form->disableValidation()->setValues(['eaten_date' => $dateValue, 'eaten_time' => $time]);
+        $this->client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('.eaten-at', $error);
+        self::assertSame($original->getTimestamp(), $this->onlyEntry()->getEatenAt()->getTimestamp());
+    }
+
     private function formToken(string $url): string
     {
         return $this->client->request('GET', $url)->filter('.meal-form input[name=_token]')->attr('value');

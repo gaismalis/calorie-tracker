@@ -9,6 +9,17 @@
     <p class="muted">Adjust the grams if the AI guessed wrong. Calories and macros change with the amount. Set an item to 0 to remove it.</p>
 
     <form method="post" data-controller="meal-adjust">
+        <div class="eaten-at">
+            <label>Eaten on
+                <input type="date" name="eaten_date" required max="{{ 'now'|date('Y-m-d', app.user.timezone) }}"
+                       value="{{ app.request.request.get('eaten_date') ?? entry.eatenAt|date('Y-m-d', app.user.timezone) }}">
+            </label>
+            <label>at
+                <input type="time" name="eaten_time" required
+                       value="{{ app.request.request.get('eaten_time') ?? entry.eatenAt|date('H:i', app.user.timezone) }}">
+            </label>
+            {% if errors.eatenAt is defined %}<ul><li>{{ errors.eatenAt }}</li></ul>{% endif %}
+        </div>
         <table class="adjust">
             <thead>
                 <tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr>

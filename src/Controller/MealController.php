@@ -133,6 +133,17 @@ class MealController extends AbstractController
         return $eatenAt;
     }
 
+    /** A 'Y-m-d' date and 'H:i' time in the user's timezone, or null if either is invalid. */
+    private function parseLocalDateTime(User $user, string $date, string $time): ?\DateTimeImmutable
+    {
+        $day = $this->parseLocalDate($user, trim($date));
+        if (null === $day || !preg_match('/^([01]\d|2[0-3]):([0-5]\d)$/', trim($time), $m)) {
+            return null;
+        }
+
+        return $day->setTime((int) $m[1], (int) $m[2]);
+    }
+
     /** Midnight of a 'Y-m-d' date in the user's timezone, or null if it isn't a real date. */
     private function parseLocalDate(User $user, string $date): ?\DateTimeImmutable
     {
@@ -156,6 +167,13 @@ class MealController extends AbstractController
                 throw $this->createAccessDeniedException('Invalid CSRF token.');
             }
 
+            $eatenAt = $this->parseLocalDateTime($user, $request->request->getString('eaten_date'), $request->request->getString('eaten_time'));
+            if (null === $eatenAt) {
+                $errors['eatenAt'] = 'Enter a valid date and time.';
+            } elseif ($eatenAt > new \DateTimeImmutable('+5 minutes')) {
+                $errors['eatenAt'] = "You can't log meals in the future.";
+            }
+
             $submitted = $request->request->all('grams');
             $newGrams = [];
             foreach ($entry->getItems() as $item) {
@@ -168,6 +186,7 @@ class MealController extends AbstractController
             }
 
             if (!$errors) {
+                $entry->setEatenAt($eatenAt);
                 foreach ($entry->getItems() as $item) {
                     if (0.0 === $newGrams[$item->getId()]) {
                         $entry->getItems()->removeElement($item);

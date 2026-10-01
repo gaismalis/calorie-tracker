@@ -150,3 +150,7 @@ button.link.danger svg { vertical-align: -3px; }
 .weight-chart .tooltip .tip-weigh-in .key { background: var(--series-2); }
 .weight-chart .tooltip .tip-date { margin-bottom: 0.15rem; }
 .chart-empty { margin: 0.5rem 0; }
+.eaten-at { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.eaten-at label { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
+.eaten-at input { padding: 0.4rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; }
+.eaten-at ul { flex-basis: 100%; margin: 0; }

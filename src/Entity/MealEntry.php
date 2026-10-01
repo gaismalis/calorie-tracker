@@ -148,6 +148,11 @@ class MealEntry
         return $this->eatenAt;
     }
 
+    public function setEatenAt(\DateTimeImmutable $eatenAt): void
+    {
+        $this->eatenAt = $eatenAt->setTimezone(new \DateTimeZone('UTC'));
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
