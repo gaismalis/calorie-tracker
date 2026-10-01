@@ -378,6 +378,18 @@ class MealLoggingTest extends WebTestCase
         self::assertSame(0, $this->em()->getRepository(MealEntry::class)->count([]));
     }
 
+    public function testDeleteUsesTwoClickConfirmationInsteadOfAPopup(): void
+    {
+        $this->storeEntry($this->user, 'x', new \DateTimeImmutable());
+
+        $crawler = $this->client->request('GET', '/');
+
+        $form = $crawler->filter('form[action$="/delete"]');
+        self::assertSame('confirm-delete', $form->attr('data-controller'));
+        self::assertNull($form->attr('onsubmit'), 'no browser confirm() popup');
+        self::assertSame('confirm-delete#click', $form->filter('button')->attr('data-action'));
+    }
+
     public function testUserCannotDeleteSomeoneElsesMeal(): void
     {
         $entry = $this->storeEntry($this->createUser('other@example.com'), 'not yours', new \DateTimeImmutable());

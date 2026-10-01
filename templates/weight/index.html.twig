@@ -29,9 +29,9 @@
                         {% if row.change is not null %}{{ row.change > 0 ? '+' : '' }}{{ row.change|number_format(1) }}{% endif %}
                     </td>
                     <td>
-                        <form method="post" action="{{ path('app_weight_delete', {id: row.entry.id}) }}" onsubmit="return confirm('Delete this weight?')">
+                        <form method="post" action="{{ path('app_weight_delete', {id: row.entry.id}) }}" data-controller="confirm-delete">
                             <input type="hidden" name="_token" value="{{ csrf_token('weight_delete_' ~ row.entry.id) }}">
-                            <button type="submit" class="link danger" title="Delete">✕</button>
+                            <button type="submit" class="link danger" title="Delete" data-confirm-delete-target="button" data-action="confirm-delete#click">✕</button>
                         </form>
                     </td>
                 </tr>

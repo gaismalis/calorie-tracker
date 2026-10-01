@@ -114,6 +114,17 @@ class WeightLogTest extends WebTestCase
         self::assertSame([], $this->entries());
     }
 
+    public function testDeleteUsesTwoClickConfirmationInsteadOfAPopup(): void
+    {
+        $this->storeWeight($this->user, '2026-09-01', 80.0);
+
+        $crawler = $this->client->request('GET', '/weight');
+
+        $form = $crawler->filter('form[action$="/delete"]');
+        self::assertSame('confirm-delete', $form->attr('data-controller'));
+        self::assertNull($form->attr('onsubmit'), 'no browser confirm() popup');
+    }
+
     public function testCannotDeleteSomeoneElsesEntry(): void
     {
         $entry = $this->storeWeight($this->createUser('other@example.com'), '2026-09-01', 80.0);

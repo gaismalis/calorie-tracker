@@ -57,9 +57,9 @@
                     <span class="kcal">{{ entry.kcal|round }} kcal</span>
                     <a href="{{ path('app_meal_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust amounts">Adjust</a>
                 {% endif %}
-                <form method="post" action="{{ path('app_meal_delete', {id: entry.id}) }}" onsubmit="return confirm('Delete this meal?')">
+                <form method="post" action="{{ path('app_meal_delete', {id: entry.id}) }}" data-controller="confirm-delete">
                     <input type="hidden" name="_token" value="{{ csrf_token('meal_delete_' ~ entry.id) }}">
-                    <button type="submit" class="link danger" title="Delete">✕</button>
+                    <button type="submit" class="link danger" title="Delete" data-confirm-delete-target="button" data-action="confirm-delete#click">✕</button>
                 </form>
             </header>
             {% if entry.failed %}

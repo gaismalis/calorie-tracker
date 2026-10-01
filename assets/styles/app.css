@@ -96,3 +96,5 @@ table.adjust tfoot th { color: var(--text); font-weight: 600; border-top: 2px so
 table.adjust input { width: 5.5rem; padding: 0.35rem; font: inherit; text-align: right; border: 1px solid var(--border); border-radius: 6px; }
 table.adjust .assumption { color: var(--muted); font-size: 0.8rem; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.link.danger.armed { color: var(--danger); }
+button.link.danger svg { vertical-align: -3px; }
