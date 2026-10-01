@@ -127,6 +127,16 @@ class DashboardTest extends WebTestCase
         self::assertResponseRedirects('/?log=food');
     }
 
+    public function testWideScreensGetButtonsThatOpenTheSameDialog(): void
+    {
+        $crawler = $this->client->request('GET', '/');
+
+        $buttons = $crawler->filter('.add-bar a');
+        self::assertSame(['＋ Meal', '＋ Exercise'], $buttons->each(fn ($a) => $a->text()));
+        self::assertSame(['/meals/new', '/exercises/new'], $buttons->each(fn ($a) => $a->attr('href')));
+        self::assertSame(['entry-dialog#open', 'entry-dialog#open'], $buttons->each(fn ($a) => $a->attr('data-action')));
+    }
+
     public function testAdjustLinksOpenInTheDialog(): void
     {
         $this->storeMeal('lunch');

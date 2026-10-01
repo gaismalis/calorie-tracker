@@ -229,3 +229,14 @@ main.container { padding-bottom: 5rem; } /* room for the floating button */
 .review-actions { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 0.75rem; }
 .review-actions button { margin: 0; }
 p.small { font-size: 0.8rem; margin: 0.4rem 0 0; }
+
+/* Adding entries: floating + on narrow screens (thumb reach), buttons above the overview on wide screens. */
+a.button { display: inline-block; padding: 0.6rem 1.1rem; border-radius: 6px; text-decoration: none; color: #fff; background: var(--accent); }
+a.button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+a.button:hover { filter: brightness(0.95); }
+.add-bar { display: none; justify-content: flex-end; gap: 0.5rem; margin-bottom: 0.75rem; }
+@media (min-width: 768px) {
+    .add-bar { display: flex; }
+    .add-entry { display: none; }
+    main.container { padding-bottom: 0; }
+}

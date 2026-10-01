@@ -18,6 +18,12 @@
 
 <div data-controller="entry-dialog"
      data-action="keydown.esc@window->entry-dialog#closeMenu click@window->entry-dialog#outside turbo:frame-load->entry-dialog#loaded">
+    {% set dateParam = isToday ? {} : {date: day|date('Y-m-d', app.user.timezone)} %}
+    {# Wide screens: buttons above the overview. Narrow screens use the floating + in _add.html.twig instead. #}
+    <div class="add-bar">
+        <a href="{{ path('app_meal_new', dateParam) }}" class="button" data-action="entry-dialog#open">＋ Meal</a>
+        <a href="{{ path('app_exercise_new', dateParam) }}" class="button secondary" data-action="entry-dialog#open">＋ Exercise</a>
+    </div>
     {{ include('dashboard/_overview.html.twig') }}
     {{ include('dashboard/_chart.html.twig') }}
     {{ include('dashboard/_log.html.twig') }}

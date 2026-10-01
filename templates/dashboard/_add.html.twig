@@ -1,5 +1,4 @@
-{# Floating "+" → Meal or Exercise → one dialog. Its Turbo frame loads the form, then the "we think it's X kcal" review. #}
-{% set dateParam = isToday ? {} : {date: day|date('Y-m-d', app.user.timezone)} %}
+{# Floating "+" (narrow screens) → Meal or Exercise → one dialog. Its Turbo frame loads the form, then the "we think it's X kcal" review. #}
 <div class="add-entry">
     <div class="add-menu" data-entry-dialog-target="menu" hidden>
         <a href="{{ path('app_meal_new', dateParam) }}" role="button" data-action="entry-dialog#open">🍽 Meal</a>
@@ -7,9 +6,9 @@
     </div>
     <button type="button" class="fab" aria-label="Add a meal or exercise" aria-expanded="false" aria-haspopup="true"
             data-entry-dialog-target="toggle" data-action="entry-dialog#toggle">+</button>
-
-    <dialog class="entry-dialog" data-entry-dialog-target="dialog" aria-labelledby="entry-title"
-            data-action="click->entry-dialog#backdrop close->entry-dialog#closed">
-        <turbo-frame id="entry-panel" data-entry-dialog-target="frame" data-action="turbo:frame-missing->entry-dialog#leaveFrame"></turbo-frame>
-    </dialog>
 </div>
+
+<dialog class="entry-dialog" data-entry-dialog-target="dialog" aria-labelledby="entry-title"
+        data-action="click->entry-dialog#backdrop close->entry-dialog#closed">
+    <turbo-frame id="entry-panel" data-entry-dialog-target="frame" data-action="turbo:frame-missing->entry-dialog#leaveFrame"></turbo-frame>
+</dialog>
