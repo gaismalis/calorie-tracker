@@ -2,6 +2,6 @@
 
 namespace App\Nutrition;
 
-class NutritionEstimationException extends \RuntimeException
+class NutritionEstimationException extends \App\Ai\AiEstimationException
 {
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Nutrition;
+namespace App\Ai;
 
 /**
  * @internal One failed call to one Gemini model, after which another attempt or model may still succeed.

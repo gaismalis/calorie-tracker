@@ -2,6 +2,7 @@
 
 namespace App\Tests\Unit\Nutrition;
 
+use App\Ai\GeminiClient;
 use App\Nutrition\GeminiNutritionEstimator;
 use App\Nutrition\NutritionEstimationException;
 use PHPUnit\Framework\TestCase;
@@ -73,7 +74,7 @@ class GeminiNutritionEstimatorTest extends TestCase
         $this->expectException(NutritionEstimationException::class);
         $this->expectExceptionMessage('GEMINI_API_KEY');
 
-        (new GeminiNutritionEstimator(new MockHttpClient(), '', 'm'))->estimate('an apple');
+        (new GeminiNutritionEstimator(new GeminiClient(new MockHttpClient(), '', 'm')))->estimate('an apple');
     }
 
     public function testFailsWithoutModels(): void
@@ -240,7 +241,7 @@ class GeminiNutritionEstimatorTest extends TestCase
 
     private function make(MockHttpClient $http, string $models): GeminiNutritionEstimator
     {
-        return new GeminiNutritionEstimator($http, 'test-key', $models, $this->clock);
+        return new GeminiNutritionEstimator(new GeminiClient($http, 'test-key', $models, $this->clock));
     }
 
     private function waited(): float
