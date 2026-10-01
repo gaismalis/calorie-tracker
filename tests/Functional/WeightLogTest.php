@@ -104,14 +104,23 @@ class WeightLogTest extends WebTestCase
         self::assertSelectorTextContains('.range a[aria-current]', '30 days');
     }
 
-    public function testChartNeedsTwoWeighInsAndIgnoresUnknownRanges(): void
+    public function testChartIsAlwaysShownEvenWithoutWeighIns(): void
+    {
+        $crawler = $this->client->request('GET', '/weight');
+
+        self::assertSelectorExists('.weight-chart svg[role=img]');
+        self::assertSelectorTextContains('.weight-chart .empty-label', 'No weigh-ins in this period yet');
+        self::assertCount(0, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'));
+    }
+
+    public function testChartWithASingleWeighInAndUnknownRangeFallsBackTo90Days(): void
     {
         $this->storeWeight($this->user, $this->user->today()->format('Y-m-d'), 80.0);
 
-        $this->client->request('GET', '/weight?range=7');
+        $crawler = $this->client->request('GET', '/weight?range=7');
 
-        self::assertSelectorNotExists('.weight-chart');
-        self::assertSelectorTextContains('.chart-empty', 'at least two days');
+        self::assertCount(1, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'));
+        self::assertSelectorNotExists('.weight-chart .empty-label');
         self::assertSelectorTextContains('.range a[aria-current]', '90 days');
     }
 

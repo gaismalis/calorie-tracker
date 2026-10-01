@@ -154,3 +154,4 @@ button.link.danger svg { vertical-align: -3px; }
 .eaten-at label { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
 .eaten-at input { padding: 0.4rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; }
 .eaten-at ul { flex-basis: 100%; margin: 0; }
+.weight-chart .empty-label { text-anchor: middle; dominant-baseline: middle; font-size: 13px; fill: var(--text-secondary); }

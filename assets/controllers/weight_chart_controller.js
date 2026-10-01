@@ -40,6 +40,7 @@ export default class extends Controller {
     }
 
     show(index) {
+        if (this.daysValue.length === 0) return; // empty chart: nothing to point at
         this.index = index;
         const day = this.daysValue[index];
         this.crosshairTarget.setAttribute('x1', day.x);

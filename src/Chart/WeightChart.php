@@ -14,6 +14,8 @@ final readonly class WeightChart
     private const MARGIN_RIGHT = 86; // room for the direct label at the end of the trend
     private const MARGIN_TOP = 12;
     private const MARGIN_BOTTOM = 28;
+    /** Centre of the y-axis when there's no weight at all yet. */
+    private const DEFAULT_KG = 75.0;
     /** Candidate y-tick steps in kg; the first that gives at most 6 ticks wins. */
     private const Y_STEPS = [0.5, 1, 2, 5, 10, 20];
 
@@ -41,15 +43,11 @@ final readonly class WeightChart
     /**
      * @param array<string, float> $weights kg by date ('Y-m-d') within the range
      * @param array<string, float> $trend   trend kg by date ('Y-m-d') within the range
-     * @param string               $lastDay last date shown ('Y-m-d', usually today)
-     *
-     * @return self|null null when there's too little to draw (fewer than 2 weigh-ins)
+     * @param string               $lastDay  last date shown ('Y-m-d', usually today)
+     * @param float|null           $fallback weight to centre an empty chart on (e.g. the last known weigh-in)
      */
-    public static function build(array $weights, array $trend, string $lastDay, int $days): ?self
+    public static function build(array $weights, array $trend, string $lastDay, int $days, ?float $fallback = null): self
     {
-        if (count($weights) < 2) {
-            return null;
-        }
         ksort($weights);
         ksort($trend);
 
@@ -62,7 +60,11 @@ final readonly class WeightChart
 
         $x = fn (string $date): float => round($left + ($right - $left) * self::daysBetween($first, $date) / max(1, $days - 1), 1);
 
-        [$min, $max, $step] = self::yDomain([...array_values($weights), ...array_values($trend)]);
+        $values = [...array_values($weights), ...array_values($trend)];
+        if ([] === $values) {
+            $values = [($fallback ?? self::DEFAULT_KG) - 1.5, ($fallback ?? self::DEFAULT_KG) + 1.5];
+        }
+        [$min, $max, $step] = self::yDomain($values);
         $y = fn (float $kg): float => round($bottom - ($bottom - $top) * ($kg - $min) / ($max - $min), 1);
 
         $path = '';
@@ -102,6 +104,11 @@ final readonly class WeightChart
         $trendEnd = null === $lastTrendDate ? null : ['x' => $x($lastTrendDate), 'y' => $y($trend[$lastTrendDate]), 'kg' => $trend[$lastTrendDate]];
 
         return new self($path, $dots, $yTicks, $xTicks, array_values($hover), $trendEnd, $left, $right, $top, $bottom);
+    }
+
+    public function isEmpty(): bool
+    {
+        return [] === $this->dots;
     }
 
     /**

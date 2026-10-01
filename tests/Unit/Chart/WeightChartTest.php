@@ -7,10 +7,35 @@ use PHPUnit\Framework\TestCase;
 
 class WeightChartTest extends TestCase
 {
-    public function testNeedsAtLeastTwoWeighIns(): void
+    public function testEmptyChartStillHasAxesCentredOnTheLastKnownWeight(): void
     {
-        self::assertNull(WeightChart::build([], [], '2026-10-01', 30));
-        self::assertNull(WeightChart::build(['2026-09-30' => 80.0], ['2026-09-30' => 80.0], '2026-10-01', 30));
+        $chart = WeightChart::build([], [], '2026-10-01', 30, fallback: 82.0);
+
+        self::assertTrue($chart->isEmpty());
+        self::assertSame('', $chart->trendPath);
+        self::assertSame([], $chart->days);
+        self::assertNull($chart->trendEnd);
+        self::assertNotEmpty($chart->xTicks);
+        $ticks = array_column($chart->yTicks, 'value');
+        self::assertLessThan(82.0, $ticks[0]);
+        self::assertGreaterThan(82.0, end($ticks));
+    }
+
+    public function testEmptyChartWithoutAnyWeightUsesADefaultScale(): void
+    {
+        $ticks = array_column(WeightChart::build([], [], '2026-10-01', 90)->yTicks, 'value');
+
+        self::assertSame([73.0, 74.0, 75.0, 76.0, 77.0], $ticks);
+    }
+
+    public function testSingleWeighIn(): void
+    {
+        $chart = WeightChart::build(['2026-09-30' => 80.0], ['2026-09-30' => 80.0], '2026-10-01', 30);
+
+        self::assertFalse($chart->isEmpty());
+        self::assertCount(1, $chart->dots);
+        self::assertSame(80.0, $chart->trendEnd['kg']);
+        self::assertCount(1, $chart->days);
     }
 
     public function testFirstDayIsAtTheLeftAndLastDayAtTheRight(): void

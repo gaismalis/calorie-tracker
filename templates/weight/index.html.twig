@@ -22,11 +22,7 @@
             {% endfor %}
         </nav>
     </div>
-    {% if chart %}
-        {{ include('weight/_chart.html.twig') }}
-    {% else %}
-        <p class="muted chart-empty">Log your weight on at least two days in this period to see a chart.</p>
-    {% endif %}
+    {{ include('weight/_chart.html.twig') }}
 </section>
 
 <section class="card">

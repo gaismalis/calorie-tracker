@@ -5,7 +5,7 @@
         <li><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" class="weigh-in"/></svg> Weigh-ins</li>
     </ul>
     <svg viewBox="0 0 {{ constant('App\\Chart\\WeightChart::WIDTH') }} {{ constant('App\\Chart\\WeightChart::HEIGHT') }}"
-         role="img" aria-label="Weight chart: {{ chart.dots|length }} weigh-ins{% if chart.trendEnd %}, trend now {{ chart.trendEnd.kg|number_format(1) }} kg{% endif %}. The same data is in the History table below."
+         role="img" aria-label="Weight chart: {{ chart.dots|length }} {{ chart.dots|length == 1 ? 'weigh-in' : 'weigh-ins' }}{% if chart.trendEnd %}, trend now {{ chart.trendEnd.kg|number_format(1) }} kg{% endif %}. The same data is in the History table below."
          data-weight-chart-target="svg">
         <g class="grid">
             {% for tick in chart.yTicks %}
@@ -18,6 +18,9 @@
                 <text x="{{ tick.x }}" y="{{ chart.plotBottom + 18 }}" class="x-tick">{{ tick.label }}</text>
             {% endfor %}
         </g>
+        {% if chart.empty %}
+            <text x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" y="{{ (chart.plotTop + chart.plotBottom) / 2 }}" class="empty-label">No weigh-ins in this period yet. Log your weight above.</text>
+        {% endif %}
         <path d="{{ chart.trendPath }}" class="trend-line"/>
         <g class="dots">
             {% for dot in chart.dots %}

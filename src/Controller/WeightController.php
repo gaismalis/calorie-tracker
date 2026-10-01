@@ -76,7 +76,7 @@ class WeightController extends AbstractController
         ]);
     }
 
-    private function chart(User $user, WeightEntryRepository $weights, int $days): ?WeightChart
+    private function chart(User $user, WeightEntryRepository $weights, int $days): WeightChart
     {
         $today = $user->today()->format('Y-m-d');
         $first = (new \DateTimeImmutable($today))->modify(sprintf('-%d days', $days - 1))->format('Y-m-d');
@@ -91,6 +91,7 @@ class WeightController extends AbstractController
             array_filter($trend, $inRange, ARRAY_FILTER_USE_KEY),
             $today,
             $days,
+            $weights->findLatest($user)?->getWeightKg(),
         );
     }
 
