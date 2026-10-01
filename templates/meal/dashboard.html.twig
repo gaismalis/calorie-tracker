@@ -1,0 +1,59 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<section class="card">
+    <h1>What did you eat?</h1>
+    <form method="post" action="{{ path('app_meal_create') }}" class="meal-form">
+        <textarea name="description" rows="3" maxlength="1000" required
+            placeholder="e.g. 400 g yogurt, 50 g jam, 50 g granola and a big tablespoon of peanut butter"></textarea>
+        <input type="hidden" name="_token" value="{{ csrf_token('meal_create') }}">
+        <button type="submit">Log meal</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Today</h2>
+    <div class="totals">
+        <div><strong>{{ totals.kcal|round }}</strong><span>kcal</span></div>
+        <div><strong>{{ totals.protein|round }} g</strong><span>protein</span></div>
+        <div><strong>{{ totals.carbs|round }} g</strong><span>carbs</span></div>
+        <div><strong>{{ totals.fat|round }} g</strong><span>fat</span></div>
+    </div>
+
+    {% for entry in entries %}
+        <article class="entry">
+            <header>
+                <span class="time">{{ entry.eatenAt|date('H:i') }}</span>
+                <span class="raw">“{{ entry.rawText }}”</span>
+                <span class="kcal">{{ entry.kcal|round }} kcal</span>
+                <form method="post" action="{{ path('app_meal_delete', {id: entry.id}) }}" onsubmit="return confirm('Delete this meal?')">
+                    <input type="hidden" name="_token" value="{{ csrf_token('meal_delete_' ~ entry.id) }}">
+                    <button type="submit" class="link danger" title="Delete">✕</button>
+                </form>
+            </header>
+            <table>
+                <thead>
+                    <tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr>
+                </thead>
+                <tbody>
+                {% for item in entry.items %}
+                    <tr>
+                        <td>
+                            {{ item.name }}
+                            {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
+                        </td>
+                        <td>{{ item.grams|round }}</td>
+                        <td>{{ item.kcal|round }}</td>
+                        <td>{{ item.protein|round(1) }}</td>
+                        <td>{{ item.carbs|round(1) }}</td>
+                        <td>{{ item.fat|round(1) }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+    {% else %}
+        <p class="muted">Nothing logged yet today.</p>
+    {% endfor %}
+</section>
+{% endblock %}

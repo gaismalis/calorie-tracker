@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Register · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card narrow">
+    <h1>Create an account</h1>
+
+    {{ form_start(registrationForm) }}
+        {{ form_row(registrationForm.email) }}
+        {{ form_row(registrationForm.plainPassword) }}
+        <button type="submit">Register</button>
+    {{ form_end(registrationForm) }}
+
+    <p class="muted">Already registered? <a href="{{ path('app_login') }}">Log in</a></p>
+</section>
+{% endblock %}

@@ -1,2 +1,3 @@
 All features must be covered by tests
-Commit often
+Commit often — commit directly to `main`, one commit per working step
+    
