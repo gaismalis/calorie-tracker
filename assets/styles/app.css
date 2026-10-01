@@ -67,3 +67,12 @@ select, input[type=date], input[type=number] {
     border: 1px solid var(--border); border-radius: 6px; background: #fff;
 }
 .help-text, form .form-text { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+.inline-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0 0.75rem; align-items: end; }
+.inline-form > div { min-width: 0; }
+.inline-form button { margin-bottom: 0; }
+.inline-form ul { grid-column: 1 / -1; }
+table.weights { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.weights th { text-align: left; color: var(--muted); font-weight: normal; font-size: 0.8rem; }
+table.weights td { padding: 0.35rem 0; border-top: 1px solid var(--border); }
+table.weights td form { margin: 0; text-align: right; }
+table.weights .change { color: var(--muted); }

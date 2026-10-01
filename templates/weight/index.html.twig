@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Weight · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card">
+    <h1>Log your weight</h1>
+    <p class="muted">Weigh yourself in the morning, after the toilet and before eating, for the most consistent numbers. Logging the same day again replaces the earlier value.</p>
+    {{ form_start(form, {attr: {class: 'inline-form'}}) }}
+        {{ form_row(form.weightKg) }}
+        {{ form_row(form.date) }}
+        <button type="submit">Save weight</button>
+    {{ form_end(form) }}
+</section>
+
+<section class="card">
+    <h2>History</h2>
+    {% if rows is empty %}
+        <p class="muted">No weight logged yet.</p>
+    {% else %}
+        <table class="weights">
+            <thead><tr><th>Date</th><th>kg</th><th>Change</th><th></th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>{{ row.entry.date|date('D, j M Y', 'UTC') }}</td>
+                    <td>{{ row.entry.weightKg|number_format(1) }}</td>
+                    <td class="change">
+                        {% if row.change is not null %}{{ row.change > 0 ? '+' : '' }}{{ row.change|number_format(1) }}{% endif %}
+                    </td>
+                    <td>
+                        <form method="post" action="{{ path('app_weight_delete', {id: row.entry.id}) }}" onsubmit="return confirm('Delete this weight?')">
+                            <input type="hidden" name="_token" value="{{ csrf_token('weight_delete_' ~ row.entry.id) }}">
+                            <button type="submit" class="link danger" title="Delete">✕</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</section>
+{% endblock %}
