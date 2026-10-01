@@ -13,6 +13,25 @@
 
 <section class="card">
     <h2>Today</h2>
+    {% if energy.complete %}
+        {% set remaining = energy.tdee - totals.kcal %}
+        <div class="target">
+            <div class="bar"><div style="width: {{ min(100, totals.kcal / energy.tdee * 100)|round }}%"></div></div>
+            <p>
+                <strong>{{ totals.kcal|round }}</strong> of ~{{ energy.tdee|round }} kcal ·
+                {% if remaining >= 0 %}<strong>{{ remaining|round }}</strong> left{% else %}<strong>{{ (-remaining)|round }}</strong> over{% endif %}
+            </p>
+            <p class="muted">~{{ energy.tdee|round }} kcal/day is a formula estimate of what you burn (maintenance). It will be replaced by an estimate from your own weight trend.</p>
+        </div>
+    {% else %}
+        {% set profileMissing = energy.missing|filter(m => m != 'weight') %}
+        <p class="muted target-missing">
+            To see your daily calorie target,
+            {% if profileMissing is not empty %}add your {{ profileMissing|join(', ', ' and ') }} in your <a href="{{ path('app_profile') }}">profile</a>{% endif %}
+            {%- if profileMissing is not empty and 'weight' in energy.missing %} and {% endif %}
+            {%- if 'weight' in energy.missing %}log your <a href="{{ path('app_weight') }}">weight</a>{% endif %}.
+        </p>
+    {% endif %}
     <div class="totals">
         <div><strong>{{ totals.kcal|round }}</strong><span>kcal</span></div>
         <div><strong>{{ totals.protein|round }} g</strong><span>protein</span></div>

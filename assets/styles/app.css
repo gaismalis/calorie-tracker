@@ -76,3 +76,7 @@ table.weights th { text-align: left; color: var(--muted); font-weight: normal; f
 table.weights td { padding: 0.35rem 0; border-top: 1px solid var(--border); }
 table.weights td form { margin: 0; text-align: right; }
 table.weights .change { color: var(--muted); }
+.target { margin-bottom: 1rem; }
+.target p { margin: 0.4rem 0 0; }
+.target .bar { height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.target .bar div { height: 100%; background: var(--accent); }

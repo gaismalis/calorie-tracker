@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Energy\EnergyCalculator;
 use App\Entity\MealEntry;
 use App\Entity\MealItem;
 use App\Entity\User;
@@ -21,7 +22,7 @@ class MealController extends AbstractController
     private const MAX_DESCRIPTION_LENGTH = 1000;
 
     #[Route('/', name: 'app_dashboard', methods: ['GET'])]
-    public function dashboard(#[CurrentUser] User $user, MealEntryRepository $meals): Response
+    public function dashboard(#[CurrentUser] User $user, MealEntryRepository $meals, EnergyCalculator $energy): Response
     {
         $entries = $meals->findForDay($user, $user->today());
 
@@ -33,7 +34,11 @@ class MealController extends AbstractController
             $totals['fat'] += $entry->getFat();
         }
 
-        return $this->render('meal/dashboard.html.twig', ['entries' => $entries, 'totals' => $totals]);
+        return $this->render('meal/dashboard.html.twig', [
+            'entries' => $entries,
+            'totals' => $totals,
+            'energy' => $energy->estimate($user),
+        ]);
     }
 
     #[Route('/meals', name: 'app_meal_create', methods: ['POST'])]
