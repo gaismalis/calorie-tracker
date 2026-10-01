@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Energy\WeightTrend;
 use App\Entity\User;
 use App\Entity\WeightEntry;
 use App\Form\WeightEntryFormType;
@@ -46,10 +47,17 @@ class WeightController extends AbstractController
         }
 
         $entries = $weights->findRecent($user);
+        $oldestShown = end($entries) ?: null;
+        // Warm the trend up with older weigh-ins so the oldest rows shown aren't just the raw weight.
+        $trend = $oldestShown ? WeightTrend::daily($weights->weightsByDate($user, $oldestShown->getDate()->modify('-60 days'))) : [];
         $rows = [];
         foreach ($entries as $i => $entry) {
             $previous = $entries[$i + 1] ?? null;
-            $rows[] = ['entry' => $entry, 'change' => $previous ? round($entry->getWeightKg() - $previous->getWeightKg(), 1) : null];
+            $rows[] = [
+                'entry' => $entry,
+                'change' => $previous ? round($entry->getWeightKg() - $previous->getWeightKg(), 1) : null,
+                'trend' => $trend[$entry->getDate()->format('Y-m-d')] ?? null,
+            ];
         }
 
         return $this->render('weight/index.html.twig', ['form' => $form, 'rows' => $rows]);

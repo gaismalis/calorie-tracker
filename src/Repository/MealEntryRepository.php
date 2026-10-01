@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\MealEntry;
 use App\Entity\User;
+use App\Meal\MealStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -37,5 +38,42 @@ class MealEntryRepository extends ServiceEntityRepository
             ->orderBy('m.eatenAt', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Total kcal of estimated meals per calendar day in the user's timezone.
+     *
+     * @param \DateTimeImmutable $from first local date (inclusive)
+     * @param \DateTimeImmutable $to   last local date (exclusive)
+     *
+     * @return array<string, float> kcal by 'Y-m-d'; days without estimated meals are absent
+     */
+    public function dailyIntake(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $timezone = $user->getDateTimeZone();
+        $utc = new \DateTimeZone('UTC');
+        $start = new \DateTimeImmutable($from->format('Y-m-d'), $timezone);
+        $end = new \DateTimeImmutable($to->format('Y-m-d'), $timezone);
+
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.eatenAt, m.kcal')
+            ->where('m.user = :user')
+            ->andWhere('m.status = :estimated')
+            ->andWhere('m.eatenAt >= :start AND m.eatenAt < :end')
+            ->setParameter('user', $user)
+            ->setParameter('estimated', MealStatus::Estimated)
+            ->setParameter('start', $start->setTimezone($utc))
+            ->setParameter('end', $end->setTimezone($utc))
+            ->getQuery()
+            ->getArrayResult();
+
+        $byDay = [];
+        foreach ($rows as $row) {
+            $day = $row['eatenAt']->setTimezone($timezone)->format('Y-m-d');
+            $byDay[$day] = ($byDay[$day] ?? 0) + $row['kcal'];
+        }
+        ksort($byDay);
+
+        return $byDay;
     }
 }

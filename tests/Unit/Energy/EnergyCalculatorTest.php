@@ -18,7 +18,7 @@ class EnergyCalculatorTest extends TestCase
         $estimate = EnergyCalculator::calculate($this->user(Sex::Male, '1996-01-01', 180, ActivityLevel::Moderate), 80, new \DateTimeImmutable(self::ON));
 
         self::assertSame(1780.0, $estimate->bmr);
-        self::assertSame(2759.0, $estimate->tdee);
+        self::assertSame(2759.0, $estimate->formulaTdee);
         self::assertTrue($estimate->isComplete());
         self::assertSame([], $estimate->missing);
     }
@@ -29,7 +29,7 @@ class EnergyCalculatorTest extends TestCase
         $estimate = EnergyCalculator::calculate($this->user(Sex::Female, '1986-06-15', 165, ActivityLevel::Sedentary), 65, new \DateTimeImmutable(self::ON));
 
         self::assertSame(1320.0, $estimate->bmr);
-        self::assertSame(1584.0, $estimate->tdee);
+        self::assertSame(1584.0, $estimate->formulaTdee);
     }
 
     public function testAllActivityMultipliers(): void
@@ -38,7 +38,7 @@ class EnergyCalculatorTest extends TestCase
 
         foreach (ActivityLevel::cases() as $level) {
             $estimate = EnergyCalculator::calculate($this->user(Sex::Male, '1996-01-01', 180, $level), 80, new \DateTimeImmutable(self::ON));
-            self::assertSame($expected[$level->value], $estimate->tdee, $level->value);
+            self::assertSame($expected[$level->value], $estimate->formulaTdee, $level->value);
         }
     }
 
@@ -47,7 +47,7 @@ class EnergyCalculatorTest extends TestCase
         $estimate = EnergyCalculator::calculate($this->user(Sex::Male, '1996-01-01', 180, null), 80, new \DateTimeImmutable(self::ON));
 
         self::assertSame(1780.0, $estimate->bmr);
-        self::assertNull($estimate->tdee);
+        self::assertNull($estimate->formulaTdee);
         self::assertFalse($estimate->isComplete());
         self::assertSame(['activity level'], $estimate->missing);
     }

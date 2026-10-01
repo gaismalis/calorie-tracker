@@ -334,6 +334,55 @@ class MealLoggingTest extends WebTestCase
         self::assertSelectorNotExists('.target-missing');
     }
 
+    public function testFormulaTargetSaysHowLongUntilTheAdaptiveEstimate(): void
+    {
+        $this->completeProfile();
+        $this->em()->persist(new WeightEntry($this->em()->find(User::class, $this->user->getId()), $this->user->today()->modify('-4 days'), 80));
+        $this->em()->flush();
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorTextContains('.target-formula', 'formula estimate');
+        self::assertSelectorTextContains('.adaptive-progress', 'Keep logging your weight: in 11 more days');
+    }
+
+    public function testAdaptiveTargetFromOwnDataReplacesTheFormula(): void
+    {
+        $this->completeProfile();
+        $user = $this->em()->find(User::class, $this->user->getId());
+        $today = $user->today();
+        for ($day = 28; $day >= 1; --$day) {
+            $date = $today->modify("-$day days");
+            $this->em()->persist(new WeightEntry($user, $date, 80));
+            $this->storeEntry($user, 'day '.$day, $date->setTime(12, 0), [new EstimatedItem('Food', 1000, 2300, 100, 250, 90)]);
+        }
+        $this->em()->flush();
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorTextContains('.target-adaptive', '0 of ~2300 kcal · 2300 left');
+        self::assertSelectorTextContains('.target-adaptive', 'what you actually burn, calculated from your last 27 days: you ate ~2300 kcal/day and your weight trend stayed the same');
+        self::assertSelectorTextContains('.target-adaptive', 'The formula estimate was ~');
+    }
+
+    public function testAdaptiveTargetWorksWithoutProfile(): void
+    {
+        $user = $this->em()->find(User::class, $this->user->getId());
+        $today = $user->today();
+        for ($day = 20; $day >= 1; --$day) {
+            $date = $today->modify("-$day days");
+            $this->em()->persist(new WeightEntry($user, $date, 90 - 0.1 * (20 - $day)));
+            $this->storeEntry($user, 'day '.$day, $date->setTime(12, 0), [new EstimatedItem('Food', 1000, 2000, 100, 200, 80)]);
+        }
+        $this->em()->flush();
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorExists('.target-adaptive');
+        self::assertSelectorTextContains('.target-adaptive', 'weight trend went down');
+        self::assertSelectorNotExists('.target-missing');
+    }
+
     public function testDashboardShowsCaloriesOverTarget(): void
     {
         $this->completeProfile();

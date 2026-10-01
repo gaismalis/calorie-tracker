@@ -15,11 +15,12 @@
 
 <section class="card">
     <h2>History</h2>
+    <p class="muted">Your weight jumps around by up to 1–2 kg a day from water and food. <strong>Trend</strong> smooths that out and is what the app uses to work out what you really burn.</p>
     {% if rows is empty %}
         <p class="muted">No weight logged yet.</p>
     {% else %}
         <table class="weights">
-            <thead><tr><th>Date</th><th>kg</th><th>Change</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>kg</th><th>Change</th><th title="Smoothed weight: ignores day-to-day water swings">Trend</th><th></th></tr></thead>
             <tbody>
             {% for row in rows %}
                 <tr>
@@ -28,6 +29,7 @@
                     <td class="change">
                         {% if row.change is not null %}{{ row.change > 0 ? '+' : '' }}{{ row.change|number_format(1) }}{% endif %}
                     </td>
+                    <td class="trend">{% if row.trend is not null %}{{ row.trend|number_format(1) }}{% endif %}</td>
                     <td>
                         <form method="post" action="{{ path('app_weight_delete', {id: row.entry.id}) }}" data-controller="confirm-delete">
                             <input type="hidden" name="_token" value="{{ csrf_token('weight_delete_' ~ row.entry.id) }}">

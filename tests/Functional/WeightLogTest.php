@@ -73,6 +73,17 @@ class WeightLogTest extends WebTestCase
         self::assertSame([['80.6', '-0.4'], ['81.0', '+1.0'], ['80.0', '']], $rows);
     }
 
+    public function testHistoryShowsSmoothedTrend(): void
+    {
+        $this->storeWeight($this->user, '2026-09-01', 80.0);
+        $this->storeWeight($this->user, '2026-09-02', 81.0);
+
+        $crawler = $this->client->request('GET', '/weight');
+
+        $trend = $crawler->filter('table.weights tbody td.trend')->each(fn ($td) => $td->text());
+        self::assertSame(['80.1', '80.0'], $trend, 'a 1 kg jump moves the trend only 0.1 kg');
+    }
+
     /** @return iterable<string, array{string, string, string}> */
     public static function invalidInput(): iterable
     {

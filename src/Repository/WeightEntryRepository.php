@@ -30,4 +30,25 @@ class WeightEntryRepository extends ServiceEntityRepository
     {
         return $this->findBy(['user' => $user], ['date' => 'DESC'], $limit);
     }
+
+    /** @return array<string, float> kg by date ('Y-m-d') from $since (inclusive), ascending */
+    public function weightsByDate(User $user, \DateTimeImmutable $since): array
+    {
+        $rows = $this->createQueryBuilder('w')
+            ->select('w.date, w.weightKg')
+            ->where('w.user = :user')
+            ->andWhere('w.date >= :since')
+            ->setParameter('user', $user)
+            ->setParameter('since', new \DateTimeImmutable($since->format('Y-m-d'), new \DateTimeZone('UTC')))
+            ->orderBy('w.date', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        $weights = [];
+        foreach ($rows as $row) {
+            $weights[$row['date']->format('Y-m-d')] = $row['weightKg'];
+        }
+
+        return $weights;
+    }
 }

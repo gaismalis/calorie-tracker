@@ -7,20 +7,23 @@ use App\Profile\Sex;
 use App\Repository\WeightEntryRepository;
 
 /**
- * Formula-based estimate of daily energy expenditure, used until there is enough weight
- * history to compute it from the user's real intake and weight trend.
+ * Daily energy expenditure: from the user's own intake and weight trend when there's enough data
+ * ({@see AdaptiveTdeeCalculator}), otherwise a formula estimate.
  *
- * BMR: Mifflin-St Jeor (1990), TDEE = BMR × activity multiplier.
+ * Formula: BMR by Mifflin-St Jeor (1990), TDEE = BMR × activity multiplier.
  */
 final class EnergyCalculator
 {
-    public function __construct(private readonly WeightEntryRepository $weights)
-    {
+    public function __construct(
+        private readonly WeightEntryRepository $weights,
+        private readonly AdaptiveTdeeCalculator $adaptive,
+    ) {
     }
 
     public function estimate(User $user): EnergyEstimate
     {
-        return self::calculate($user, $this->weights->findLatest($user)?->getWeightKg());
+        return self::calculate($user, $this->weights->findLatest($user)?->getWeightKg())
+            ->withAdaptive($this->adaptive->estimate($user));
     }
 
     public static function calculate(User $user, ?float $weightKg, ?\DateTimeImmutable $on = null): EnergyEstimate

@@ -17,15 +17,27 @@
 
 <section class="card">
     <h2>Today</h2>
+    {% set adaptive = energy.adaptive %}
     {% if energy.complete %}
-        {% set remaining = energy.tdee - totals.kcal %}
-        <div class="target">
-            <div class="bar"><div style="width: {{ min(100, totals.kcal / energy.tdee * 100)|round }}%"></div></div>
+        {% set tdee = energy.tdee %}
+        {% set remaining = tdee - totals.kcal %}
+        <div class="target target-{{ energy.source }}">
+            <div class="bar"><div style="width: {{ min(100, totals.kcal / tdee * 100)|round }}%"></div></div>
             <p>
-                <strong>{{ totals.kcal|round }}</strong> of ~{{ energy.tdee|round }} kcal ·
+                <strong>{{ totals.kcal|round }}</strong> of ~{{ tdee|round }} kcal ·
                 {% if remaining >= 0 %}<strong>{{ remaining|round }}</strong> left{% else %}<strong>{{ (-remaining)|round }}</strong> over{% endif %}
             </p>
-            <p class="muted">~{{ energy.tdee|round }} kcal/day is a formula estimate of what you burn (maintenance). It will be replaced by an estimate from your own weight trend.</p>
+            {% if energy.source == 'adaptive' %}
+                <p class="muted">
+                    ~{{ tdee|round }} kcal/day is what you actually burn, calculated from your last {{ adaptive.days }} days:
+                    you ate ~{{ adaptive.averageIntake|round }} kcal/day and your weight trend
+                    {% if adaptive.trendChangeKg == 0 %}stayed the same{% else %}went {{ adaptive.trendChangeKg > 0 ? 'up' : 'down' }} {{ adaptive.trendChangeKg|abs|number_format(1) }} kg{% endif %}.
+                    {% if energy.formulaTdee %}(The formula estimate was ~{{ energy.formulaTdee|round }}.){% endif %}
+                </p>
+            {% else %}
+                <p class="muted">~{{ tdee|round }} kcal/day is a formula estimate of what you burn (maintenance).
+                    {{ _self.adaptive_progress(adaptive) }}</p>
+            {% endif %}
         </div>
     {% else %}
         {% set profileMissing = energy.missing|filter(m => m != 'weight') %}
@@ -102,3 +114,13 @@
     {% endfor %}
 </section>
 {% endblock %}
+
+{% macro adaptive_progress(adaptive) %}
+    {%- if adaptive.missing == 'weight' -%}
+        <span class="adaptive-progress">Keep logging your weight: in {{ adaptive.daysNeeded }} more {{ adaptive.daysNeeded == 1 ? 'day' : 'days' }} we can calculate it from your own data.</span>
+    {%- elseif adaptive.missing == 'meals' -%}
+        <span class="adaptive-progress">Log your meals on {{ adaptive.daysNeeded }} more {{ adaptive.daysNeeded == 1 ? 'day' : 'days' }} to get an estimate from your own data.</span>
+    {%- elseif adaptive.missing == 'implausible' -%}
+        <span class="adaptive-progress">Your logged meals (~{{ adaptive.averageIntake|round }} kcal/day) and weight don't add up yet, so we're not using them. Make sure you log everything you eat.</span>
+    {%- endif -%}
+{% endmacro %}
