@@ -23,6 +23,7 @@ framework:
             Symfony\Component\Notifier\Message\SmsMessage: async
 
             App\Message\EstimateMeal: async
+            App\Message\EstimateExercise: async
 
 when@test:
     framework:

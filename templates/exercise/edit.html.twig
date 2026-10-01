@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Adjust exercise · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card">
+    <h1>Adjust exercise</h1>
+    <p class="raw">“{{ entry.rawText }}”</p>
+    <p class="muted">Calories burned on top of what your body uses anyway. Set an activity to 0 to remove it.</p>
+
+    <form method="post">
+        <div class="eaten-at">
+            <label>Done on
+                <input type="date" name="performed_date" required max="{{ 'now'|date('Y-m-d', app.user.timezone) }}"
+                       value="{{ app.request.request.get('performed_date') ?? entry.performedAt|date('Y-m-d', app.user.timezone) }}">
+            </label>
+            <label>at
+                <input type="time" name="performed_time" required
+                       value="{{ app.request.request.get('performed_time') ?? entry.performedAt|date('H:i', app.user.timezone) }}">
+            </label>
+            {% if errors.performedAt is defined %}<ul><li>{{ errors.performedAt }}</li></ul>{% endif %}
+        </div>
+        <table class="adjust">
+            <thead><tr><th>Activity</th><th>min</th><th>kcal</th></tr></thead>
+            <tbody>
+            {% for item in entry.items %}
+                <tr>
+                    <td>
+                        {{ item.name }}
+                        {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
+                        {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
+                    </td>
+                    <td>{{ item.minutes is not null ? item.minutes|round : '–' }}</td>
+                    <td>
+                        <input type="number" name="kcal[{{ item.id }}]" value="{{ app.request.request.all('kcal')[item.id] ?? item.kcal|round }}"
+                               min="0" max="10000" step="any" inputmode="decimal" aria-label="kcal burned by {{ item.name }}">
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <input type="hidden" name="_token" value="{{ csrf_token('exercise_edit_' ~ entry.id) }}">
+        <button type="submit">Save</button>
+        <a href="{{ backUrl }}" class="muted">Back</a>
+    </form>
+</section>
+{% endblock %}

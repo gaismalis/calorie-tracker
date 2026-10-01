@@ -25,8 +25,14 @@ services:
     App\Nutrition\NutritionEstimator:
         factory: ['@App\Nutrition\NutritionEstimatorFactory', 'create']
 
+    App\Exercise\ExerciseEstimator:
+        factory: ['@App\Exercise\ExerciseEstimatorFactory', 'create']
+
 when@test:
     services:
         App\Nutrition\NutritionEstimator:
             class: App\Tests\Support\FakeNutritionEstimator
+            public: true
+        App\Exercise\ExerciseEstimator:
+            class: App\Tests\Support\FakeExerciseEstimator
             public: true
