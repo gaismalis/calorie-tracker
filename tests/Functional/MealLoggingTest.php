@@ -120,6 +120,22 @@ class MealLoggingTest extends WebTestCase
         self::assertStringNotContainsString('someone else meal', $text);
     }
 
+    public function testTodayFollowsTheUsersTimezone(): void
+    {
+        $this->user->setTimezone('Pacific/Kiritimati'); // UTC+14: "today" there starts 14 h before UTC midnight
+        $this->em()->flush();
+        $kiritimatiMidnight = $this->user->today();
+        $this->storeEntry($this->user, 'just after local midnight', $kiritimatiMidnight->modify('+5 minutes'));
+        $this->storeEntry($this->user, 'just before local midnight', $kiritimatiMidnight->modify('-5 minutes'));
+
+        $crawler = $this->client->request('GET', '/');
+
+        $text = $crawler->filter('main')->text();
+        self::assertStringContainsString('just after local midnight', $text);
+        self::assertStringNotContainsString('just before local midnight', $text);
+        self::assertSelectorTextContains('.entry .time', '00:05', 'times are shown in the user timezone');
+    }
+
     public function testEntriesFromTheRandomProviderAreMarkedAsFake(): void
     {
         $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Rice', 100, 130, 3, 28, 0)], 'random'));

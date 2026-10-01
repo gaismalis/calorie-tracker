@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Profile · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card narrow">
+    <h1>Your profile</h1>
+    <p class="muted">Used to estimate how many calories you burn per day. Once you've logged your weight for a couple of weeks, the estimate will be based on your real data instead.</p>
+
+    {{ form_start(form) }}
+        {{ form_row(form.sex) }}
+        {{ form_row(form.birthDate) }}
+        {{ form_row(form.heightCm) }}
+        {{ form_row(form.activityLevel) }}
+        {{ form_row(form.timezone) }}
+        <button type="submit">Save</button>
+    {{ form_end(form) }}
+</section>
+{% endblock %}

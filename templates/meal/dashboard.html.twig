@@ -23,7 +23,7 @@
     {% for entry in entries %}
         <article class="entry">
             <header>
-                <span class="time">{{ entry.eatenAt|date('H:i') }}</span>
+                <span class="time">{{ entry.eatenAt|date('H:i', app.user.timezone) }}</span>
                 <span class="raw">“{{ entry.rawText }}”</span>
                 {% if entry.estimatedBy == 'random' %}<span class="badge" title="Numbers from the random fake provider">fake</span>{% endif %}
                 <span class="kcal">{{ entry.kcal|round }} kcal</span>

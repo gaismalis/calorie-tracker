@@ -17,6 +17,8 @@
             <a href="{{ path('app_dashboard') }}" class="brand">🥗 Calorie Tracker</a>
             {% if app.user %}
                 <nav>
+                    <a href="{{ path('app_dashboard') }}">Today</a>
+                    <a href="{{ path('app_profile') }}">Profile</a>
                     <span class="muted">{{ app.user.email }}</span>
                     <a href="{{ path('app_logout') }}">Log out</a>
                 </nav>

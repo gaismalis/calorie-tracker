@@ -23,7 +23,7 @@ class MealController extends AbstractController
     #[Route('/', name: 'app_dashboard', methods: ['GET'])]
     public function dashboard(#[CurrentUser] User $user, MealEntryRepository $meals): Response
     {
-        $entries = $meals->findForDay($user, new \DateTimeImmutable('today'));
+        $entries = $meals->findForDay($user, $user->today());
 
         $totals = ['kcal' => 0, 'protein' => 0, 'carbs' => 0, 'fat' => 0];
         foreach ($entries as $entry) {

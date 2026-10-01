@@ -62,3 +62,8 @@ ul { padding-left: 1.1rem; color: var(--danger); font-size: 0.85rem; }
 .entry td { text-align: right; padding: 0.25rem 0 0.25rem 0.75rem; font-variant-numeric: tabular-nums; vertical-align: top; }
 .entry .assumption { color: var(--muted); font-size: 0.8rem; }
 .badge { font-size: 0.7rem; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 4px; background: #fff3cd; color: #7a5b00; }
+select, input[type=date], input[type=number] {
+    width: 100%; box-sizing: border-box; padding: 0.6rem; font: inherit;
+    border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+.help-text, form .form-text { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }

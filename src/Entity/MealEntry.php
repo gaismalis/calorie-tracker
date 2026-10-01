@@ -58,7 +58,8 @@ class MealEntry
     {
         $this->user = $user;
         $this->rawText = $rawText;
-        $this->eatenAt = $eatenAt;
+        // Doctrine stores the wall-clock time without its timezone, so always normalise to UTC.
+        $this->eatenAt = $eatenAt->setTimezone(new \DateTimeZone('UTC'));
         $this->estimatedBy = $estimatedBy;
         $this->createdAt = new \DateTimeImmutable();
         $this->items = new ArrayCollection();
