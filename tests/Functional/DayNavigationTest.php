@@ -40,7 +40,8 @@ class DayNavigationTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.day-title', $yesterday->format('l, j F Y'), 'title is the local day, not shifted by UTC');
-        self::assertSelectorTextContains('h1', 'What did you eat on '.$yesterday->format('l').'?');
+        self::assertSelectorTextContains('#meal-dialog-title', 'What did you eat on '.$yesterday->format('l').'?');
+        self::assertSelectorTextContains('#exercise-dialog-title', 'What did you do on '.$yesterday->format('l').'?');
         $text = $crawler->filter('main')->text();
         self::assertStringContainsString('yesterday lunch', $text);
         self::assertStringNotContainsString('today breakfast', $text);

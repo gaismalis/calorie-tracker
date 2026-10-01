@@ -53,7 +53,8 @@ class MealLoggingTest extends WebTestCase
         self::assertResponseRedirects('/');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash-success', 'Logged ~500 kcal');
-        self::assertSelectorTextContains('.totals', '500');
+        self::assertSelectorTextContains('.stat-eaten', '500');
+        self::assertSelectorTextContains('.macros', '45 g');
         self::assertSelectorTextContains('.entry', 'Greek yogurt');
         self::assertSelectorTextContains('.entry .assumption', 'big tablespoon ≈ 20 g');
 
@@ -307,6 +308,7 @@ class MealLoggingTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertSelectorTextContains('.target-missing', 'add your sex, birth date, height and activity level in your profile and log your weight.');
+        self::assertSelectorTextContains('.stat-burned', 'unknown yet');
         self::assertSelectorNotExists('.target .bar');
     }
 
@@ -316,7 +318,7 @@ class MealLoggingTest extends WebTestCase
 
         $this->client->request('GET', '/');
 
-        self::assertSelectorTextContains('.target-missing', 'To see your daily calorie target, log your weight.');
+        self::assertSelectorTextContains('.target-missing', 'To see what you burn and your daily target, log your weight.');
     }
 
     public function testDashboardShowsTargetAndRemainingCalories(): void
@@ -330,7 +332,9 @@ class MealLoggingTest extends WebTestCase
 
         $age = $this->user->getAge();
         $tdee = round(round(10 * 80 + 6.25 * 180 - 5 * $age + 5) * 1.55);
-        self::assertSelectorTextContains('.target', sprintf('200 of ~%d kcal · %d left', $tdee, $tdee - 200));
+        self::assertSelectorTextContains('.stat-eaten', '200');
+        self::assertSelectorTextContains('.stat-burned', number_format($tdee, 0, '.', ' '));
+        self::assertSelectorTextContains('.stat-left', sprintf('Left %s of ~%s kcal', number_format($tdee - 200, 0, '.', ' '), number_format($tdee, 0, '.', ' ')));
         self::assertSelectorNotExists('.target-missing');
     }
 
@@ -360,9 +364,9 @@ class MealLoggingTest extends WebTestCase
 
         $this->client->request('GET', '/');
 
-        self::assertSelectorTextContains('.target-adaptive', '0 of ~2300 kcal · 2300 left');
-        self::assertSelectorTextContains('.target-adaptive', 'what you actually burn, calculated from your last 27 days: you ate ~2300 kcal/day and your weight trend stayed the same');
-        self::assertSelectorTextContains('.target-adaptive', 'The formula estimate was ~');
+        self::assertSelectorTextContains('.target-adaptive .stat-burned', '2 300');
+        self::assertSelectorTextContains('.target-adaptive .stat-left', 'Left 2 300 of ~2 300 kcal');
+        self::assertSelectorTextContains('.target-adaptive', 'Your body burns ~2 300 kcal/day without workouts, calculated from your last 27 days: you ate ~2 300 kcal/day and your weight trend stayed the same');
     }
 
     public function testAdaptiveTargetWorksWithoutProfile(): void
@@ -394,8 +398,8 @@ class MealLoggingTest extends WebTestCase
         $this->client->request('GET', '/');
 
         $tdee = round(round(10 * 80 + 6.25 * 180 - 5 * $user->getAge() + 5) * 1.55);
-        self::assertSelectorTextContains('.target', sprintf('0 of ~%d kcal', $tdee - 550));
-        self::assertSelectorTextContains('.target .goal', sprintf('Goal: lose 0.5 kg/week, so ~550 kcal/day below the ~%d you burn.', $tdee));
+        self::assertSelectorTextContains('.stat-left', sprintf('of ~%s kcal', number_format($tdee - 550, 0, '.', ' ')));
+        self::assertSelectorTextContains('.target .goal', 'Goal: lose 0.5 kg/week, so ~550 kcal/day below what you burn.');
         self::assertSelectorTextNotContains('.target .goal', 'Limited to');
     }
 
@@ -409,8 +413,8 @@ class MealLoggingTest extends WebTestCase
 
         $this->client->request('GET', '/');
 
-        self::assertSelectorTextContains('.target', '0 of ~1200 kcal');
-        self::assertSelectorTextContains('.target .goal', 'Limited to 1200 kcal/day');
+        self::assertSelectorTextContains('.stat-left', 'of ~1 200 kcal');
+        self::assertSelectorTextContains('.target .goal', 'Limited to 1 200 kcal/day');
     }
 
     public function testWithoutGoalSuggestsSettingOne(): void
@@ -434,7 +438,8 @@ class MealLoggingTest extends WebTestCase
 
         $this->client->request('GET', '/');
 
-        self::assertSelectorTextContains('.target', 'over');
+        self::assertSelectorTextContains('.stat-left', 'Over 241');
+        self::assertSelectorExists('.stat-left strong.over');
     }
 
     public function testEntriesFromTheRandomProviderAreMarkedAsFake(): void

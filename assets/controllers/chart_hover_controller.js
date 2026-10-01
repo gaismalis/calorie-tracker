@@ -1,8 +1,8 @@
 import { Controller } from '@hotwired/stimulus';
 
-// Hover layer for the weight chart: a crosshair snaps to the nearest day with data and one
-// tooltip shows the weigh-in and trend for that day. Arrow keys do the same for keyboard users.
-// Everything shown here is also in the History table.
+// Hover layer shared by the SVG charts: a crosshair snaps to the nearest day and one tooltip lists
+// every series for that day ({x, label, rows: [{series, value, name}]}, built on the server).
+// Arrow keys do the same for keyboard users. Everything shown is also available without hovering.
 export default class extends Controller {
     static targets = ['svg', 'crosshair', 'tooltip'];
     static values = { days: Array };
@@ -48,9 +48,10 @@ export default class extends Controller {
         this.crosshairTarget.setAttribute('visibility', 'visible');
 
         const tip = this.tooltipTarget;
-        tip.replaceChildren(this.row('date', day.label));
-        if (day.kg !== null) tip.append(this.row('weigh-in', `${day.kg.toFixed(1)} kg`, 'Weigh-in'));
-        if (day.trend !== null) tip.append(this.row('trend', `${day.trend.toFixed(1)} kg`, 'Trend'));
+        const title = document.createElement('div');
+        title.className = 'tip-date';
+        title.textContent = day.label;
+        tip.replaceChildren(title, ...day.rows.map((row) => this.row(row)));
         tip.hidden = false;
 
         // Position next to the crosshair, flipping to the left near the right edge.
@@ -61,18 +62,14 @@ export default class extends Controller {
         tip.style.right = flip ? `${this.element.clientWidth - left + 12}px` : '';
     }
 
-    row(kind, value, name = null) {
+    row({ series, value, name }) {
         const row = document.createElement('div');
-        row.className = `tip-${kind}`;
+        row.className = `tip-${series}`;
+        const key = document.createElement('span');
+        key.className = 'key';
         const strong = document.createElement('strong');
         strong.textContent = value;
-        if (name) {
-            const key = document.createElement('span');
-            key.className = 'key';
-            row.append(key, strong, document.createTextNode(' ' + name));
-        } else {
-            row.append(strong);
-        }
+        row.append(key, strong, document.createTextNode(' ' + name));
         return row;
     }
 }

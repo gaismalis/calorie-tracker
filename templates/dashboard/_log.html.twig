@@ -1,0 +1,103 @@
+{# The day's food and exercise, collapsed unless something needs attention (estimating or failed). #}
+{% set exerciseNeedsAttention = exercises|filter(e => e.pending or e.failed) is not empty %}
+{% set mealsNeedAttention = meals|filter(e => e.pending or e.failed) is not empty %}
+{% set firstTab = exerciseNeedsAttention and not mealsNeedAttention ? 'exercise' : 'food' %}
+<details class="card log"{% if openLog %} open{% endif %}>
+    <summary>
+        <span class="log-title">{{ isToday ? "Today's" : day|date('l', app.user.timezone) ~ "'s" }} log</span>
+        <span class="muted">{{ meals|length }} {{ meals|length == 1 ? 'meal' : 'meals' }} · {{ exercises|length }} {{ exercises|length == 1 ? 'activity' : 'activities' }}</span>
+    </summary>
+    <div class="tabs" data-controller="tabs">
+        <div role="tablist" aria-label="Log">
+            <button type="button" role="tab" id="tab-food" aria-controls="panel-food" aria-selected="{{ firstTab == 'food' ? 'true' : 'false' }}" data-tabs-target="tab" data-action="tabs#select">Food <span class="count">{{ meals|length }}</span></button>
+            <button type="button" role="tab" id="tab-exercise" aria-controls="panel-exercise" aria-selected="{{ firstTab == 'exercise' ? 'true' : 'false' }}" data-tabs-target="tab" data-action="tabs#select">Exercise <span class="count">{{ exercises|length }}</span></button>
+        </div>
+
+        <div role="tabpanel" id="panel-food" aria-labelledby="tab-food" data-tabs-target="panel"{% if firstTab != 'food' %} hidden{% endif %}>
+            {% for entry in meals %}
+                <article class="entry entry-{{ entry.status.value }}">
+                    <header>
+                        <span class="time">{{ entry.eatenAt|date('H:i', app.user.timezone) }}</span>
+                        <span class="raw">“{{ entry.rawText }}”</span>
+                        {% if entry.estimatedBy == 'random' %}<span class="badge" title="Numbers from the random fake provider">fake</span>{% endif %}
+                        {% if entry.pending %}
+                            <span class="status">⏳ Estimating…</span>
+                        {% elseif entry.failed %}
+                            <span class="status failed">Couldn't estimate</span>
+                        {% else %}
+                            <span class="kcal">{{ entry.kcal|round }} kcal</span>
+                            <a href="{{ path('app_meal_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust amounts">Adjust</a>
+                        {% endif %}
+                        <form method="post" action="{{ path('app_meal_delete', {id: entry.id}) }}" data-controller="confirm-delete">
+                            <input type="hidden" name="_token" value="{{ csrf_token('meal_delete_' ~ entry.id) }}">
+                            <button type="submit" class="link danger" title="Delete" data-confirm-delete-target="button" data-action="confirm-delete#click">✕</button>
+                        </form>
+                    </header>
+                    {% if entry.failed %}
+                        {{ include('dashboard/_retry.html.twig', {action: path('app_meal_retry', {id: entry.id}), token: csrf_token('meal_retry_' ~ entry.id), retryAt: retryAt['meal-' ~ entry.id]}) }}
+                    {% elseif not entry.pending %}
+                        <table>
+                            <thead><tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr></thead>
+                            <tbody>
+                            {% for item in entry.items %}
+                                <tr>
+                                    <td>{{ item.name }}{% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}</td>
+                                    <td>{{ item.grams|round }}</td>
+                                    <td>{{ item.kcal|round }}</td>
+                                    <td>{{ item.protein|round(1) }}</td>
+                                    <td>{{ item.carbs|round(1) }}</td>
+                                    <td>{{ item.fat|round(1) }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
+                </article>
+            {% else %}
+                <p class="muted empty">No meals logged {{ isToday ? 'yet today' : 'on this day' }}.</p>
+            {% endfor %}
+        </div>
+
+        <div role="tabpanel" id="panel-exercise" aria-labelledby="tab-exercise" data-tabs-target="panel"{% if firstTab != 'exercise' %} hidden{% endif %}>
+            {% for entry in exercises %}
+                <article class="entry exercise entry-{{ entry.status.value }}">
+                    <header>
+                        <span class="time">{{ entry.performedAt|date('H:i', app.user.timezone) }}</span>
+                        <span class="raw">“{{ entry.rawText }}”</span>
+                        {% if entry.estimatedBy == 'random' %}<span class="badge" title="Numbers from the random fake provider">fake</span>{% endif %}
+                        {% if entry.pending %}
+                            <span class="status">⏳ Estimating…</span>
+                        {% elseif entry.failed %}
+                            <span class="status failed">Couldn't estimate</span>
+                        {% else %}
+                            <span class="kcal">{{ entry.kcal|round }} kcal burned</span>
+                            <a href="{{ path('app_exercise_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust calories">Adjust</a>
+                        {% endif %}
+                        <form method="post" action="{{ path('app_exercise_delete', {id: entry.id}) }}" data-controller="confirm-delete">
+                            <input type="hidden" name="_token" value="{{ csrf_token('exercise_delete_' ~ entry.id) }}">
+                            <button type="submit" class="link danger" title="Delete" data-confirm-delete-target="button" data-action="confirm-delete#click">✕</button>
+                        </form>
+                    </header>
+                    {% if entry.failed %}
+                        {{ include('dashboard/_retry.html.twig', {action: path('app_exercise_retry', {id: entry.id}), token: csrf_token('exercise_retry_' ~ entry.id), retryAt: retryAt['exercise-' ~ entry.id]}) }}
+                    {% elseif not entry.pending %}
+                        <table>
+                            <thead><tr><th>Activity</th><th>min</th><th>kcal</th></tr></thead>
+                            <tbody>
+                            {% for item in entry.items %}
+                                <tr>
+                                    <td>{{ item.name }}{% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}</td>
+                                    <td>{{ item.minutes is not null ? item.minutes|round : '–' }}</td>
+                                    <td>{{ item.kcal|round }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
+                </article>
+            {% else %}
+                <p class="muted empty">No exercise logged {{ isToday ? 'yet today' : 'on this day' }}.</p>
+            {% endfor %}
+        </div>
+    </div>
+</details>

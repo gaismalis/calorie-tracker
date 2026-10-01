@@ -1,0 +1,9 @@
+{% macro adaptive_progress(adaptive) %}
+    {%- if adaptive.missing == 'weight' -%}
+        <span class="adaptive-progress">Keep logging your weight: in {{ adaptive.daysNeeded }} more {{ adaptive.daysNeeded == 1 ? 'day' : 'days' }} we can calculate it from your own data.</span>
+    {%- elseif adaptive.missing == 'meals' -%}
+        <span class="adaptive-progress">Log your meals on {{ adaptive.daysNeeded }} more {{ adaptive.daysNeeded == 1 ? 'day' : 'days' }} to get an estimate from your own data.</span>
+    {%- elseif adaptive.missing == 'implausible' -%}
+        <span class="adaptive-progress">Your logged meals (~{{ adaptive.averageIntake|round }} kcal/day) and weight don't add up yet, so we're not using them. Make sure you log everything you eat.</span>
+    {%- endif -%}
+{% endmacro %}

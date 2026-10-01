@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block head %}
+    {% if hasPending %}<meta http-equiv="refresh" content="10">{% endif %}
+{% endblock %}
+
+{% block body %}
+<nav class="day-nav">
+    <a href="{{ previousDayUrl }}" class="prev" title="Previous day">←</a>
+    <span class="day-title">{{ isToday ? 'Today' : day|date('l, j F Y', app.user.timezone) }}</span>
+    {% if nextDayUrl %}
+        <a href="{{ nextDayUrl }}" class="next" title="Next day">→</a>
+        <a href="{{ path('app_dashboard') }}" class="to-today">Today</a>
+    {% else %}
+        <span class="next disabled">→</span>
+    {% endif %}
+</nav>
+
+{{ include('dashboard/_overview.html.twig') }}
+{{ include('dashboard/_chart.html.twig') }}
+{{ include('dashboard/_log.html.twig') }}
+{{ include('dashboard/_add.html.twig') }}
+{% endblock %}

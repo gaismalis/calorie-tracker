@@ -96,8 +96,8 @@ class WeightLogTest extends WebTestCase
         self::assertSelectorExists('.weight-chart path.trend-line');
         self::assertSelectorTextContains('.weight-chart .end-label', 'kg');
         self::assertSelectorTextContains('.range a[aria-current]', '90 days');
-        $days = json_decode($crawler->filter('.weight-chart')->attr('data-weight-chart-days-value'), true);
-        self::assertEquals(80.0, end($days)['kg']);
+        $days = json_decode($crawler->filter('.weight-chart')->attr('data-chart-hover-days-value'), true);
+        self::assertSame(['series' => 'weigh-in', 'value' => '80.0 kg', 'name' => 'Weigh-in'], end($days)['rows'][0]);
 
         $crawler = $this->client->request('GET', '/weight?range=30');
         self::assertCount(3, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'));

@@ -124,34 +124,89 @@ button.link.danger svg { vertical-align: -3px; }
 .range a { padding: 0.2rem 0.6rem; border-radius: 6px; text-decoration: none; color: var(--muted); font-size: 0.85rem; }
 .range a:hover { background: var(--bg); }
 .range a[aria-current] { color: var(--text); font-weight: 600; background: var(--bg); }
-.weight-chart { position: relative; }
-.weight-chart svg[role=img] { width: 100%; height: auto; display: block; overflow: visible; }
-.weight-chart .legend { display: flex; gap: 1rem; list-style: none; padding: 0; margin: 0 0 0.25rem; color: var(--text-secondary); font-size: 0.8rem; }
-.weight-chart .legend li { display: flex; align-items: center; gap: 0.35rem; }
-.weight-chart .grid line { stroke: var(--gridline); stroke-width: 1; }
-.weight-chart text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
-.weight-chart .y-tick { text-anchor: end; dominant-baseline: middle; }
-.weight-chart .x-tick { text-anchor: middle; }
+.viz-root { position: relative; }
+.viz-root svg[role=img] { width: 100%; height: auto; display: block; overflow: visible; }
+.viz-root .legend { display: flex; gap: 1rem; list-style: none; padding: 0; margin: 0 0 0.25rem; color: var(--text-secondary); font-size: 0.8rem; }
+.viz-root .legend li { display: flex; align-items: center; gap: 0.35rem; }
+.viz-root .grid line { stroke: var(--gridline); stroke-width: 1; }
+.viz-root text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+.viz-root .y-tick { text-anchor: end; dominant-baseline: middle; }
+.viz-root .x-tick { text-anchor: middle; }
 .weight-chart .trend-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .weight-chart .weigh-in { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
 .weight-chart .trend-end { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
 .weight-chart .end-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; dominant-baseline: middle; }
-.weight-chart .crosshair { stroke: var(--text-muted); stroke-width: 1; }
-.weight-chart .hit-area { fill: transparent; cursor: crosshair; outline: none; }
-.weight-chart .hit-area:focus-visible { stroke: var(--series-1); stroke-width: 1; }
-.weight-chart .tooltip {
+.viz-root .crosshair { stroke: var(--text-muted); stroke-width: 1; }
+.viz-root .hit-area { fill: transparent; cursor: crosshair; outline: none; }
+.viz-root .hit-area:focus-visible { stroke: var(--series-1); stroke-width: 1; }
+.viz-root .tooltip {
     position: absolute; top: 1.75rem; pointer-events: none; background: var(--surface-1); color: var(--text-secondary);
     border: 1px solid rgba(11, 11, 11, 0.1); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.8rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); white-space: nowrap;
 }
-.weight-chart .tooltip strong { color: var(--text-primary); }
-.weight-chart .tooltip .key { display: inline-block; width: 12px; height: 2px; margin-right: 0.4rem; vertical-align: middle; }
+.viz-root .tooltip strong { color: var(--text-primary); }
+.viz-root .tooltip .key { display: inline-block; width: 12px; height: 2px; margin-right: 0.4rem; vertical-align: middle; }
 .weight-chart .tooltip .tip-trend .key { background: var(--series-1); }
 .weight-chart .tooltip .tip-weigh-in .key { background: var(--series-2); }
-.weight-chart .tooltip .tip-date { margin-bottom: 0.15rem; }
+.viz-root .tooltip .tip-date { margin-bottom: 0.15rem; }
 .chart-empty { margin: 0.5rem 0; }
 .eaten-at { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
 .eaten-at label { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
 .eaten-at input { padding: 0.4rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; }
 .eaten-at ul { flex-basis: 100%; margin: 0; }
-.weight-chart .empty-label { text-anchor: middle; dominant-baseline: middle; font-size: 13px; fill: var(--text-secondary); }
+.viz-root .empty-label { text-anchor: middle; dominant-baseline: middle; font-size: 13px; fill: var(--text-secondary); }
+
+/* Energy chart (dashboard): burned = series 1 (blue), eaten = series 2 (orange), same validated pair. */
+.energy-chart .burned-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.energy-chart .eaten-line { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.energy-chart .eaten-dot { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
+.energy-chart .tooltip .tip-burned .key { background: var(--series-1); }
+.energy-chart .tooltip .tip-eaten .key { background: var(--series-2); }
+.chart-note { margin: 0.5rem 0 0; }
+
+/* Dashboard overview */
+.overview .headline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+.overview .stat { display: flex; flex-direction: column; }
+.overview .stat .label { color: var(--muted); font-size: 0.8rem; }
+.overview .stat strong { font-size: 1.9rem; line-height: 1.15; }
+.overview .stat strong.over { color: var(--danger); }
+.overview .stat .unit { color: var(--muted); font-size: 0.8rem; }
+.overview .bar { height: 10px; border-radius: 5px; background: var(--bg); overflow: hidden; }
+.overview .bar div { height: 100%; background: var(--accent); }
+.overview .macros { grid-template-columns: repeat(3, 1fr); margin: 0.9rem 0 0.5rem; }
+.overview p { margin: 0.4rem 0 0; }
+.overview p.goal { font-size: 0.9rem; }
+.overview p.how { font-size: 0.85rem; }
+
+/* Log: collapsed by default, tabs for food and exercise */
+details.log > summary { cursor: pointer; display: flex; gap: 0.6rem; align-items: baseline; list-style: none; }
+details.log > summary::-webkit-details-marker { display: none; }
+details.log > summary::before { content: '▸'; color: var(--muted); }
+details.log[open] > summary::before { content: '▾'; }
+details.log .log-title { font-weight: 600; }
+.tabs [role=tablist] { display: flex; gap: 0.25rem; margin: 0.9rem 0 0.25rem; border-bottom: 1px solid var(--border); }
+.tabs [role=tab] { background: none; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; margin: 0; padding: 0.4rem 0.8rem; }
+.tabs [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.tabs [role=tab] .count { color: var(--muted); font-weight: normal; font-size: 0.8rem; }
+.tabs .empty { margin: 0.75rem 0 0; }
+
+/* Floating add button, menu and dialogs */
+.add-entry { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 10; display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+.add-entry .fab {
+    width: 56px; height: 56px; border-radius: 50%; margin: 0; padding: 0; font-size: 2rem; line-height: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.add-menu { display: flex; flex-direction: column; gap: 0.4rem; }
+.add-menu[hidden] { display: none; }
+.add-menu button { margin: 0; background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); text-align: left; }
+.add-menu button:hover { background: var(--bg); }
+.entry-dialog { width: min(560px, calc(100vw - 2rem)); border: 0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25); }
+.entry-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.entry-dialog h2 { margin-top: 0; }
+.entry-dialog .hint { margin: 0.4rem 0 0; font-size: 0.85rem; }
+button.secondary { background: none; color: var(--muted); border: 1px solid var(--border); }
+.meal-form-row button.secondary { margin-left: auto; }
+.meal-form-row button.secondary + button { margin-left: 0; }
+main.container { padding-bottom: 5rem; } /* room for the floating button */
+.add-menu button { display: flex; gap: 0.5rem; align-items: center; }
+.energy-chart .legend-dot { stroke: none; }

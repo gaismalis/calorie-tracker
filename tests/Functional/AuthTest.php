@@ -64,7 +64,7 @@ class AuthTest extends WebTestCase
         $client->submitForm('Log in', ['_username' => 'me@example.com', '_password' => 'secret-password']);
         self::assertResponseRedirects('/');
         $client->followRedirect();
-        self::assertSelectorTextContains('h1', 'What did you eat?');
+        self::assertSelectorTextContains('.day-title', 'Today');
     }
 
     private function createUser(string $email, string $password = 'password123'): User

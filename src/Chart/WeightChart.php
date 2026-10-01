@@ -106,6 +106,19 @@ final readonly class WeightChart
         return new self($path, $dots, $yTicks, $xTicks, array_values($hover), $trendEnd, $left, $right, $top, $bottom);
     }
 
+    /** @return list<array{x: float, label: string, rows: list<array{series: string, value: string, name: string}>}> tooltip content per day */
+    public function hover(): array
+    {
+        return array_map(fn (array $day) => [
+            'x' => $day['x'],
+            'label' => $day['label'],
+            'rows' => array_values(array_filter([
+                null === $day['kg'] ? null : ['series' => 'weigh-in', 'value' => number_format($day['kg'], 1).' kg', 'name' => 'Weigh-in'],
+                null === $day['trend'] ? null : ['series' => 'trend', 'value' => number_format($day['trend'], 1).' kg', 'name' => 'Trend'],
+            ])),
+        ], $this->days);
+    }
+
     public function isEmpty(): bool
     {
         return [] === $this->dots;

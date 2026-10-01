@@ -1,0 +1,11 @@
+<div class="retry">
+    <form method="post" action="{{ action }}">
+        <input type="hidden" name="_token" value="{{ token }}">
+        {% if retryAt is null %}
+            <button type="submit">Retry</button>
+        {% else %}
+            <button type="submit" disabled>Retry</button>
+            <span class="muted">You can retry at {{ retryAt|date('H:i', app.user.timezone) }}.</span>
+        {% endif %}
+    </form>
+</div>

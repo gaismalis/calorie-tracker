@@ -1,0 +1,76 @@
+{# The day at a glance: eaten / burned / left, progress against the target, macros. #}
+{% import 'dashboard/_macros.html.twig' as m %}
+{% set baseline = energy.baseline %}
+{% set goal = app.user.weeklyGoalKg %}
+<section class="card overview target {{ energy.complete ? 'target-' ~ energy.source }}">
+    <div class="headline">
+        <div class="stat stat-eaten">
+            <span class="label">Eaten</span>
+            <strong>{{ totals.kcal|round|number_format(0, '.', ' ') }}</strong>
+            <span class="unit">kcal</span>
+        </div>
+        <div class="stat stat-burned">
+            <span class="label">Burned</span>
+            {% if burned is not null %}
+                <strong>{{ burned|round|number_format(0, '.', ' ') }}</strong>
+                <span class="unit">kcal{% if exerciseKcal > 0 %} · incl. {{ exerciseKcal|round }} exercise{% endif %}</span>
+            {% else %}
+                <strong>–</strong><span class="unit">{% if exerciseKcal > 0 %}{{ exerciseKcal|round }} kcal exercise{% else %}unknown yet{% endif %}</span>
+            {% endif %}
+        </div>
+        <div class="stat stat-left">
+            {% if target is not null %}
+                {% set remaining = target - totals.kcal %}
+                <span class="label">{{ remaining >= 0 ? 'Left' : 'Over' }}</span>
+                <strong class="{{ remaining < 0 ? 'over' }}">{{ remaining|abs|round|number_format(0, '.', ' ') }}</strong>
+                <span class="unit">of ~{{ target|round|number_format(0, '.', ' ') }} kcal</span>
+            {% else %}
+                <span class="label">Left</span><strong>–</strong><span class="unit">no target yet</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if target is not null %}
+        <div class="bar" role="img" aria-label="{{ totals.kcal|round }} of {{ target|round }} kcal eaten"><div style="width: {{ min(100, totals.kcal / target * 100)|round }}%"></div></div>
+    {% endif %}
+
+    <div class="totals macros">
+        <div><strong>{{ totals.protein|round }} g</strong><span>protein</span></div>
+        <div><strong>{{ totals.carbs|round }} g</strong><span>carbs</span></div>
+        <div><strong>{{ totals.fat|round }} g</strong><span>fat</span></div>
+    </div>
+
+    {% if energy.complete %}
+        {% if goal != 0 %}
+            {% set adjustment = goal * 7700 / 7 %}
+            <p class="goal">
+                Goal: {{ goal < 0 ? 'lose' : 'gain' }} {{ goal|abs }} kg/week, so ~{{ adjustment|abs|round|number_format(0, '.', ' ') }} kcal/day {{ goal < 0 ? 'below' : 'above' }} what you burn.
+                {% if target == constant('App\\Energy\\EnergyEstimate::MIN_TARGET') and burned + adjustment < target %}
+                    <strong>Limited to {{ target|round|number_format(0, '.', ' ') }} kcal/day</strong>: eating less than that isn't safe without medical supervision.
+                {% endif %}
+            </p>
+        {% else %}
+            <p class="goal muted">Goal: keep your weight. <a href="{{ path('app_profile') }}">Set a goal</a></p>
+        {% endif %}
+        <p class="muted how">
+            {% set adaptive = energy.adaptive %}
+            {% if energy.source == 'adaptive' %}
+                Your body burns ~{{ baseline|round|number_format(0, '.', ' ') }} kcal/day without workouts, calculated from your last {{ adaptive.days }} days:
+                you ate ~{{ adaptive.averageIntake|round|number_format(0, '.', ' ') }} kcal/day and your weight trend
+                {% if adaptive.trendChangeKg == 0 %}stayed the same{% else %}went {{ adaptive.trendChangeKg > 0 ? 'up' : 'down' }} {{ adaptive.trendChangeKg|abs|number_format(1) }} kg{% endif %}{% if adaptive.averageExercise > 0 %}, with ~{{ adaptive.averageExercise|round }} kcal/day of logged exercise{% endif %}.
+                Logged exercise is added on top.
+            {% else %}
+                ~{{ baseline|round|number_format(0, '.', ' ') }} kcal/day without workouts is a formula estimate; logged exercise is added on top.
+                {{ m.adaptive_progress(adaptive) }}
+            {% endif %}
+        </p>
+    {% else %}
+        {% set profileMissing = energy.missing|filter(m => m != 'weight') %}
+        <p class="muted target-missing">
+            To see what you burn and your daily target,
+            {% if profileMissing is not empty %}add your {{ profileMissing|join(', ', ' and ') }} in your <a href="{{ path('app_profile') }}">profile</a>{% endif %}
+            {%- if profileMissing is not empty and 'weight' in energy.missing %} and {% endif %}
+            {%- if 'weight' in energy.missing %}log your <a href="{{ path('app_weight') }}">weight</a>{% endif %}.
+        </p>
+    {% endif %}
+</section>

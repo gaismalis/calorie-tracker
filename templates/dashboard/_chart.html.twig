@@ -1,0 +1,41 @@
+{# Eaten (series 2, orange) vs burned (series 1, blue) for the last 14 days. Same validated palette as the weight chart. #}
+<section class="card">
+    <h2>Last 14 days</h2>
+    <div class="viz-root energy-chart" data-controller="chart-hover" data-chart-hover-days-value="{{ chart.hover|json_encode }}">
+        <ul class="legend" aria-label="Legend">
+            <li><svg width="16" height="10" aria-hidden="true"><line x1="0" y1="5" x2="16" y2="5" class="burned-line"/></svg> Burned</li>
+            <li><svg width="16" height="10" aria-hidden="true"><line x1="0" y1="5" x2="16" y2="5" class="eaten-line"/><circle cx="8" cy="5" r="3" class="eaten-dot legend-dot"/></svg> Eaten</li>
+        </ul>
+        <svg viewBox="0 0 {{ constant('App\\Chart\\EnergyChart::WIDTH') }} {{ constant('App\\Chart\\EnergyChart::HEIGHT') }}"
+             role="img" aria-label="Calories eaten and burned per day for the last 14 days"
+             data-chart-hover-target="svg">
+            <g class="grid">
+                {% for tick in chart.yTicks %}
+                    <line x1="{{ chart.plotLeft }}" x2="{{ chart.plotRight }}" y1="{{ tick.y }}" y2="{{ tick.y }}"/>
+                    <text x="{{ chart.plotLeft - 8 }}" y="{{ tick.y }}" class="y-tick">{{ tick.value|number_format(0, '.', ' ') }}</text>
+                {% endfor %}
+            </g>
+            <g class="x-axis">
+                {% for tick in chart.xTicks %}
+                    <text x="{{ tick.x }}" y="{{ chart.plotBottom + 18 }}" class="x-tick">{{ tick.label }}</text>
+                {% endfor %}
+            </g>
+            {% if chart.empty %}
+                <text x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" y="{{ (chart.plotTop + chart.plotBottom) / 2 }}" class="empty-label">Nothing logged in these 14 days yet. Tap + to add a meal.</text>
+            {% endif %}
+            {% if chart.burnedPath %}<path d="{{ chart.burnedPath }}" class="burned-line"/>{% endif %}
+            {% for path in chart.eatenPaths %}<path d="{{ path }}" class="eaten-line"/>{% endfor %}
+            <g class="dots">
+                {% for dot in chart.eatenDots %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4" class="eaten-dot"/>{% endfor %}
+            </g>
+            <line class="crosshair" data-chart-hover-target="crosshair" y1="{{ chart.plotTop }}" y2="{{ chart.plotBottom }}" x1="0" x2="0" visibility="hidden"/>
+            <rect class="hit-area" x="{{ chart.plotLeft }}" y="{{ chart.plotTop }}" width="{{ chart.plotRight - chart.plotLeft }}" height="{{ chart.plotBottom - chart.plotTop }}"
+                  tabindex="0" aria-label="Explore the chart with the arrow keys"
+                  data-action="pointermove->chart-hover#move pointerleave->chart-hover#hide focus->chart-hover#focus blur->chart-hover#hide keydown->chart-hover#key"/>
+        </svg>
+        <div class="tooltip" data-chart-hover-target="tooltip" hidden></div>
+    </div>
+    {% if not energy.complete %}
+        <p class="muted chart-note">"Burned" appears once we can estimate what you burn (see above).</p>
+    {% endif %}
+</section>

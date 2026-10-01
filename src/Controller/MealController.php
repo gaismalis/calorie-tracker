@@ -2,12 +2,10 @@
 
 namespace App\Controller;
 
-use App\Energy\EnergyCalculator;
 use App\Entity\MealEntry;
 use App\Entity\User;
 use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
-use App\Repository\MealEntryRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,51 +19,6 @@ class MealController extends AbstractController
 
     private const MAX_DESCRIPTION_LENGTH = 1000;
     private const MAX_ITEM_GRAMS = 5000;
-
-    #[Route('/', name: 'app_dashboard', methods: ['GET'])]
-    #[Route('/day/{date}', name: 'app_day', requirements: ['date' => '\d{4}-\d{2}-\d{2}'], methods: ['GET'])]
-    public function dashboard(
-        #[CurrentUser] User $user,
-        MealEntryRepository $meals,
-        EnergyCalculator $energy,
-        MealEstimation $estimation,
-        ?string $date = null,
-    ): Response {
-        $today = $user->today();
-        $day = null === $date ? $today : $this->parseLocalDate($user, $date);
-        if (null === $day) {
-            throw $this->createNotFoundException('Invalid date.');
-        }
-        if ($day >= $today && null !== $date) {
-            return $this->redirectToRoute('app_dashboard'); // today and the future live at "/"
-        }
-
-        $entries = $meals->findForDay($user, $day);
-
-        $totals = ['kcal' => 0, 'protein' => 0, 'carbs' => 0, 'fat' => 0];
-        $retryAvailableAt = [];
-        foreach ($entries as $entry) {
-            $totals['kcal'] += $entry->getKcal();
-            $totals['protein'] += $entry->getProtein();
-            $totals['carbs'] += $entry->getCarbs();
-            $totals['fat'] += $entry->getFat();
-            if ($entry->isFailed()) {
-                $retryAvailableAt[$entry->getId()] = $estimation->canRetryManually($entry) ? null : $estimation->manualRetryAvailableAt($entry);
-            }
-        }
-
-        return $this->render('meal/dashboard.html.twig', [
-            'day' => $day,
-            'isToday' => $day == $today,
-            'previousDayUrl' => $this->dayUrl($user, $day->modify('-1 day')),
-            'nextDayUrl' => $day < $today ? $this->dayUrl($user, $day->modify('+1 day')) : null,
-            'entries' => $entries,
-            'totals' => $totals,
-            'energy' => $energy->estimate($user),
-            'retryAvailableAt' => $retryAvailableAt,
-            'hasPending' => array_any($entries, fn (MealEntry $e) => $e->isPending()),
-        ]);
-    }
 
     #[Route('/meals', name: 'app_meal_create', methods: ['POST'])]
     public function create(#[CurrentUser] User $user, Request $request, MealEstimation $estimation): Response
