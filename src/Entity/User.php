@@ -17,6 +17,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     public const DEFAULT_TIMEZONE = 'Europe/Riga';
+    public const WEEKLY_GOALS = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -55,6 +56,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(nullable: true, enumType: ActivityLevel::class)]
     private ?ActivityLevel $activityLevel = null;
+
+    /** Desired weight change in kg per week: negative = lose, 0 = maintain. */
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\Choice(choices: self::WEEKLY_GOALS, message: 'Choose one of the listed goals.')]
+    private float $weeklyGoalKg = 0.0;
 
     public function __construct()
     {
@@ -186,6 +192,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setActivityLevel(?ActivityLevel $activityLevel): static
     {
         $this->activityLevel = $activityLevel;
+
+        return $this;
+    }
+
+    public function getWeeklyGoalKg(): float
+    {
+        return $this->weeklyGoalKg;
+    }
+
+    public function setWeeklyGoalKg(float $weeklyGoalKg): static
+    {
+        $this->weeklyGoalKg = $weeklyGoalKg;
 
         return $this;
     }

@@ -107,3 +107,4 @@ button.link.danger svg { vertical-align: -3px; }
 .meal-form-row button { margin-top: 0; margin-left: auto; }
 .meal-form-row label.time { display: flex; align-items: center; gap: 0.4rem; margin: 0; }
 .meal-form-row input[type=time] { padding: 0.4rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; }
+.target p.goal { font-size: 0.9rem; }

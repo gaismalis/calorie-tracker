@@ -383,6 +383,47 @@ class MealLoggingTest extends WebTestCase
         self::assertSelectorNotExists('.target-missing');
     }
 
+    public function testWeeklyGoalLowersTheTarget(): void
+    {
+        $this->completeProfile();
+        $user = $this->em()->find(User::class, $this->user->getId());
+        $user->setWeeklyGoalKg(-0.5);
+        $this->em()->persist(new WeightEntry($user, $user->today(), 80));
+        $this->em()->flush();
+
+        $this->client->request('GET', '/');
+
+        $tdee = round(round(10 * 80 + 6.25 * 180 - 5 * $user->getAge() + 5) * 1.55);
+        self::assertSelectorTextContains('.target', sprintf('0 of ~%d kcal', $tdee - 550));
+        self::assertSelectorTextContains('.target .goal', sprintf('Goal: lose 0.5 kg/week, so ~550 kcal/day below the ~%d you burn.', $tdee));
+        self::assertSelectorTextNotContains('.target .goal', 'Limited to');
+    }
+
+    public function testTargetIsLimitedToSafeMinimum(): void
+    {
+        $user = $this->em()->find(User::class, $this->user->getId());
+        $user->setSex(Sex::Female)->setBirthDate(new \DateTimeImmutable('-60 years'))->setHeightCm(155)
+            ->setActivityLevel(ActivityLevel::Sedentary)->setWeeklyGoalKg(-1.0);
+        $this->em()->persist(new WeightEntry($user, $user->today(), 55));
+        $this->em()->flush();
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorTextContains('.target', '0 of ~1200 kcal');
+        self::assertSelectorTextContains('.target .goal', 'Limited to 1200 kcal/day');
+    }
+
+    public function testWithoutGoalSuggestsSettingOne(): void
+    {
+        $this->completeProfile();
+        $this->em()->persist(new WeightEntry($this->em()->find(User::class, $this->user->getId()), $this->user->today(), 80));
+        $this->em()->flush();
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorTextContains('.target .goal', 'Goal: keep your weight. Set a goal');
+    }
+
     public function testDashboardShowsCaloriesOverTarget(): void
     {
         $this->completeProfile();

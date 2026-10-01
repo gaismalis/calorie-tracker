@@ -7,6 +7,7 @@ use App\Profile\ActivityLevel;
 use App\Profile\Sex;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\BirthdayType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TimezoneType;
@@ -43,9 +44,23 @@ class ProfileFormType extends AbstractType
                 'placeholder' => 'Choose…',
                 'required' => false,
             ])
+            ->add('weeklyGoalKg', ChoiceType::class, [
+                'label' => 'Weekly goal',
+                'choices' => array_combine(array_map(self::goalLabel(...), User::WEEKLY_GOALS), User::WEEKLY_GOALS),
+                'help' => 'Your daily target is adjusted by about 1100 kcal per kg per week. 0.25–0.5 kg/week is sustainable for most people.',
+            ])
             ->add('timezone', TimezoneType::class, [
                 'help' => 'Decides when your day starts and ends.',
             ]);
+    }
+
+    public static function goalLabel(float $kg): string
+    {
+        return match (true) {
+            $kg < 0 => sprintf('Lose %s kg per week', abs($kg)),
+            $kg > 0 => sprintf('Gain %s kg per week', $kg),
+            default => 'Keep my weight',
+        };
     }
 
     public function configureOptions(OptionsResolver $resolver): void

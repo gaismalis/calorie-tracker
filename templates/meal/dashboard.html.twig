@@ -36,13 +36,26 @@
     {% set adaptive = energy.adaptive %}
     {% if energy.complete %}
         {% set tdee = energy.tdee %}
-        {% set remaining = tdee - totals.kcal %}
+        {% set goal = app.user.weeklyGoalKg %}
+        {% set target = energy.targetFor(goal) %}
+        {% set remaining = target - totals.kcal %}
         <div class="target target-{{ energy.source }}">
-            <div class="bar"><div style="width: {{ min(100, totals.kcal / tdee * 100)|round }}%"></div></div>
+            <div class="bar"><div style="width: {{ min(100, totals.kcal / target * 100)|round }}%"></div></div>
             <p>
-                <strong>{{ totals.kcal|round }}</strong> of ~{{ tdee|round }} kcal ·
+                <strong>{{ totals.kcal|round }}</strong> of ~{{ target|round }} kcal ·
                 {% if remaining >= 0 %}<strong>{{ remaining|round }}</strong> left{% else %}<strong>{{ (-remaining)|round }}</strong> over{% endif %}
             </p>
+            {% if goal != 0 %}
+                {% set adjustment = goal * 7700 / 7 %}
+                <p class="goal">
+                    Goal: {{ goal < 0 ? 'lose' : 'gain' }} {{ goal|abs }} kg/week, so ~{{ adjustment|abs|round }} kcal/day {{ goal < 0 ? 'below' : 'above' }} the ~{{ tdee|round }} you burn.
+                    {% if target == constant('App\\Energy\\EnergyEstimate::MIN_TARGET') and tdee + adjustment < target %}
+                        <strong>Limited to {{ target|round }} kcal/day</strong>: eating less than that isn't safe without medical supervision.
+                    {% endif %}
+                </p>
+            {% else %}
+                <p class="goal muted">Goal: keep your weight. <a href="{{ path('app_profile') }}">Set a goal</a></p>
+            {% endif %}
             {% if energy.source == 'adaptive' %}
                 <p class="muted">
                     ~{{ tdee|round }} kcal/day is what you actually burn, calculated from your last {{ adaptive.days }} days:
@@ -51,7 +64,7 @@
                     {% if energy.formulaTdee %}(The formula estimate was ~{{ energy.formulaTdee|round }}.){% endif %}
                 </p>
             {% else %}
-                <p class="muted">~{{ tdee|round }} kcal/day is a formula estimate of what you burn (maintenance).
+                <p class="muted">~{{ tdee|round }} kcal/day you burn is a formula estimate.
                     {{ _self.adaptive_progress(adaptive) }}</p>
             {% endif %}
         </div>
