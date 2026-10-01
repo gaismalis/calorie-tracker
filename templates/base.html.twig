@@ -21,6 +21,7 @@
                     <a href="{{ path('app_dashboard') }}">Today</a>
                     <a href="{{ path('app_weight') }}">Weight</a>
                     <a href="{{ path('app_profile') }}">Profile</a>
+                    {% if is_granted('ROLE_ADMIN') %}<a href="{{ path('admin') }}">Admin</a>{% endif %}
                     <span class="muted">{{ app.user.email }}</span>
                     <a href="{{ path('app_logout') }}">Log out</a>
                 </nav>
