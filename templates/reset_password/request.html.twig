@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Forgot password · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card narrow">
+    <h1>Forgot your password?</h1>
+    <p class="muted">Enter the email address you registered with and we'll send you a link to choose a new password.</p>
+    {{ form_start(form) }}
+        {{ form_row(form.email) }}
+        <button type="submit">Send reset link</button>
+    {{ form_end(form) }}
+    <p class="muted"><a href="{{ path('app_login') }}">Back to log in</a></p>
+</section>
+{% endblock %}

@@ -141,7 +141,7 @@ class WeightLogTest extends WebTestCase
         $this->client->submitForm('Save weight', ['weight_entry_form[weightKg]' => $weight, 'weight_entry_form[date]' => $date]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('form', $error);
+        self::assertSelectorTextContains('form[name=weight_entry_form]', $error);
         self::assertSame([], $this->entries());
     }
 

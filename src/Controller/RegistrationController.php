@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Account\AccountMailer;
 use App\Entity\User;
 use App\Form\RegistrationFormType;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,6 +21,7 @@ class RegistrationController extends AbstractController
         UserPasswordHasherInterface $passwordHasher,
         EntityManagerInterface $entityManager,
         Security $security,
+        AccountMailer $mailer,
     ): Response {
         if ($this->getUser()) {
             return $this->redirectToRoute('app_dashboard');
@@ -33,6 +35,10 @@ class RegistrationController extends AbstractController
             $user->setPassword($passwordHasher->hashPassword($user, $form->get('plainPassword')->getData()));
             $entityManager->persist($user);
             $entityManager->flush();
+
+            $mailer->sendEmailConfirmation($user);
+            $entityManager->flush();
+            $this->addFlash('success', sprintf('Welcome! We sent a link to %s to confirm your email address.', $user->getEmail()));
 
             return $security->login($user, 'form_login', 'main');
         }

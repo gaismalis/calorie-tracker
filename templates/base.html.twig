@@ -27,6 +27,15 @@
             {% endif %}
         </header>
         <main class="container">
+            {% if app.user and not app.user.verified and app.request.attributes.get('_route') starts with 'app_' %}
+                <div class="verify-banner">
+                    <span>Please confirm your email address: we sent a link to <strong>{{ app.user.email }}</strong>.</span>
+                    <form method="post" action="{{ path('app_verify_email_resend') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('verify_email_resend') }}">
+                        <button type="submit" class="link">Send it again</button>
+                    </form>
+                </div>
+            {% endif %}
             {% for type, messages in app.flashes %}
                 {% for message in messages %}
                     <div class="flash flash-{{ type }}">{{ message }}</div>

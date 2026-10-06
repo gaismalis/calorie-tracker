@@ -31,10 +31,10 @@ server: ## Run only the PHP dev server (Ctrl+C to stop)
 worker: ## Run only the background worker that retries meal estimates (-vv shows what it does)
 	$(CONSOLE) messenger:consume async -vv
 
-db: ## Start Postgres and Adminer (database web UI on http://127.0.0.1:8081)
+db: ## Start Postgres, Adminer (DB web UI, http://127.0.0.1:8081) and Mailpit (dev inbox, http://127.0.0.1:8025)
 	docker compose up -d --wait
 
-stop: ## Stop Postgres and Adminer (data is kept)
+stop: ## Stop Postgres, Adminer and Mailpit (data is kept)
 	docker compose stop
 
 migrate: ## Apply database migrations

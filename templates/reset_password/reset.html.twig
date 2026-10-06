@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Choose a new password · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card narrow">
+    <h1>Choose a new password</h1>
+    {{ form_start(form) }}
+        {{ form_row(form.plainPassword.first) }}
+        {{ form_row(form.plainPassword.second) }}
+        <button type="submit">Save new password</button>
+    {{ form_end(form) }}
+</section>
+{% endblock %}

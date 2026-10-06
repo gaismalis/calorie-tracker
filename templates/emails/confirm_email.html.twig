@@ -1,0 +1,9 @@
+{% extends 'emails/_layout.html.twig' %}
+{% block content %}
+    <h1 style="font-size:20px;margin:0 0 12px;">Confirm your email address</h1>
+    <p>Thanks for signing up. Please confirm that this is your email address, so you can reset your password if you ever forget it.</p>
+    <p style="margin:24px 0;">
+        <a href="{{ signedUrl }}" style="background:#2f855a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;">Confirm my email</a>
+    </p>
+    <p style="color:#6b726d;font-size:13px;">This link is valid for 1 hour. If you didn't sign up, you can ignore this email.</p>
+{% endblock %}

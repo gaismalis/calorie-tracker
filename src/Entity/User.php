@@ -57,6 +57,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true, enumType: ActivityLevel::class)]
     private ?ActivityLevel $activityLevel = null;
 
+    /** Email address confirmed via the link sent at registration (or by resetting the password). */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $verified = false;
+
+    /** When the last confirmation email was sent, to throttle "resend". */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $verificationSentAt = null;
+
     /** Desired weight change in kg per week: negative = lose, 0 = maintain. */
     #[ORM\Column(options: ['default' => 0])]
     #[Assert\Choice(choices: self::WEEKLY_GOALS, message: 'Choose one of the listed goals.')]
@@ -204,6 +212,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setWeeklyGoalKg(float $weeklyGoalKg): static
     {
         $this->weeklyGoalKg = $weeklyGoalKg;
+
+        return $this;
+    }
+
+    public function isVerified(): bool
+    {
+        return $this->verified;
+    }
+
+    public function markVerified(): static
+    {
+        $this->verified = true;
+
+        return $this;
+    }
+
+    public function getVerificationSentAt(): ?\DateTimeImmutable
+    {
+        return $this->verificationSentAt;
+    }
+
+    public function setVerificationSentAt(?\DateTimeImmutable $at): static
+    {
+        $this->verificationSentAt = $at;
 
         return $this;
     }

@@ -49,6 +49,8 @@ security:
 
     access_control:
         - { path: ^/(login|register)$, roles: PUBLIC_ACCESS }
+        - { path: ^/reset-password, roles: PUBLIC_ACCESS }
+        - { path: ^/verify/email$, roles: PUBLIC_ACCESS }
         - { path: ^/admin/login$, roles: PUBLIC_ACCESS }
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/, roles: ROLE_USER }

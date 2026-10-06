@@ -15,3 +15,13 @@ services:
       ADMINER_DEFAULT_SERVER: database
     ports:
       - "127.0.0.1:8081:8080"
+
+  # Catches all email sent in development (nothing leaves your machine): inbox at http://127.0.0.1:8025
+  mailer:
+    image: axllent/mailpit
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"

@@ -98,8 +98,8 @@ class ProfileTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('form', 'Height must be between 100 and 250 cm');
-        self::assertSelectorTextContains('form', 'You must be at least 13 years old');
+        self::assertSelectorTextContains('form[name=profile_form]', 'Height must be between 100 and 250 cm');
+        self::assertSelectorTextContains('form[name=profile_form]', 'You must be at least 13 years old');
         self::assertNull($this->reloadUser()->getHeightCm());
     }
 
