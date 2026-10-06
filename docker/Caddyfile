@@ -1,0 +1,12 @@
+# Plain HTTP on $PORT: the hosting platform's proxy handles HTTPS.
+{
+	frankenphp
+	auto_https off
+	admin off
+}
+
+:{$PORT:8080} {
+	root * /app/public
+	encode zstd br gzip
+	php_server
+}

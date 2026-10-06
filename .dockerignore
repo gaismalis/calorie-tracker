@@ -1,0 +1,17 @@
+.git
+.idea
+.claude-work
+.playwright-mcp
+.env.local
+.env.*.local
+.env.test
+var
+vendor
+public/assets
+public/bundles
+assets/vendor
+tests
+phpunit.dist.xml
+compose*.yaml
+Makefile
+CLAUDE*.md

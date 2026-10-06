@@ -13,3 +13,10 @@ when@test:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+
+when@prod:
+    framework:
+        # Railway (and similar hosts) put a proxy in front of the app that terminates HTTPS. Trust it so
+        # Symfony sees the real scheme/host: links in emails are https://…, cookies are marked secure.
+        trusted_proxies: '%env(TRUSTED_PROXIES)%'
+        trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
