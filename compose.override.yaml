@@ -5,3 +5,13 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
 ###< doctrine/doctrine-bundle ###
+
+  # Database web UI for local development (like phpMyAdmin, but for PostgreSQL): http://127.0.0.1:8081
+  adminer:
+    image: adminer:latest
+    depends_on:
+      - database
+    environment:
+      ADMINER_DEFAULT_SERVER: database
+    ports:
+      - "127.0.0.1:8081:8080"
