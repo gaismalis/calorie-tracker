@@ -83,7 +83,7 @@ class DashboardController extends AbstractController
             'energy' => $energy,
             'burned' => $energy->burnedWith($exerciseKcal),
             'target' => $energy->targetFor($user->getWeeklyGoalKg(), $exerciseKcal),
-            'chart' => $this->chart($user, $mealRepository, $exerciseRepository, $energy, $day, $today),
+            'charts' => $this->charts($user, $mealRepository, $exerciseRepository, $energy, $day, $today),
             'retryAt' => $retryAt,
             'hasPending' => array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending()),
             'openLog' => $needsAttention || null !== $returnToLog,
@@ -91,7 +91,8 @@ class DashboardController extends AbstractController
         ]);
     }
 
-    private function chart(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, EnergyEstimate $energy, \DateTimeImmutable $day, \DateTimeImmutable $today): EnergyChart
+    /** @return list<EnergyChart> the full-width chart and the compact one for phones; CSS shows the one that fits */
+    private function charts(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, EnergyEstimate $energy, \DateTimeImmutable $day, \DateTimeImmutable $today): array
     {
         $first = $day->modify(sprintf('-%d days', self::CHART_DAYS - 1));
         $end = $day->modify('+1 day');
@@ -106,7 +107,10 @@ class DashboardController extends AbstractController
             }
         }
 
-        return EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), self::CHART_DAYS);
+        return array_map(
+            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), self::CHART_DAYS, $width),
+            [EnergyChart::WIDTH, EnergyChart::COMPACT_WIDTH],
+        );
     }
 
     private function entryKey(Estimable $entry): string

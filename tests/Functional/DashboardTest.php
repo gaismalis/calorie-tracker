@@ -158,12 +158,33 @@ class DashboardTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/');
 
-        self::assertCount(2, $crawler->filter('.energy-chart svg[role=img] circle.eaten-dot'));
+        self::assertCount(2, $crawler->filter('.energy-chart.chart-wide svg[role=img] circle.eaten-dot'));
         self::assertCount(0, $crawler->filter('.energy-chart svg[role=img] path.burned-line'));
         self::assertSelectorTextContains('.chart-note', '"Burned" appears once');
-        $days = json_decode($crawler->filter('.energy-chart')->attr('data-chart-hover-days-value'), true);
+        $days = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
         self::assertCount(14, $days);
         self::assertStringEndsWith('(so far)', end($days)['label']);
+    }
+
+    public function testChartComesInAWideAndACompactPhoneVersion(): void
+    {
+        $this->storeMeal('lunch');
+
+        $crawler = $this->client->request('GET', '/');
+
+        self::assertSame('0 0 680 220', $crawler->filter('.energy-chart.chart-wide svg[role=img]')->attr('viewbox'));
+        self::assertSame('0 0 340 220', $crawler->filter('.energy-chart.chart-compact svg[role=img]')->attr('viewbox'));
+        self::assertCount(1, $crawler->filter('.energy-chart.chart-compact svg[role=img] circle.eaten-dot'));
+        $days = json_decode($crawler->filter('.energy-chart.chart-compact')->attr('data-chart-hover-days-value'), true);
+        self::assertCount(14, $days, 'hover works on the compact chart too');
+    }
+
+    public function testEmailInTheHeaderCanBeHiddenOnPhones(): void
+    {
+        $this->client->request('GET', '/');
+
+        self::assertSelectorTextContains('.topbar .user-email', $this->user->getEmail());
+        self::assertSelectorTextContains('.topbar a.logout', 'Log out');
     }
 
     private function storeMeal(string $text, ?\DateTimeImmutable $at = null): void

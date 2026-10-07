@@ -92,15 +92,16 @@ class WeightLogTest extends WebTestCase
         }
 
         $crawler = $this->client->request('GET', '/weight');
-        self::assertCount(4, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'), '90 days by default');
+        self::assertCount(4, $crawler->filter('.weight-chart.chart-wide svg[role=img] circle.weigh-in'), '90 days by default');
+        self::assertCount(4, $crawler->filter('.weight-chart.chart-compact svg[role=img] circle.weigh-in'), 'phone version shows the same');
         self::assertSelectorExists('.weight-chart path.trend-line');
         self::assertSelectorTextContains('.weight-chart .end-label', 'kg');
         self::assertSelectorTextContains('.range a[aria-current]', '90 days');
-        $days = json_decode($crawler->filter('.weight-chart')->attr('data-chart-hover-days-value'), true);
+        $days = json_decode($crawler->filter('.weight-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
         self::assertSame(['series' => 'weigh-in', 'value' => '80.0 kg', 'name' => 'Weigh-in'], end($days)['rows'][0]);
 
         $crawler = $this->client->request('GET', '/weight?range=30');
-        self::assertCount(3, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'));
+        self::assertCount(3, $crawler->filter('.weight-chart.chart-wide svg[role=img] circle.weigh-in'));
         self::assertSelectorTextContains('.range a[aria-current]', '30 days');
     }
 
@@ -109,7 +110,8 @@ class WeightLogTest extends WebTestCase
         $crawler = $this->client->request('GET', '/weight');
 
         self::assertSelectorExists('.weight-chart svg[role=img]');
-        self::assertSelectorTextContains('.weight-chart .empty-label', 'No weigh-ins in this period yet');
+        self::assertSelectorTextContains('.weight-chart.chart-wide .empty-label', 'No weigh-ins in this period yet');
+        self::assertSame(2, $crawler->filter('.weight-chart.chart-compact .empty-label tspan')->count(), 'split into two lines to fit a phone');
         self::assertCount(0, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'));
     }
 
@@ -119,7 +121,7 @@ class WeightLogTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/weight?range=7');
 
-        self::assertCount(1, $crawler->filter('.weight-chart svg[role=img] circle.weigh-in'));
+        self::assertCount(1, $crawler->filter('.weight-chart.chart-wide svg[role=img] circle.weigh-in'));
         self::assertSelectorNotExists('.weight-chart .empty-label');
         self::assertSelectorTextContains('.range a[aria-current]', '90 days');
     }

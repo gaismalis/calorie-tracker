@@ -19,6 +19,22 @@ class EnergyChartTest extends TestCase
         self::assertSame('1 Oct', end($ticks)['label']);
     }
 
+    public function testCompactVersionFitsAPhoneWithFewerDateLabels(): void
+    {
+        $wide = EnergyChart::build(['2026-10-01' => 2000.0], [], '2026-10-01', '2026-10-01');
+        $compact = EnergyChart::build(['2026-10-01' => 2000.0], [], '2026-10-01', '2026-10-01', width: EnergyChart::COMPACT_WIDTH);
+
+        self::assertFalse($wide->isCompact());
+        self::assertTrue($compact->isCompact());
+        self::assertSame(EnergyChart::COMPACT_WIDTH, $compact->width);
+        self::assertLessThan(EnergyChart::COMPACT_WIDTH, $compact->plotRight);
+        self::assertLessThanOrEqual($compact->plotRight, $compact->eatenDots[array_key_last($compact->eatenDots)]['x']);
+        self::assertLessThan(count($wide->xTicks), count($compact->xTicks));
+        $ticks = $compact->xTicks;
+        self::assertSame('1 Oct', end($ticks)['label']);
+        self::assertSame($wide->yTicks[0]['value'], $compact->yTicks[0]['value'], 'same scale, only narrower');
+    }
+
     public function testEatenLineHasGapsOnDaysWithoutMeals(): void
     {
         $chart = EnergyChart::build(

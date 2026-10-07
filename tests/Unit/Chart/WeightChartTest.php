@@ -112,6 +112,20 @@ class WeightChartTest extends TestCase
         self::assertLessThanOrEqual(7, count($ticks));
     }
 
+    public function testCompactVersionFitsAPhoneWithFewerDateLabels(): void
+    {
+        $weights = ['2026-07-04' => 80.0, '2026-10-01' => 81.0];
+        $wide = WeightChart::build($weights, $weights, '2026-10-01', 90);
+        $compact = WeightChart::build($weights, $weights, '2026-10-01', 90, width: WeightChart::COMPACT_WIDTH);
+
+        self::assertTrue($compact->isCompact());
+        self::assertFalse($wide->isCompact());
+        self::assertSame(WeightChart::COMPACT_WIDTH, $compact->width);
+        self::assertLessThanOrEqual($compact->plotRight, $compact->trendEnd['x']);
+        self::assertLessThan(count($wide->xTicks), count($compact->xTicks));
+        self::assertLessThanOrEqual(5, count($compact->xTicks));
+    }
+
     public function testWildlyDifferentWeightsStillRender(): void
     {
         $chart = WeightChart::build(['2026-09-20' => 60.0, '2026-09-25' => 400.0], [], '2026-10-01', 30);

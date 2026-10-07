@@ -9,6 +9,8 @@ namespace App\Chart;
 final readonly class EnergyChart
 {
     public const WIDTH = 680;
+    /** Width of the version shown on phones, close to the card's real width so text keeps its size. */
+    public const COMPACT_WIDTH = 340;
     public const HEIGHT = 220;
     private const MARGIN_LEFT = 48;
     private const MARGIN_RIGHT = 16;
@@ -35,6 +37,7 @@ final readonly class EnergyChart
         public float $plotRight,
         public float $plotTop,
         public float $plotBottom,
+        public int $width,
     ) {
     }
 
@@ -43,8 +46,9 @@ final readonly class EnergyChart
      * @param array<string, float> $burned kcal burned by date (baseline + exercise); empty when unknown
      * @param string               $lastDay last date shown ('Y-m-d')
      * @param string               $today   today's date, marked as "so far"
+     * @param int                  $width   drawing width (WIDTH, or COMPACT_WIDTH for phones)
      */
-    public static function build(array $eaten, array $burned, string $lastDay, string $today, int $days = 14): self
+    public static function build(array $eaten, array $burned, string $lastDay, string $today, int $days = 14, int $width = self::WIDTH): self
     {
         $last = new \DateTimeImmutable($lastDay);
         $dates = [];
@@ -53,7 +57,7 @@ final readonly class EnergyChart
         }
 
         $left = self::MARGIN_LEFT;
-        $right = self::WIDTH - self::MARGIN_RIGHT;
+        $right = $width - self::MARGIN_RIGHT;
         $top = self::MARGIN_TOP;
         $bottom = self::HEIGHT - self::MARGIN_BOTTOM;
         $x = fn (int $i): float => round($left + ($right - $left) * $i / max(1, $days - 1), 1);
@@ -105,11 +109,17 @@ final readonly class EnergyChart
         }
 
         $xTicks = [];
-        for ($i = $days - 1; $i >= 0; $i -= 3) { // anchored on the last day
+        $tickEvery = $width < self::WIDTH ? 4 : 3; // fewer date labels when narrow, so they don't touch
+        for ($i = $days - 1; $i >= 0; $i -= $tickEvery) { // anchored on the last day
             array_unshift($xTicks, ['label' => (new \DateTimeImmutable($dates[$i]))->format('j M'), 'x' => $x($i)]);
         }
 
-        return new self($eatenPaths, $eatenDots, $burnedPath, $yTicks, $xTicks, $hover, [] === $values, $left, $right, $top, $bottom);
+        return new self($eatenPaths, $eatenDots, $burnedPath, $yTicks, $xTicks, $hover, [] === $values, $left, $right, $top, $bottom, $width);
+    }
+
+    public function isCompact(): bool
+    {
+        return $this->width < self::WIDTH;
     }
 
     /** @return list<array{x: float, label: string, rows: list<array{series: string, value: string, name: string}>}> tooltip content per day */

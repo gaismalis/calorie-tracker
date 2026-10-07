@@ -66,13 +66,14 @@ class WeightController extends AbstractController
         return $this->render('weight/index.html.twig', [
             'form' => $form,
             'rows' => $rows,
-            'chart' => $this->chart($user, $weights, $range),
+            'charts' => $this->charts($user, $weights, $range),
             'range' => $range,
             'ranges' => self::CHART_RANGES,
         ]);
     }
 
-    private function chart(User $user, WeightEntryRepository $weights, int $days): WeightChart
+    /** @return list<WeightChart> the full-width chart and the compact one for phones; CSS shows the one that fits */
+    private function charts(User $user, WeightEntryRepository $weights, int $days): array
     {
         $today = $user->today()->format('Y-m-d');
         $first = (new \DateTimeImmutable($today))->modify(sprintf('-%d days', $days - 1))->format('Y-m-d');
@@ -82,13 +83,14 @@ class WeightController extends AbstractController
         $all = $weights->weightsByDate($user, (new \DateTimeImmutable($first))->modify('-60 days'));
         $trend = WeightTrend::daily($all);
 
-        return WeightChart::build(
+        return array_map(fn (int $width) => WeightChart::build(
             array_filter($all, $inRange, ARRAY_FILTER_USE_KEY),
             array_filter($trend, $inRange, ARRAY_FILTER_USE_KEY),
             $today,
             $days,
             $weights->findLatest($user)?->getWeightKg(),
-        );
+            $width,
+        ), [WeightChart::WIDTH, WeightChart::COMPACT_WIDTH]);
     }
 
     /**

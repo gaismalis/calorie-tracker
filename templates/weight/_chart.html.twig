@@ -1,40 +1,43 @@
 {# Weigh-ins (dots, series 2) and trend (line, series 1). Colors validated with the dataviz palette validator. #}
-<div class="viz-root weight-chart" data-controller="chart-hover" data-chart-hover-days-value="{{ chart.hover|json_encode }}">
-    <ul class="legend" aria-label="Legend">
-        <li><svg width="16" height="10" aria-hidden="true"><line x1="0" y1="5" x2="16" y2="5" class="trend-line"/></svg> Trend</li>
-        <li><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" class="weigh-in"/></svg> Weigh-ins</li>
-    </ul>
-    <svg viewBox="0 0 {{ constant('App\\Chart\\WeightChart::WIDTH') }} {{ constant('App\\Chart\\WeightChart::HEIGHT') }}"
-         role="img" aria-label="Weight chart: {{ chart.dots|length }} {{ chart.dots|length == 1 ? 'weigh-in' : 'weigh-ins' }}{% if chart.trendEnd %}, trend now {{ chart.trendEnd.kg|number_format(1) }} kg{% endif %}. The same data is in the History table below."
-         data-chart-hover-target="svg">
-        <g class="grid">
-            {% for tick in chart.yTicks %}
-                <line x1="{{ chart.plotLeft }}" x2="{{ chart.plotRight }}" y1="{{ tick.y }}" y2="{{ tick.y }}"/>
-                <text x="{{ chart.plotLeft - 8 }}" y="{{ tick.y }}" class="y-tick">{{ tick.value == tick.value|round ? tick.value|number_format(0) : tick.value|number_format(1) }}</text>
-            {% endfor %}
-        </g>
-        <g class="x-axis">
-            {% for tick in chart.xTicks %}
-                <text x="{{ tick.x }}" y="{{ chart.plotBottom + 18 }}" class="x-tick">{{ tick.label }}</text>
-            {% endfor %}
-        </g>
-        {% if chart.empty %}
-            <text x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" y="{{ (chart.plotTop + chart.plotBottom) / 2 }}" class="empty-label">No weigh-ins in this period yet. Log your weight above.</text>
-        {% endif %}
-        <path d="{{ chart.trendPath }}" class="trend-line"/>
-        <g class="dots">
-            {% for dot in chart.dots %}
-                <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4" class="weigh-in"/>
-            {% endfor %}
-        </g>
-        {% if chart.trendEnd %}
-            <circle cx="{{ chart.trendEnd.x }}" cy="{{ chart.trendEnd.y }}" r="4" class="trend-end"/>
-            <text x="{{ chart.trendEnd.x + 10 }}" y="{{ chart.trendEnd.y }}" class="end-label">{{ chart.trendEnd.kg|number_format(1) }} kg</text>
-        {% endif %}
-        <line class="crosshair" data-chart-hover-target="crosshair" y1="{{ chart.plotTop }}" y2="{{ chart.plotBottom }}" x1="0" x2="0" visibility="hidden"/>
-        <rect class="hit-area" x="{{ chart.plotLeft }}" y="{{ chart.plotTop }}" width="{{ chart.plotRight - chart.plotLeft }}" height="{{ chart.plotBottom - chart.plotTop }}"
-              tabindex="0" aria-label="Explore the chart with the arrow keys"
-              data-action="pointermove->chart-hover#move pointerleave->chart-hover#hide focus->chart-hover#focus blur->chart-hover#hide keydown->chart-hover#key"/>
-    </svg>
-    <div class="tooltip" data-chart-hover-target="tooltip" hidden></div>
-</div>
+{# Wide and compact (phone) versions; CSS shows the one that fits the screen. #}
+{% for chart in charts %}
+    <div class="viz-root weight-chart {{ chart.compact ? 'chart-compact' : 'chart-wide' }}" data-controller="chart-hover" data-chart-hover-days-value="{{ chart.hover|json_encode }}">
+        <ul class="legend" aria-label="Legend">
+            <li><svg width="16" height="10" aria-hidden="true"><line x1="0" y1="5" x2="16" y2="5" class="trend-line"/></svg> Trend</li>
+            <li><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" class="weigh-in"/></svg> Weigh-ins</li>
+        </ul>
+        <svg viewBox="0 0 {{ chart.width }} {{ constant('App\\Chart\\WeightChart::HEIGHT') }}"
+             role="img" aria-label="Weight chart: {{ chart.dots|length }} {{ chart.dots|length == 1 ? 'weigh-in' : 'weigh-ins' }}{% if chart.trendEnd %}, trend now {{ chart.trendEnd.kg|number_format(1) }} kg{% endif %}. The same data is in the History table below."
+             data-chart-hover-target="svg">
+            <g class="grid">
+                {% for tick in chart.yTicks %}
+                    <line x1="{{ chart.plotLeft }}" x2="{{ chart.plotRight }}" y1="{{ tick.y }}" y2="{{ tick.y }}"/>
+                    <text x="{{ chart.plotLeft - 8 }}" y="{{ tick.y }}" class="y-tick">{{ tick.value == tick.value|round ? tick.value|number_format(0) : tick.value|number_format(1) }}</text>
+                {% endfor %}
+            </g>
+            <g class="x-axis">
+                {% for tick in chart.xTicks %}
+                    <text x="{{ tick.x }}" y="{{ chart.plotBottom + 18 }}" class="x-tick">{{ tick.label }}</text>
+                {% endfor %}
+            </g>
+            {% if chart.empty %}
+                <text x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" y="{{ (chart.plotTop + chart.plotBottom) / 2 }}" class="empty-label">{% if chart.compact %}<tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="-0.6em">No weigh-ins in this period yet.</tspan><tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="1.3em">Log your weight above.</tspan>{% else %}No weigh-ins in this period yet. Log your weight above.{% endif %}</text>
+            {% endif %}
+            <path d="{{ chart.trendPath }}" class="trend-line"/>
+            <g class="dots">
+                {% for dot in chart.dots %}
+                    <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4" class="weigh-in"/>
+                {% endfor %}
+            </g>
+            {% if chart.trendEnd %}
+                <circle cx="{{ chart.trendEnd.x }}" cy="{{ chart.trendEnd.y }}" r="4" class="trend-end"/>
+                <text x="{{ chart.trendEnd.x + 10 }}" y="{{ chart.trendEnd.y }}" class="end-label">{{ chart.trendEnd.kg|number_format(1) }} kg</text>
+            {% endif %}
+            <line class="crosshair" data-chart-hover-target="crosshair" y1="{{ chart.plotTop }}" y2="{{ chart.plotBottom }}" x1="0" x2="0" visibility="hidden"/>
+            <rect class="hit-area" x="{{ chart.plotLeft }}" y="{{ chart.plotTop }}" width="{{ chart.plotRight - chart.plotLeft }}" height="{{ chart.plotBottom - chart.plotTop }}"
+                  tabindex="0" aria-label="Explore the chart with the arrow keys"
+                  data-action="pointermove->chart-hover#move pointerleave->chart-hover#hide focus->chart-hover#focus blur->chart-hover#hide keydown->chart-hover#key"/>
+        </svg>
+        <div class="tooltip" data-chart-hover-target="tooltip" hidden></div>
+    </div>
+{% endfor %}

@@ -9,6 +9,8 @@ namespace App\Chart;
 final readonly class WeightChart
 {
     public const WIDTH = 680;
+    /** Width of the version shown on phones, close to the card's real width so text keeps its size. */
+    public const COMPACT_WIDTH = 340;
     public const HEIGHT = 240;
     private const MARGIN_LEFT = 44;
     private const MARGIN_RIGHT = 86; // room for the direct label at the end of the trend
@@ -37,6 +39,7 @@ final readonly class WeightChart
         public float $plotRight,
         public float $plotTop,
         public float $plotBottom,
+        public int $width,
     ) {
     }
 
@@ -45,8 +48,9 @@ final readonly class WeightChart
      * @param array<string, float> $trend   trend kg by date ('Y-m-d') within the range
      * @param string               $lastDay  last date shown ('Y-m-d', usually today)
      * @param float|null           $fallback weight to centre an empty chart on (e.g. the last known weigh-in)
+     * @param int                  $width    drawing width (WIDTH, or COMPACT_WIDTH for phones)
      */
-    public static function build(array $weights, array $trend, string $lastDay, int $days, ?float $fallback = null): self
+    public static function build(array $weights, array $trend, string $lastDay, int $days, ?float $fallback = null, int $width = self::WIDTH): self
     {
         ksort($weights);
         ksort($trend);
@@ -54,7 +58,7 @@ final readonly class WeightChart
         $last = new \DateTimeImmutable($lastDay);
         $first = $last->modify(sprintf('-%d days', $days - 1));
         $left = self::MARGIN_LEFT;
-        $right = self::WIDTH - self::MARGIN_RIGHT;
+        $right = $width - self::MARGIN_RIGHT;
         $top = self::MARGIN_TOP;
         $bottom = self::HEIGHT - self::MARGIN_BOTTOM;
 
@@ -83,7 +87,7 @@ final readonly class WeightChart
         }
 
         $xTicks = [];
-        $tickEvery = (int) max(1, ceil($days / 6));
+        $tickEvery = (int) max(1, ceil($days / ($width < self::WIDTH ? 4 : 6))); // fewer date labels when narrow
         for ($offset = $days - 1; $offset >= 0; $offset -= $tickEvery) { // anchored on the last day
             $date = $first->modify("+$offset days")->format('Y-m-d');
             array_unshift($xTicks, ['label' => (new \DateTimeImmutable($date))->format('j M'), 'x' => $x($date)]);
@@ -103,7 +107,7 @@ final readonly class WeightChart
         $lastTrendDate = array_key_last($trend);
         $trendEnd = null === $lastTrendDate ? null : ['x' => $x($lastTrendDate), 'y' => $y($trend[$lastTrendDate]), 'kg' => $trend[$lastTrendDate]];
 
-        return new self($path, $dots, $yTicks, $xTicks, array_values($hover), $trendEnd, $left, $right, $top, $bottom);
+        return new self($path, $dots, $yTicks, $xTicks, array_values($hover), $trendEnd, $left, $right, $top, $bottom, $width);
     }
 
     /** @return list<array{x: float, label: string, rows: list<array{series: string, value: string, name: string}>}> tooltip content per day */
@@ -117,6 +121,11 @@ final readonly class WeightChart
                 null === $day['trend'] ? null : ['series' => 'trend', 'value' => number_format($day['trend'], 1).' kg', 'name' => 'Trend'],
             ])),
         ], $this->days);
+    }
+
+    public function isCompact(): bool
+    {
+        return $this->width < self::WIDTH;
     }
 
     public function isEmpty(): bool

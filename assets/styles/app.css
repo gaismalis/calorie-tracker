@@ -18,8 +18,16 @@ a { color: var(--accent); }
     display: flex; justify-content: space-between; align-items: center;
     padding: 0.75rem 1.25rem; background: var(--card); border-bottom: 1px solid var(--border);
 }
-.topbar .brand { font-weight: 600; text-decoration: none; color: var(--text); }
+.topbar .brand { font-weight: 600; text-decoration: none; color: var(--text); white-space: nowrap; }
 .topbar nav { display: flex; gap: 1rem; align-items: center; }
+.topbar nav a { white-space: nowrap; }
+/* Phones: brand on its own row, links below with "Log out" on the right; the email is left out. */
+@media (max-width: 600px) {
+    .topbar { flex-wrap: wrap; row-gap: 0.4rem; padding: 0.6rem 1rem; }
+    .topbar nav { flex: 1 0 100%; gap: 1.1rem; }
+    .topbar .user-email { display: none; }
+    .topbar .logout { margin-left: auto; }
+}
 
 .container { max-width: 760px; margin: 1.5rem auto; padding: 0 1rem; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; margin-bottom: 1.25rem; }
@@ -130,6 +138,12 @@ button.link.danger svg { vertical-align: -3px; }
 .viz-root .legend li { display: flex; align-items: center; gap: 0.35rem; }
 .viz-root .grid line { stroke: var(--gridline); stroke-width: 1; }
 .viz-root text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+/* Each chart is drawn twice: full width and compact (about a phone card's width, so text keeps its size). */
+.viz-root.chart-compact { display: none; }
+@media (max-width: 560px) {
+    .viz-root.chart-wide { display: none; }
+    .viz-root.chart-compact { display: block; }
+}
 .viz-root .y-tick { text-anchor: end; dominant-baseline: middle; }
 .viz-root .x-tick { text-anchor: middle; }
 .weight-chart .trend-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
