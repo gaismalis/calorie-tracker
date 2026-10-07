@@ -10,6 +10,6 @@
 </div>
 
 <dialog class="entry-dialog" data-entry-dialog-target="dialog" aria-labelledby="entry-title"
-        data-action="click->entry-dialog#backdrop close->entry-dialog#closed">
+        data-action="pointerdown->entry-dialog#pressed click->entry-dialog#backdrop close->entry-dialog#closed">
     <turbo-frame id="entry-panel" data-entry-dialog-target="frame" data-action="turbo:frame-missing->entry-dialog#leaveFrame"></turbo-frame>
 </dialog>

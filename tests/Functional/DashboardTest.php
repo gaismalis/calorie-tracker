@@ -90,6 +90,9 @@ class DashboardTest extends WebTestCase
         self::assertSame(['🍽 Meal', '🏃 Exercise', '⚖️ Weight'], $crawler->filter('.add-menu a')->each(fn ($a) => $a->text()));
         self::assertSame(['/meals/new', '/exercises/new', '/weight/quick'], $crawler->filter('.add-menu a')->each(fn ($a) => $a->attr('href')));
         self::assertSelectorExists('dialog.entry-dialog turbo-frame#entry-panel');
+        // Closing by clicking outside also needs the press to start outside (see entry_dialog_controller.js),
+        // so dragging a slider past the dialog's edge doesn't close it.
+        self::assertStringContainsString('pointerdown->entry-dialog#pressed', $crawler->filter('dialog.entry-dialog')->attr('data-action'));
     }
 
     public function testInsideTheDialogResultsLeaveTheFrameAsAWholePageVisit(): void

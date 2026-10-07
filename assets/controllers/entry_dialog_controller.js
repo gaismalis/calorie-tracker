@@ -55,9 +55,23 @@ export default class extends Controller {
         this.dialogTarget.close();
     }
 
+    // Where the last press started: closing on "click outside" requires the press to start outside too.
+    // Otherwise dragging a slider and releasing past the dialog's edge counts as a click on the backdrop
+    // in some browsers (Safari, Firefox), and the dialog would close mid-drag.
+    pressed(event) {
+        this.pressStartedOutside = event.target === event.currentTarget && this.isOutside(event);
+    }
+
     // A click on the dark area around the dialog lands on the <dialog> element itself.
     backdrop(event) {
-        if (event.target === event.currentTarget) this.dialogTarget.close();
+        const startedOutside = this.pressStartedOutside;
+        this.pressStartedOutside = false;
+        if (event.target === event.currentTarget && startedOutside && this.isOutside(event)) this.dialogTarget.close();
+    }
+
+    isOutside(event) {
+        const box = this.dialogTarget.getBoundingClientRect();
+        return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
     }
 
     // After closing a freshly logged entry's review, reload so it shows up in the overview and log.
