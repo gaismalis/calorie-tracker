@@ -53,3 +53,11 @@ when@prod:
                 channels: [deprecation]
                 path: php://stderr
                 formatter: monolog.formatter.json
+            # The app's own warnings (e.g. "Estimation failed" with the AI's error) always reach the log;
+            # "main" above only writes them when an error happens in the same request.
+            app_warnings:
+                type: stream
+                path: php://stderr
+                level: warning
+                channels: ["app"]
+                formatter: monolog.formatter.json
