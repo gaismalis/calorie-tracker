@@ -42,34 +42,32 @@ class EnergyCalculatorTest extends TestCase
         }
     }
 
-    public function testMissingActivityLevelDefaultsToMostlySitting(): void
+    /** @return iterable<string, array{string}> */
+    public static function eachRequiredDetail(): iterable
     {
-        $estimate = EnergyCalculator::calculate($this->user(Sex::Male, '1996-01-01', 180, null), 80, new \DateTimeImmutable(self::ON));
-
-        self::assertSame(1780.0, $estimate->bmr);
-        self::assertSame(2136.0, $estimate->formulaTdee, '1780 × 1.2');
-        self::assertTrue($estimate->isComplete());
-        self::assertSame(['activity level'], $estimate->missing);
+        yield 'sex' => ['sex'];
+        yield 'birth date' => ['birth date'];
+        yield 'height' => ['height'];
+        yield 'activity level' => ['activity level'];
     }
 
-    public function testWeightAloneGivesARoughEstimateWithDefaults(): void
+    /** Nothing about the person is guessed: without any one of these there is no formula estimate. */
+    #[\PHPUnit\Framework\Attributes\DataProvider('eachRequiredDetail')]
+    public function testNoEstimateWhenAProfileDetailIsMissing(string $detail): void
     {
-        // 10×80 + 6.25×170 − 5×35 − 78 (between male +5 and female −161) = 1609.5 → 1610; × 1.2 = 1932
-        $estimate = EnergyCalculator::calculate(new User(), 80);
+        $user = $this->user(Sex::Male, '1996-01-01', 180, ActivityLevel::Moderate);
+        match ($detail) {
+            'sex' => $user->setSex(null),
+            'birth date' => $user->setBirthDate(null),
+            'height' => $user->setHeightCm(null),
+            'activity level' => $user->setActivityLevel(null),
+        };
 
-        self::assertSame(1610.0, $estimate->bmr);
-        self::assertSame(1932.0, $estimate->formulaTdee);
-        self::assertSame(['sex', 'birth date', 'height', 'activity level'], $estimate->missing);
-        self::assertTrue($estimate->isRough());
-    }
+        $estimate = EnergyCalculator::calculate($user, 80, new \DateTimeImmutable(self::ON));
 
-    public function testEachProfileDetailReplacesItsDefault(): void
-    {
-        $user = (new User())->setHeightCm(190);
-
-        // 10×80 + 6.25×190 − 5×35 − 78 = 1734.5 → 1735 (PHP rounds half up)
-        self::assertSame(1735.0, EnergyCalculator::calculate($user, 80)->bmr);
-        self::assertSame(1818.0, EnergyCalculator::calculate($user->setSex(Sex::Male), 80)->bmr, 'male constant +5 instead of −78');
+        self::assertNull($estimate->bmr);
+        self::assertNull($estimate->formulaTdee);
+        self::assertSame([$detail], $estimate->missing);
     }
 
     public function testNoEstimateWithoutAnyWeight(): void

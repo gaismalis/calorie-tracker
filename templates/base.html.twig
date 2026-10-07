@@ -27,7 +27,7 @@
             {% endif %}
         </header>
         <main class="container">
-            {% if app.user and not app.user.verified and app.request.attributes.get('_route') starts with 'app_' %}
+            {% if app.user and not app.user.verified and app.request.attributes.get('_route') starts with 'app_' and app.request.attributes.get('_route') != 'app_onboarding' %}
                 <div class="verify-banner">
                     <span>Please confirm your email address: we sent a link to <strong>{{ app.user.email }}</strong>.</span>
                     <form method="post" action="{{ path('app_verify_email_resend') }}">

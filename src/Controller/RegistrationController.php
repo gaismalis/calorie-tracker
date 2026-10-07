@@ -33,6 +33,7 @@ class RegistrationController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $user->setPassword($passwordHasher->hashPassword($user, $form->get('plainPassword')->getData()));
+            $user->setOnboardingRequired(true);
             $entityManager->persist($user);
             $entityManager->flush();
 

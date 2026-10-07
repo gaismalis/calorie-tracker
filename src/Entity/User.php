@@ -65,6 +65,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $verificationSentAt = null;
 
+    /** Set at registration: the user still has to fill in the "Tell us about yourself" step. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $onboardingRequired = false;
+
     /** Desired weight change in kg per week: negative = lose, 0 = maintain. */
     #[ORM\Column(options: ['default' => 0])]
     #[Assert\Choice(choices: self::WEEKLY_GOALS, message: 'Choose one of the listed goals.')]
@@ -236,6 +240,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setVerificationSentAt(?\DateTimeImmutable $at): static
     {
         $this->verificationSentAt = $at;
+
+        return $this;
+    }
+
+    public function isOnboardingRequired(): bool
+    {
+        return $this->onboardingRequired;
+    }
+
+    public function setOnboardingRequired(bool $required): static
+    {
+        $this->onboardingRequired = $required;
 
         return $this;
     }

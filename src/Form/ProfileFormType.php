@@ -41,10 +41,10 @@ class ProfileFormType extends AbstractType
             ->add('activityLevel', EnumType::class, [
                 'label' => 'Everyday activity',
                 'class' => ActivityLevel::class,
-                'choice_label' => fn (ActivityLevel $level) => $level->label(),
+                'choice_label' => fn (ActivityLevel $level) => $level->label().': '.$level->description(),
                 'placeholder' => 'Choose…',
                 'required' => false,
-                'help' => "Your normal day without workouts. Log workouts as exercise; they're added on top.",
+                'help' => "Your normal day without workouts. Don't count workouts here: log them as exercise and they're added on top.",
             ])
             ->add('weeklyGoalKg', ChoiceType::class, [
                 'label' => 'Weekly goal',

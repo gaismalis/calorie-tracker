@@ -28,6 +28,9 @@ class AuthTest extends WebTestCase
 
         self::assertResponseRedirects();
         $client->followRedirect();
+        self::assertResponseRedirects('/welcome', message: 'next step: tell us about yourself');
+        $client->followRedirect();
+        self::assertSelectorTextContains('h1', 'Tell us about yourself');
         self::assertSelectorTextContains('.topbar', 'new.user@example.com');
 
         $user = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => 'new.user@example.com']);

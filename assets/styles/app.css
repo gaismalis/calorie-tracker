@@ -253,3 +253,18 @@ a.button:hover { filter: brightness(0.95); }
 .quick-weight input[type=range] { width: 100%; accent-color: var(--accent); height: 1.5rem; }
 .quick-weight .slider-ends { display: flex; justify-content: space-between; margin-top: 0.1rem; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Onboarding: "Tell us about yourself" */
+.onboarding form > div { margin-bottom: 0.75rem; }
+.onboarding-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 0.75rem; }
+@media (max-width: 600px) { .onboarding-row { grid-template-columns: 1fr; } }
+.onboarding #onboarding_form_sex { display: flex; gap: 1.5rem; }
+.onboarding #onboarding_form_sex label { display: inline; margin: 0 0 0 0.3rem; }
+.activity-choices { border: 0; padding: 0; margin: 1rem 0 0; }
+.activity-choices legend { font-size: 0.9rem; padding: 0; }
+.activity-choices legend label { margin: 0; }
+.activity-choice { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.6rem 0.75rem; margin: 0.4rem 0; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.activity-choice:has(input:checked) { border-color: var(--accent); background: #f1f8f4; }
+.activity-choice input { margin-top: 0.2rem; }
+.activity-choice > span { display: flex; flex-direction: column; gap: 0.1rem; }
+.activity-choice .muted { font-size: 0.85rem; }

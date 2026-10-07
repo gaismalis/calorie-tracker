@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Tell us about yourself · Calorie Tracker{% endblock %}
+
+{% block body %}
+<section class="card onboarding">
+    <h1>Tell us about yourself</h1>
+    <p class="muted">We use this to estimate how many calories you burn in a day. Later, once you've logged meals and weight for a couple of weeks, the app learns your real number from your own data.</p>
+
+    {{ form_start(form) }}
+        {{ form_errors(form) }}
+        {{ form_row(form.sex) }}
+        <div class="onboarding-row">
+            {{ form_row(form.birthDate) }}
+            {{ form_row(form.heightCm) }}
+            {{ form_row(form.weightKg) }}
+        </div>
+
+        <fieldset class="activity-choices">
+            <legend>{{ form_label(form.activityLevel) }}</legend>
+            <p class="help-text">{{ form.activityLevel.vars.help }}</p>
+            {{ form_errors(form.activityLevel) }}
+            {% for choice in form.activityLevel %}
+                <label class="activity-choice">
+                    {{ form_widget(choice) }}
+                    <span>
+                        <strong>{{ choice.vars.label }}</strong>
+                        <span class="muted">{{ choice.vars.attr['data-description'] }}</span>
+                    </span>
+                </label>
+            {% endfor %}
+        </fieldset>
+
+        <button type="submit">Continue</button>
+    {{ form_end(form) }}
+</section>
+{% endblock %}

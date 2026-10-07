@@ -115,6 +115,10 @@ class EmailVerificationTest extends WebTestCase
         $link = (new Crawler($message->getHtmlBody()))->filter('a')->attr('href');
         self::assertStringContainsString('/verify/email?', $link);
 
+        // These tests are about email; skip the "tell us about yourself" step (see OnboardingTest).
+        $this->user($email)->setOnboardingRequired(false);
+        $this->em()->flush();
+
         return parse_url($link, PHP_URL_PATH).'?'.parse_url($link, PHP_URL_QUERY);
     }
 
