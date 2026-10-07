@@ -3,6 +3,7 @@
 namespace App\Energy;
 
 use App\Entity\User;
+use App\Profile\ActivityLevel;
 use App\Profile\Sex;
 use App\Repository\WeightEntryRepository;
 
@@ -26,6 +27,17 @@ final class EnergyCalculator
             ->withAdaptive($this->adaptive->estimate($user));
     }
 
+    /** Used for profile details the user hasn't filled in yet, so a weight alone is enough for a rough estimate. */
+    public const DEFAULT_AGE = 35;
+    public const DEFAULT_HEIGHT_CM = 170;
+    /** Halfway between the male (+5) and female (−161) Mifflin-St Jeor constants. */
+    public const UNKNOWN_SEX_CONSTANT = -78;
+    public const DEFAULT_ACTIVITY = ActivityLevel::Sedentary;
+
+    /**
+     * Needs only a weight; missing profile details are replaced by defaults and listed in
+     * {@see EnergyEstimate::$missing}, so the page can say the estimate is rough and how to improve it.
+     */
     public static function calculate(User $user, ?float $weightKg, ?\DateTimeImmutable $on = null): EnergyEstimate
     {
         $missing = array_keys(array_filter([
@@ -36,17 +48,21 @@ final class EnergyCalculator
             'weight' => null === $weightKg,
         ]));
 
-        if (array_diff($missing, ['activity level'])) {
+        if (null === $weightKg) {
             return new EnergyEstimate(null, null, $missing);
         }
 
-        $bmr = 10 * $weightKg
-            + 6.25 * $user->getHeightCm()
-            - 5 * $user->getAge($on)
-            + (Sex::Male === $user->getSex() ? 5 : -161);
-        $bmr = round($bmr);
+        $sexConstant = match ($user->getSex()) {
+            Sex::Male => 5,
+            Sex::Female => -161,
+            null => self::UNKNOWN_SEX_CONSTANT,
+        };
+        $bmr = round(10 * $weightKg
+            + 6.25 * ($user->getHeightCm() ?? self::DEFAULT_HEIGHT_CM)
+            - 5 * ($user->getAge($on) ?? self::DEFAULT_AGE)
+            + $sexConstant);
 
-        $tdee = $user->getActivityLevel() ? round($bmr * $user->getActivityLevel()->multiplier()) : null;
+        $tdee = round($bmr * ($user->getActivityLevel() ?? self::DEFAULT_ACTIVITY)->multiplier());
 
         return new EnergyEstimate($bmr, $tdee, $missing);
     }

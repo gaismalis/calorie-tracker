@@ -42,21 +42,43 @@ class EnergyCalculatorTest extends TestCase
         }
     }
 
-    public function testWithoutActivityLevelOnlyBmrIsKnown(): void
+    public function testMissingActivityLevelDefaultsToMostlySitting(): void
     {
         $estimate = EnergyCalculator::calculate($this->user(Sex::Male, '1996-01-01', 180, null), 80, new \DateTimeImmutable(self::ON));
 
         self::assertSame(1780.0, $estimate->bmr);
-        self::assertNull($estimate->formulaTdee);
-        self::assertFalse($estimate->isComplete());
+        self::assertSame(2136.0, $estimate->formulaTdee, '1780 × 1.2');
+        self::assertTrue($estimate->isComplete());
         self::assertSame(['activity level'], $estimate->missing);
     }
 
-    public function testListsEverythingMissing(): void
+    public function testWeightAloneGivesARoughEstimateWithDefaults(): void
+    {
+        // 10×80 + 6.25×170 − 5×35 − 78 (between male +5 and female −161) = 1609.5 → 1610; × 1.2 = 1932
+        $estimate = EnergyCalculator::calculate(new User(), 80);
+
+        self::assertSame(1610.0, $estimate->bmr);
+        self::assertSame(1932.0, $estimate->formulaTdee);
+        self::assertSame(['sex', 'birth date', 'height', 'activity level'], $estimate->missing);
+        self::assertTrue($estimate->isRough());
+    }
+
+    public function testEachProfileDetailReplacesItsDefault(): void
+    {
+        $user = (new User())->setHeightCm(190);
+
+        // 10×80 + 6.25×190 − 5×35 − 78 = 1734.5 → 1735 (PHP rounds half up)
+        self::assertSame(1735.0, EnergyCalculator::calculate($user, 80)->bmr);
+        self::assertSame(1818.0, EnergyCalculator::calculate($user->setSex(Sex::Male), 80)->bmr, 'male constant +5 instead of −78');
+    }
+
+    public function testNoEstimateWithoutAnyWeight(): void
     {
         $estimate = EnergyCalculator::calculate(new User(), null);
 
         self::assertNull($estimate->bmr);
+        self::assertNull($estimate->formulaTdee);
+        self::assertFalse($estimate->isComplete());
         self::assertSame(['sex', 'birth date', 'height', 'activity level', 'weight'], $estimate->missing);
     }
 

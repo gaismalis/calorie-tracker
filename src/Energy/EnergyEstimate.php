@@ -10,7 +10,10 @@ final readonly class EnergyEstimate
     /** Daily targets are never set below this, whatever the goal. */
     public const MIN_TARGET = 1200;
 
-    /** @param list<string> $missing profile data the formula still needs, e.g. ['height', 'weight'] */
+    /**
+     * @param list<string> $missing profile data not filled in, e.g. ['height', 'sex']. With a weight, the formula
+     *                              still works (defaults are used) but is rougher; without a weight there's no estimate.
+     */
     public function __construct(
         public ?float $bmr,
         /** Formula estimate of daily burn without logged exercise (BMR × everyday activity level). */
@@ -66,6 +69,12 @@ final readonly class EnergyEstimate
     public static function dailyAdjustment(float $weeklyGoalKg): float
     {
         return round($weeklyGoalKg * self::KCAL_PER_KG / 7);
+    }
+
+    /** A formula estimate that used defaults for some profile details. */
+    public function isRough(): bool
+    {
+        return self::SOURCE_FORMULA === $this->getSource() && [] !== array_diff($this->missing, ['weight']);
     }
 
     public function isComplete(): bool

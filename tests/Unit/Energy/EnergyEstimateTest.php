@@ -72,4 +72,12 @@ class EnergyEstimateTest extends TestCase
         self::assertSame(2400.0, $estimate->getBaseline());
         self::assertSame(2900.0, $estimate->burnedWith(500));
     }
+
+    public function testRoughOnlyForFormulaEstimatesWithMissingProfileDetails(): void
+    {
+        self::assertTrue((new EnergyEstimate(1610, 1932, ['sex', 'height']))->isRough());
+        self::assertFalse((new EnergyEstimate(1780, 2759, []))->isRough());
+        self::assertFalse((new EnergyEstimate(1610, 1932, ['sex']))->withAdaptive(new AdaptiveTdee(2500))->isRough(), 'own data replaces the formula');
+        self::assertFalse((new EnergyEstimate(null, null, ['weight']))->isRough());
+    }
 }

@@ -59,18 +59,20 @@
                 you ate ~{{ adaptive.averageIntake|round|number_format(0, '.', ' ') }} kcal/day and your weight trend
                 {% if adaptive.trendChangeKg == 0 %}stayed the same{% else %}went {{ adaptive.trendChangeKg > 0 ? 'up' : 'down' }} {{ adaptive.trendChangeKg|abs|number_format(1) }} kg{% endif %}{% if adaptive.averageExercise > 0 %}, with ~{{ adaptive.averageExercise|round }} kcal/day of logged exercise{% endif %}.
                 Logged exercise is added on top.
+            {% elseif energy.rough %}
+                {% set profileMissing = energy.missing|filter(f => f != 'weight') %}
+                ~{{ baseline|round|number_format(0, '.', ' ') }} kcal/day without workouts is a <strong>rough estimate</strong> from your weight.
+                Add your {{ profileMissing|join(', ', ' and ') }} in your <a href="{{ path('app_profile') }}">profile</a> to make it more accurate. Logged exercise is added on top.
+                {{ m.adaptive_progress(adaptive) }}
             {% else %}
                 ~{{ baseline|round|number_format(0, '.', ' ') }} kcal/day without workouts is a formula estimate; logged exercise is added on top.
                 {{ m.adaptive_progress(adaptive) }}
             {% endif %}
         </p>
     {% else %}
-        {% set profileMissing = energy.missing|filter(m => m != 'weight') %}
         <p class="muted target-missing">
-            To see what you burn and your daily target,
-            {% if profileMissing is not empty %}add your {{ profileMissing|join(', ', ' and ') }} in your <a href="{{ path('app_profile') }}">profile</a>{% endif %}
-            {%- if profileMissing is not empty and 'weight' in energy.missing %} and {% endif %}
-            {%- if 'weight' in energy.missing %}log your <a href="{{ path('app_weight') }}">weight</a>{% endif %}.
+            To see what you burn and your daily target, log your <a href="{{ path('app_weight') }}">weight</a>
+            (＋ Weight above). Your <a href="{{ path('app_profile') }}">profile</a> details make the estimate more accurate.
         </p>
     {% endif %}
 </section>

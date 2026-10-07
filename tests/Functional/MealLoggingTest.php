@@ -308,7 +308,7 @@ class MealLoggingTest extends WebTestCase
     {
         $this->client->request('GET', '/');
 
-        self::assertSelectorTextContains('.target-missing', 'add your sex, birth date, height and activity level in your profile and log your weight.');
+        self::assertSelectorTextContains('.target-missing', 'To see what you burn and your daily target, log your weight');
         self::assertSelectorTextContains('.stat-burned', 'unknown yet');
         self::assertSelectorNotExists('.target .bar');
     }
@@ -319,7 +319,21 @@ class MealLoggingTest extends WebTestCase
 
         $this->client->request('GET', '/');
 
-        self::assertSelectorTextContains('.target-missing', 'To see what you burn and your daily target, log your weight.');
+        self::assertSelectorTextContains('.target-missing', 'To see what you burn and your daily target, log your weight');
+    }
+
+    public function testWeightAloneGivesARoughEstimateAndSaysWhatWouldImproveIt(): void
+    {
+        $user = $this->em()->find(User::class, $this->user->getId());
+        $this->em()->persist(new WeightEntry($user, $user->today(), 80));
+        $this->em()->flush();
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorNotExists('.target-missing');
+        self::assertSelectorTextContains('.stat-burned', '1 932');
+        self::assertSelectorTextContains('.overview .how', '~1 932 kcal/day without workouts is a rough estimate from your weight');
+        self::assertSelectorTextContains('.overview .how', 'Add your sex, birth date, height and activity level in your profile');
     }
 
     public function testDashboardShowsTargetAndRemainingCalories(): void
