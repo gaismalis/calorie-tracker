@@ -3,8 +3,9 @@
     <div class="add-menu" data-entry-dialog-target="menu" hidden>
         <a href="{{ path('app_meal_new', dateParam) }}" role="button" data-action="entry-dialog#open">🍽 Meal</a>
         <a href="{{ path('app_exercise_new', dateParam) }}" role="button" data-action="entry-dialog#open">🏃 Exercise</a>
+        <a href="{{ path('app_weight_quick', dateParam) }}" role="button" data-action="entry-dialog#open">⚖️ Weight</a>
     </div>
-    <button type="button" class="fab" aria-label="Add a meal or exercise" aria-expanded="false" aria-haspopup="true"
+    <button type="button" class="fab" aria-label="Add a meal, exercise or weight" aria-expanded="false" aria-haspopup="true"
             data-entry-dialog-target="toggle" data-action="entry-dialog#toggle">+</button>
 </div>
 

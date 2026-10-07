@@ -86,9 +86,9 @@ class DashboardTest extends WebTestCase
     {
         $crawler = $this->client->request('GET', '/');
 
-        self::assertSelectorExists('.add-entry button.fab[aria-label="Add a meal or exercise"]');
-        self::assertSame(['🍽 Meal', '🏃 Exercise'], $crawler->filter('.add-menu a')->each(fn ($a) => $a->text()));
-        self::assertSame(['/meals/new', '/exercises/new'], $crawler->filter('.add-menu a')->each(fn ($a) => $a->attr('href')));
+        self::assertSelectorExists('.add-entry button.fab[aria-label="Add a meal, exercise or weight"]');
+        self::assertSame(['🍽 Meal', '🏃 Exercise', '⚖️ Weight'], $crawler->filter('.add-menu a')->each(fn ($a) => $a->text()));
+        self::assertSame(['/meals/new', '/exercises/new', '/weight/quick'], $crawler->filter('.add-menu a')->each(fn ($a) => $a->attr('href')));
         self::assertSelectorExists('dialog.entry-dialog turbo-frame#entry-panel');
     }
 
@@ -132,9 +132,9 @@ class DashboardTest extends WebTestCase
         $crawler = $this->client->request('GET', '/');
 
         $buttons = $crawler->filter('.add-bar a');
-        self::assertSame(['＋ Meal', '＋ Exercise'], $buttons->each(fn ($a) => $a->text()));
-        self::assertSame(['/meals/new', '/exercises/new'], $buttons->each(fn ($a) => $a->attr('href')));
-        self::assertSame(['entry-dialog#open', 'entry-dialog#open'], $buttons->each(fn ($a) => $a->attr('data-action')));
+        self::assertSame(['＋ Meal', '＋ Exercise', '＋ Weight'], $buttons->each(fn ($a) => $a->text()));
+        self::assertSame(['/meals/new', '/exercises/new', '/weight/quick'], $buttons->each(fn ($a) => $a->attr('href')));
+        self::assertSame(['entry-dialog#open', 'entry-dialog#open', 'entry-dialog#open'], $buttons->each(fn ($a) => $a->attr('data-action')));
     }
 
     public function testAdjustLinksOpenInTheDialog(): void

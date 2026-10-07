@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Entity\WeightEntry;
 use App\Form\WeightEntryFormType;
 use App\Repository\WeightEntryRepository;
+use App\Weight\WeightRecorder;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,6 +18,8 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 class WeightController extends AbstractController
 {
+    use DayAwareController;
+
     /** Chart ranges in days. */
     private const CHART_RANGES = [30, 90, 365];
     private const DEFAULT_CHART_RANGE = 90;
@@ -26,7 +29,7 @@ class WeightController extends AbstractController
         #[CurrentUser] User $user,
         Request $request,
         WeightEntryRepository $weights,
-        EntityManagerInterface $entityManager,
+        WeightRecorder $recorder,
     ): Response {
         // The form works with plain dates in UTC; "today" is the user's local calendar date.
         $today = new \DateTimeImmutable($user->today()->format('Y-m-d'), new \DateTimeZone('UTC'));
@@ -37,14 +40,7 @@ class WeightController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             ['date' => $date, 'weightKg' => $weightKg] = $form->getData();
-
-            $entry = $weights->findForDate($user, $date);
-            if ($entry) {
-                $entry->setWeightKg($weightKg);
-            } else {
-                $entityManager->persist(new WeightEntry($user, $date, $weightKg));
-            }
-            $entityManager->flush();
+            $recorder->record($user, $date, $weightKg);
 
             $this->addFlash('success', sprintf('Saved %s kg for %s.', round($weightKg, 1), $date->format('j M Y')));
 
@@ -93,6 +89,47 @@ class WeightController extends AbstractController
             $days,
             $weights->findLatest($user)?->getWeightKg(),
         );
+    }
+
+    /**
+     * Quick weigh-in from the main page: a slider in the dialog (Turbo frame "entry-panel"), starting at
+     * the last logged weight. Saves for today, or for the day being viewed (?date=).
+     */
+    #[Route('/weight/quick', name: 'app_weight_quick', methods: ['GET', 'POST'])]
+    public function quick(#[CurrentUser] User $user, Request $request, WeightEntryRepository $weights, WeightRecorder $recorder): Response
+    {
+        $today = $user->today();
+        $requested = $this->parseLocalDate($user, $request->query->getString('date'));
+        $day = null !== $requested && $requested < $today ? $requested : $today;
+        $date = new \DateTimeImmutable($day->format('Y-m-d'), new \DateTimeZone('UTC'));
+
+        $error = null;
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('weight_quick', $request->request->getString('_token'))) {
+                throw $this->createAccessDeniedException('Invalid CSRF token.');
+            }
+            $value = str_replace(',', '.', trim($request->request->getString('weight_kg')));
+            if (!is_numeric($value) || (float) $value < WeightRecorder::MIN_KG || (float) $value > WeightRecorder::MAX_KG) {
+                $error = sprintf('Weight must be between %d and %d kg.', WeightRecorder::MIN_KG, WeightRecorder::MAX_KG);
+            } else {
+                $entry = $recorder->record($user, $date, (float) $value);
+                $this->addFlash('success', sprintf('Saved %s kg%s.', number_format($entry->getWeightKg(), 1), $day == $today ? '' : ' for '.$day->format('j M')));
+
+                return $this->goTo($this->dayUrl($user, $day));
+            }
+        }
+
+        $sameDay = $weights->findForDate($user, $date);
+        $start = $sameDay ?? $weights->findLatest($user);
+
+        return $this->render('weight/quick.html.twig', [
+            'day' => $day,
+            'isToday' => $day == $today,
+            'sameDay' => $sameDay,
+            'start' => $start?->getWeightKg(),
+            'value' => $request->request->getString('weight_kg') ?: ($start?->getWeightKg() ?? 75.0),
+            'error' => $error,
+        ], new Response(status: $error ? 422 : 200));
     }
 
     #[Route('/weight/{id}/delete', name: 'app_weight_delete', methods: ['POST'])]

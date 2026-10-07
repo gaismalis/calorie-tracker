@@ -23,6 +23,7 @@
     <div class="add-bar">
         <a href="{{ path('app_meal_new', dateParam) }}" class="button" data-action="entry-dialog#open">＋ Meal</a>
         <a href="{{ path('app_exercise_new', dateParam) }}" class="button secondary" data-action="entry-dialog#open">＋ Exercise</a>
+        <a href="{{ path('app_weight_quick', dateParam) }}" class="button secondary" data-action="entry-dialog#open">＋ Weight</a>
     </div>
     {{ include('dashboard/_overview.html.twig') }}
     {{ include('dashboard/_chart.html.twig') }}

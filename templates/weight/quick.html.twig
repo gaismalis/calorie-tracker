@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Log weight · Calorie Tracker{% endblock %}
+
+{# Slider range: ±10 kg around the last weigh-in, or a wide range for the very first one. #}
+{% set min = start ? max(20, (start - 10)|round(0, 'floor')) : 40 %}
+{% set max = start ? min(400, (start + 10)|round(0, 'ceil')) : 150 %}
+
+{% block body %}
+<section class="card narrow">
+<turbo-frame id="entry-panel">
+    <form method="post" action="{{ path('app_weight_quick', isToday ? {} : {date: day|date('Y-m-d', app.user.timezone)}) }}"
+          class="quick-weight" data-controller="weight-slider">
+        <h2 id="entry-title">{{ isToday ? 'Your weight today' : 'Your weight on ' ~ day|date('l, j M', app.user.timezone) }}</h2>
+        {% if sameDay %}
+            <p class="muted small">You logged {{ sameDay.weightKg|number_format(1) }} kg {{ isToday ? 'today' : 'that day' }}. Saving replaces it.</p>
+        {% elseif not start %}
+            <p class="muted small">Your first weigh-in. Slide or type your weight.</p>
+        {% endif %}
+
+        <div class="weight-value">
+            <button type="button" class="step" data-action="weight-slider#step" data-weight-slider-delta-param="-0.1" aria-label="Minus 0.1 kg">−</button>
+            <label class="visually-hidden" for="weight_kg">Weight in kg</label>
+            <input type="number" id="weight_kg" name="weight_kg" value="{{ value|number_format(1, '.', '') }}" min="20" max="400" step="0.1"
+                   inputmode="decimal" required data-weight-slider-target="number" data-action="input->weight-slider#typed">
+            <span class="unit">kg</span>
+            <button type="button" class="step" data-action="weight-slider#step" data-weight-slider-delta-param="0.1" aria-label="Plus 0.1 kg">+</button>
+        </div>
+
+        <input type="range" min="{{ min }}" max="{{ max }}" step="0.1" value="{{ value|number_format(1, '.', '') }}" aria-label="Weight slider"
+               data-weight-slider-target="slider" data-action="input->weight-slider#slid">
+        <div class="slider-ends muted small"><span>{{ min }} kg</span><span>{{ max }} kg</span></div>
+
+        {% if error %}<ul><li>{{ error }}</li></ul>{% endif %}
+
+        <input type="hidden" name="_token" value="{{ csrf_token('weight_quick') }}">
+        <div class="review-actions">
+            <button type="button" class="secondary" data-action="entry-dialog#close">Cancel</button>
+            <button type="submit">Save</button>
+        </div>
+    </form>
+</turbo-frame>
+</section>
+{% endblock %}
