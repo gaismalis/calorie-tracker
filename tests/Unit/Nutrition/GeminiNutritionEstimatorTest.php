@@ -52,6 +52,9 @@ class GeminiNutritionEstimatorTest extends TestCase
         self::assertSame('an apple', $body['contents'][0]['parts'][0]['text']);
         self::assertSame('application/json', $body['generationConfig']['responseMimeType']);
         self::assertArrayHasKey('items', $body['generationConfig']['responseSchema']['properties']);
+        foreach (['temperature', 'topP', 'topK', 'thinkingConfig'] as $deprecated) {
+            self::assertArrayNotHasKey($deprecated, $body['generationConfig'], "newer Gemini models reject $deprecated");
+        }
     }
 
     public function testClampsNegativeAndNonNumericValuesAndSkipsNamelessItems(): void

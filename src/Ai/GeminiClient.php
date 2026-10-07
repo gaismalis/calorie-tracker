@@ -102,8 +102,8 @@ final class GeminiClient
                 'json' => [
                     'systemInstruction' => ['parts' => [['text' => $instructions]]],
                     'contents' => [['role' => 'user', 'parts' => [['text' => $text]]]],
+                    // No temperature/topP/topK or thinkingBudget: newer models reject them (400); defaults are used.
                     'generationConfig' => [
-                        'temperature' => 0.2,
                         'responseMimeType' => 'application/json',
                         'responseSchema' => $schema,
                     ],
