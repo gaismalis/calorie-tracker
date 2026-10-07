@@ -22,6 +22,23 @@ php -r '
     echo "[start] database: ", $u["scheme"], "://", $u["host"], ":", $u["port"] ?? "-", $u["path"] ?? "", "\n";
 '
 
+# Email settings (never prints the key): which service/domain, and whether the sender address is valid.
+php -r '
+    require "vendor/autoload.php";
+    $dsn = getenv("MAILER_DSN") ?: "(not set)";
+    $u = parse_url($dsn);
+    $where = isset($u["scheme"]) ? $u["scheme"]."://".($u["scheme"] === "mailgun+api" ? ($u["pass"] ?? "?") : ($u["host"] ?? "?")) : $dsn;
+    echo "[start] mail via: ", $where, (str_contains($dsn, "\u{2026}") ? "  WARNING: contains \"…\", the domain is cut off" : ""), "\n";
+    $from = getenv("MAILER_FROM") ?: "";
+    try {
+        $address = Symfony\Component\Mime\Address::create($from);
+        $ok = filter_var($address->getAddress(), FILTER_VALIDATE_EMAIL) && !str_contains($from, "\u{2026}");
+        echo "[start] mail from: ", $address->toString(), $ok ? "" : "  WARNING: not a valid address", "\n";
+    } catch (Throwable $e) {
+        echo "[start] mail from: WARNING: MAILER_FROM \"", $from, "\" is not a valid address (", $e->getMessage(), "). Use: Name <address> or just the address, without quotes.\n";
+    }
+' || true
+
 php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
 # Background worker (AI estimate retries, emails). Restarts itself every hour or after 256 MB,
