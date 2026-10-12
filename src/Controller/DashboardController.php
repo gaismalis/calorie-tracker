@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Estimation\Estimable;
 use App\Exercise\ExerciseEstimation;
 use App\Meal\MealEstimation;
+use App\Nutrition\FoodCategory;
 use App\Repository\ExerciseEntryRepository;
 use App\Repository\MealEntryRepository;
 use App\Repository\WeightEntryRepository;
@@ -117,6 +118,7 @@ class DashboardController extends AbstractController
         $first = $day->modify(sprintf('-%d days', $days - 1));
         $end = $day->modify('+1 day');
         $eaten = $meals->dailyIntake($user, $first, $end);
+        $alcohol = $meals->dailyCategoryIntake($user, FoodCategory::Alcohol, $first, $end);
         $exercise = $exercises->dailyExercise($user, $first, $end);
 
         $burned = [];
@@ -128,7 +130,7 @@ class DashboardController extends AbstractController
         }
 
         return array_map(
-            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), $days, $width, $daysPerBar),
+            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), $days, $width, $daysPerBar, $alcohol),
             [EnergyChart::WIDTH, EnergyChart::COMPACT_WIDTH],
         );
     }
@@ -149,6 +151,8 @@ class DashboardController extends AbstractController
             $energy->getBaseline(),
             $last->format('Y-m-d'),
             $user->getWeeklyGoalKg(),
+            $meals->dailyCategoryIntake($user, FoodCategory::Alcohol, $first, $end),
+            $meals->dailyCategoryIntake($user, FoodCategory::Snack, $first, $end),
         );
     }
 

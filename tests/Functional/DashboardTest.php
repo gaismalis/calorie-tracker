@@ -6,6 +6,7 @@ use App\Entity\MealEntry;
 use App\Entity\User;
 use App\Entity\WeightEntry;
 use App\Nutrition\EstimatedItem;
+use App\Nutrition\FoodCategory;
 use App\Nutrition\MealEstimate;
 use App\Profile\ActivityLevel;
 use App\Profile\Sex;
@@ -299,6 +300,29 @@ class DashboardTest extends WebTestCase
         self::assertStringContainsString('goal lose 0.5 kg/week', $week->filter('.week-pace')->text());
         self::assertStringContainsString('Meals logged on 5 of 7 days', $week->text());
         self::assertStringContainsString('Exercise: none logged', $week->text());
+    }
+
+    public function testAlcoholIsShownInRedOnTheChartAndCountedInTheWeek(): void
+    {
+        $yesterday = $this->user->today()->modify('-1 day')->setTime(20, 0);
+        $entry = new MealEntry($this->user, 'pizza, 2 beers and ice cream', $yesterday);
+        $entry->applyEstimate(new MealEstimate([
+            new EstimatedItem('Pizza', 300, 800, 30, 90, 30),
+            new EstimatedItem('Beer', 1000, 430, 5, 36, 0, category: FoodCategory::Alcohol),
+            new EstimatedItem('Ice cream', 100, 200, 3, 24, 11, category: FoodCategory::Snack),
+        ], 'test'), $yesterday);
+        $this->em()->persist($entry);
+        $this->em()->flush();
+
+        $crawler = $this->client->request('GET', '/');
+
+        self::assertCount(1, $crawler->filter('.energy-chart.chart-wide svg[role=img] rect.bar-alcohol'));
+        self::assertSelectorTextContains('.energy-chart .legend', 'Alcohol');
+        $days = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
+        self::assertContains(['series' => 'alcohol', 'value' => '430 kcal', 'name' => 'of it alcohol'], $days[5]['rows']);
+        $week = $crawler->filter('section.week')->text();
+        self::assertStringContainsString('🍷 Alcohol: 430 kcal (30% of what you ate)', $week);
+        self::assertStringContainsString('🍫 Snacks: 200 kcal (14% of what you ate)', $week);
     }
 
     public function testWeeklySummaryOnAPastDayEndsOnThatDay(): void

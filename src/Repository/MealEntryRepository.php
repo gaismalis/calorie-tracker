@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\MealEntry;
 use App\Entity\User;
 use App\Estimation\EstimationStatus;
+use App\Nutrition\FoodCategory;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -64,6 +65,44 @@ class MealEntryRepository extends ServiceEntityRepository
             ->setParameter('estimated', EstimationStatus::Estimated)
             ->setParameter('start', $start->setTimezone($utc))
             ->setParameter('end', $end->setTimezone($utc))
+            ->getQuery()
+            ->getArrayResult();
+
+        $byDay = [];
+        foreach ($rows as $row) {
+            $day = $row['eatenAt']->setTimezone($timezone)->format('Y-m-d');
+            $byDay[$day] = ($byDay[$day] ?? 0) + $row['kcal'];
+        }
+        ksort($byDay);
+
+        return $byDay;
+    }
+
+    /**
+     * kcal per day of the items in one category (e.g. alcohol), for estimated meals.
+     *
+     * @param \DateTimeImmutable $from first local date (inclusive)
+     * @param \DateTimeImmutable $to   last local date (exclusive)
+     *
+     * @return array<string, float> kcal by 'Y-m-d'; days without such items are absent
+     */
+    public function dailyCategoryIntake(User $user, FoodCategory $category, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $timezone = $user->getDateTimeZone();
+        $utc = new \DateTimeZone('UTC');
+
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.eatenAt, i.kcal')
+            ->join('m.items', 'i')
+            ->where('m.user = :user')
+            ->andWhere('m.status = :estimated')
+            ->andWhere('i.category = :category')
+            ->andWhere('m.eatenAt >= :start AND m.eatenAt < :end')
+            ->setParameter('user', $user)
+            ->setParameter('estimated', EstimationStatus::Estimated)
+            ->setParameter('category', $category)
+            ->setParameter('start', (new \DateTimeImmutable($from->format('Y-m-d'), $timezone))->setTimezone($utc))
+            ->setParameter('end', (new \DateTimeImmutable($to->format('Y-m-d'), $timezone))->setTimezone($utc))
             ->getQuery()
             ->getArrayResult();
 

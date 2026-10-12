@@ -30,6 +30,9 @@
                 {% else %}
                     <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-unknown"/></svg> Eaten</li>
                 {% endif %}
+                {% if chart.hasAlcohol %}
+                    <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-alcohol"/></svg> Alcohol</li>
+                {% endif %}
             </ul>
             <svg viewBox="0 0 {{ chart.width }} {{ constant('App\\Chart\\EnergyChart::HEIGHT') }}"
                  role="img" aria-label="Calories eaten per {{ chart.daysPerBar == 7 ? 'week (average per day)' : 'day' }}{{ chart.hasBurned ? ', compared with calories burned' }}"
@@ -52,6 +55,10 @@
                     {% for day in chart.days|filter(day => day.bar) %}
                         <rect x="{{ day.bar.x }}" y="{{ day.bar.y }}" width="{{ day.bar.width }}" height="{{ day.bar.height }}" rx="2"
                               class="bar-{{ day.status }}{{ day.today ? ' bar-today' }}"/>
+                        {% if day.alcoholBar %}
+                            <rect x="{{ day.alcoholBar.x }}" y="{{ day.alcoholBar.y }}" width="{{ day.alcoholBar.width }}" height="{{ day.alcoholBar.height }}" rx="2"
+                                  class="bar-alcohol{{ day.today ? ' bar-today' }}"/>
+                        {% endif %}
                         {% if day.overBy and chart.roomForLabels %}
                             <text x="{{ day.x }}" y="{{ day.bar.y - 5 }}" class="over-label">+{{ day.overBy|number_format(0, '.', ' ') }}</text>
                         {% endif %}

@@ -131,6 +131,44 @@ class EnergyChartTest extends TestCase
         self::assertSame('2026-09-18', $chart->from);
     }
 
+    public function testAlcoholIsTheTopPartOfTheBar(): void
+    {
+        $chart = EnergyChart::build(
+            ['2026-09-30' => 2000.0, '2026-10-01' => 1500.0],
+            ['2026-09-30' => 2500.0, '2026-10-01' => 2500.0],
+            '2026-10-01',
+            '2026-10-02',
+            7,
+            alcohol: ['2026-09-30' => 500.0, '2026-09-29' => 300.0 /* no meals logged that day */],
+        );
+
+        self::assertTrue($chart->hasAlcohol);
+        $day = $chart->days[5];
+        self::assertSame(500.0, $day['alcohol']);
+        self::assertSame($day['bar']['y'], $day['alcoholBar']['y'], 'starts at the top of the bar');
+        self::assertEqualsWithDelta($day['bar']['height'] / 4, $day['alcoholBar']['height'], 0.2, '500 of 2000 kcal');
+        self::assertNull($chart->days[6]['alcoholBar'], 'no alcohol that day');
+        self::assertNull($chart->days[4]['alcoholBar'], 'no bar without meals');
+        self::assertSame(['series' => 'alcohol', 'value' => '500 kcal', 'name' => 'of it alcohol'], $chart->hover()[5]['rows'][1]);
+        self::assertFalse(EnergyChart::build(['2026-10-01' => 1500.0], [], '2026-10-01', '2026-10-01', 7)->hasAlcohol);
+    }
+
+    public function testWeeklyBarsAverageAlcoholPerLoggedDay(): void
+    {
+        $chart = EnergyChart::build(
+            ['2026-09-26' => 2000.0, '2026-09-27' => 3000.0],
+            [],
+            '2026-10-01',
+            '2026-10-01',
+            7,
+            daysPerBar: 7,
+            alcohol: ['2026-09-27' => 1000.0],
+        );
+
+        self::assertSame(2500.0, $chart->days[0]['eaten']);
+        self::assertSame(500.0, $chart->days[0]['alcohol'], '1000 kcal over 2 logged days');
+    }
+
     public function testManyBarsLeaveNoRoomForOverLabels(): void
     {
         self::assertTrue(EnergyChart::build([], [], '2026-10-01', '2026-10-01', 7)->roomForLabels);

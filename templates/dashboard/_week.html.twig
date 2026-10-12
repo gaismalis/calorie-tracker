@@ -48,6 +48,11 @@
             {% if week.trendChangeKg is not null %}
                 <li>Weight trend: <strong>{{ week.trendChangeKg|round(1) == 0 ? 'no change' : m.signed(week.trendChangeKg, 1) ~ ' kg' }}</strong> over these days</li>
             {% endif %}
+            {% for kind, kcal in {'🍷 Alcohol': week.alcoholKcal, '🍫 Snacks': week.snackKcal} %}
+                {% if week.loggedDays > 0 %}
+                    <li>{{ kind }}: {% if kcal > 0 %}<strong>{{ kcal|number_format(0, '.', ' ') }} kcal</strong> ({{ week.share(kcal) }}% of what you ate){% else %}none{% endif %}</li>
+                {% endif %}
+            {% endfor %}
             <li>Exercise: {% if week.exerciseDays > 0 %}<strong>{{ week.exerciseKcal|number_format(0, '.', ' ') }} kcal</strong> on {{ week.exerciseDays }} {{ week.exerciseDays == 1 ? 'day' : 'days' }}{% else %}none logged{% endif %}</li>
             <li>Meals logged on <strong>{{ week.loggedDays }} of 7 days</strong>{% if week.loggedDays > 0 and week.rough %}, so these averages are rough{% endif %}</li>
         </ul>

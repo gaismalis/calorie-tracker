@@ -175,6 +175,9 @@ button.link.danger svg { vertical-align: -3px; }
 .energy-chart .bar-over { fill: var(--series-2); }
 .energy-chart .bar-unknown { fill: var(--series-1); }
 .energy-chart .bar-today { opacity: 0.45; }
+/* Alcohol: the top part of the bar, deep red (darker than the orange of "ate more", so they stay apart), with a thin gap below. */
+.energy-chart .bar-alcohol { fill: #b3261e; stroke: var(--surface-1); stroke-width: 1; }
+.energy-chart .tooltip .tip-alcohol .key { background: #b3261e; }
 .energy-chart .burned-mark { stroke: var(--text-primary); stroke-width: 2; stroke-linecap: round; }
 .energy-chart .over-label { text-anchor: middle; fill: #b84a1f; font-weight: 600; }
 .energy-chart .tooltip .key { height: 8px; width: 8px; border-radius: 2px; }

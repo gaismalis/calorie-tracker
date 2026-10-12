@@ -31,6 +31,27 @@ class WeeklySummaryTest extends TestCase
         self::assertFalse($week->isEmpty());
     }
 
+    public function testAlcoholAndSnacksForTheWeek(): void
+    {
+        $week = WeeklySummary::calculate(
+            eaten: ['2026-10-05' => 2000.0, '2026-10-06' => 3000.0],
+            exercise: [],
+            trend: [],
+            baseline: 2100.0,
+            to: '2026-10-11',
+            goalKgPerWeek: 0.0,
+            alcohol: ['2026-10-06' => 750.0, '2026-10-01' => 999.0 /* before the week */],
+            snacks: ['2026-10-05' => 250.0],
+        );
+
+        self::assertSame(5000.0, $week->eatenKcal);
+        self::assertSame(750.0, $week->alcoholKcal);
+        self::assertSame(250.0, $week->snackKcal);
+        self::assertSame(15, $week->share($week->alcoholKcal));
+        self::assertSame(5, $week->share($week->snackKcal));
+        self::assertNull(WeeklySummary::calculate([], [], [], null, '2026-10-11', 0.0)->share(100), 'nothing eaten: no share');
+    }
+
     public function testWithoutBurnEstimateThereIsNoBalance(): void
     {
         $week = WeeklySummary::calculate(['2026-10-11' => 2000.0], [], [], null, '2026-10-11', 0.0);

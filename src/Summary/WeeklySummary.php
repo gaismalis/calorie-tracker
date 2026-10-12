@@ -33,6 +33,11 @@ final readonly class WeeklySummary
         public int $exerciseDays,
         public ?float $trendChangeKg,
         public float $goalKgPerWeek,
+        /** Total kcal eaten in the week (logged days). */
+        public float $eatenKcal = 0.0,
+        /** Total kcal of alcoholic drinks and of snacks in the week (part of $eatenKcal). */
+        public float $alcoholKcal = 0.0,
+        public float $snackKcal = 0.0,
     ) {
     }
 
@@ -42,8 +47,10 @@ final readonly class WeeklySummary
      * @param array<string, float> $trend    weight trend kg by date (see WeightTrend::daily), may start before $from
      * @param float|null           $baseline everyday burn without workouts (null when unknown)
      * @param string               $to       last day of the week ('Y-m-d', inclusive)
+     * @param array<string, float> $alcohol  kcal of alcoholic drinks by date
+     * @param array<string, float> $snacks   kcal of snacks by date
      */
-    public static function calculate(array $eaten, array $exercise, array $trend, ?float $baseline, string $to, float $goalKgPerWeek): self
+    public static function calculate(array $eaten, array $exercise, array $trend, ?float $baseline, string $to, float $goalKgPerWeek, array $alcohol = [], array $snacks = []): self
     {
         $last = new \DateTimeImmutable($to);
         $dates = [];
@@ -66,7 +73,16 @@ final readonly class WeeklySummary
             exerciseDays: count($exerciseInWeek),
             trendChangeKg: self::trendChange($trend, $last->modify('-'.self::DAYS.' days')->format('Y-m-d'), $to),
             goalKgPerWeek: $goalKgPerWeek,
+            eatenKcal: round(array_sum(array_map(fn (string $date) => $eaten[$date], $logged))),
+            alcoholKcal: round(array_sum(array_intersect_key($alcohol, array_flip($dates)))),
+            snackKcal: round(array_sum(array_intersect_key($snacks, array_flip($dates)))),
         );
+    }
+
+    /** Share of everything eaten this week, in %, e.g. for alcohol: share($week->alcoholKcal). */
+    public function share(float $kcal): ?int
+    {
+        return $this->eatenKcal > 0 ? (int) round($kcal / $this->eatenKcal * 100) : null;
     }
 
     public function isEmpty(): bool
