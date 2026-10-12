@@ -28,6 +28,9 @@ services:
     App\Exercise\ExerciseEstimator:
         factory: ['@App\Exercise\ExerciseEstimatorFactory', 'create']
 
+    App\Nutrition\Categorize\FoodCategorizer:
+        factory: ['@App\Nutrition\Categorize\FoodCategorizerFactory', 'create']
+
 when@test:
     services:
         App\Nutrition\NutritionEstimator:
@@ -36,3 +39,5 @@ when@test:
         App\Exercise\ExerciseEstimator:
             class: App\Tests\Support\FakeExerciseEstimator
             public: true
+        App\Nutrition\Categorize\FoodCategorizer:
+            class: App\Nutrition\Categorize\KeywordFoodCategorizer

@@ -41,6 +41,11 @@ php -r '
 
 php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
+# Food categories for meal items logged before they existed (only items without one, so after the
+# first run this does nothing). In the background, so a slow AI doesn't delay the start; a failure
+# is retried on the next start.
+(php bin/console app:meal-items:categorize --no-interaction 2>&1 | sed 's/^/[categorize] /' || true) &
+
 # Background worker (AI estimate retries, emails). Restarts itself every hour or after 256 MB,
 # and after a crash; the loop keeps it going for as long as the container runs.
 (
