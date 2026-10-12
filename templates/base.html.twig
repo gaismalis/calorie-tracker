@@ -52,7 +52,8 @@
         </main>
         {% if app.user %}
             {# Just for fun: when you open the app (at most every 30 minutes) a cat sits on the screen until tapped away (assets/controllers/cat_controller.js). #}
-            <div class="cat-layer" data-controller="cat" data-cat-gap-minutes-value="30" data-cat-max-taps-value="5"></div>
+            <div class="cat-layer" data-controller="cat" data-cat-gap-minutes-value="30" data-cat-max-taps-value="5"
+                 data-cat-call-cooldown-minutes-value="5" data-action="cat:call@window->cat#call"></div>
         {% endif %}
     </body>
 </html>

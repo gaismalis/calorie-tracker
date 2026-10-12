@@ -8,6 +8,9 @@
     <button type="button" class="fab" aria-label="Add a meal, exercise or weight" aria-expanded="false" aria-haspopup="true"
             data-entry-dialog-target="toggle" data-action="entry-dialog#toggle">+</button>
 </div>
+{# Just for fun: call the cat (at most every 5 minutes, see The Cat in the wiki). #}
+<button type="button" class="cat-call" aria-label="Call the cat" title="Call the cat"
+        data-controller="cat-call" data-action="cat-call#call"><span aria-hidden="true">🐾</span></button>
 
 <dialog class="entry-dialog" data-entry-dialog-target="dialog" aria-labelledby="entry-title"
         data-action="pointerdown->entry-dialog#pressed click->entry-dialog#backdrop close->entry-dialog#closed">

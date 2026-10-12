@@ -27,6 +27,30 @@ class CatTest extends WebTestCase
         }
     }
 
+    public function testThePawButtonOnTheMainPageCallsTheCatWithACooldown(): void
+    {
+        $client = static::createClient();
+        $user = (new User())->setEmail('me@example.com')->setPassword('x');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->persist($user);
+        $em->flush();
+        $client->loginUser($user);
+
+        $crawler = $client->request('GET', '/');
+        $paw = $crawler->filter('button.cat-call');
+        self::assertCount(1, $paw);
+        self::assertSame('🐾', $paw->text());
+        self::assertSame('cat-call', $paw->attr('data-controller'));
+        $layer = $crawler->filter('.cat-layer');
+        self::assertSame('5', $layer->attr('data-cat-call-cooldown-minutes-value'), 'at most every 5 minutes');
+        self::assertStringContainsString('cat:call@window->cat#call', $layer->attr('data-action'));
+
+        $script = file_get_contents(__DIR__.'/../../assets/controllers/cat_controller.js');
+        self::assertStringContainsString("'Lasagna?'", $script, 'answers when it comes');
+        self::assertStringContainsString("\"I'm cleaning myself\"", $script, 'excuses when called too soon');
+        self::assertStringContainsString("this.dispatch('call', { prefix: 'cat'", file_get_contents(__DIR__.'/../../assets/controllers/cat_call_controller.js'));
+    }
+
     public function testNoCatOnTheLoginPage(): void
     {
         $client = static::createClient();

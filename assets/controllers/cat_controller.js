@@ -9,6 +9,9 @@ import { Controller } from '@hotwired/stimulus';
 // later, kept in localStorage so page loads don't reset it. A cat that wasn't shooed comes back on the next
 // page. Skipped for "reduce motion".
 //
+// The 🐾 button (cat_call_controller.js) calls it: if the cat left at least callCooldownMinutes ago it
+// answers ("Lasagna?") and comes; called too soon, it answers with an excuse and stays away.
+//
 // Frames: public/cat/cat-sprite.png, one row of 111x128 cells made from the CC0 "Orange Fat Cat"
 // (megupets.com) with bin/build-cat-sprite.php.
 const SHEET = '/cat/cat-sprite.png';
@@ -29,12 +32,17 @@ const ZOMBIE_CHANCE = 20;
 const SOUNDS = ['meow', 'mrrp?', 'purrr', 'no.', '*yawn*', 'hmm?', 'mew', '5 more minutes', 'hiss'];
 const BORED_SOUNDS = ['meow!', 'MEOW', 'hello?', 'pet me', 'mrrraow', 'feed me', 'hey!', 'I see you'];
 const ZOMBIE_SOUNDS = ['braaains', 'mrrrgh', 'brains?', 'uuurgh'];
+const LAST_LEFT_KEY = 'cat.lastLeft';
+const COMING = ['alright', 'Lasagna?', 'coming!', 'fine.', 'you rang?', 'is it dinner?', 'on my way', 'mrrp!', 'did someone say tuna?'];
+const BUSY = ["I'm busy", "I'm cleaning myself", 'what?', 'not now', 'in a meeting', '*ignores you*', "I'm napping",
+    'busy knocking things off the table', "can't, I'm a loaf", 'ask me later', 'staring at a wall, brb'];
+const HERE = ["I'm right here!", 'look down', 'hello??', "I'm literally here"];
 
 const between = (min, max) => min + Math.random() * (max - min);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
 export default class extends Controller {
-    static values = { gapMinutes: Number, maxTaps: Number };
+    static values = { gapMinutes: Number, maxTaps: Number, callCooldownMinutes: Number };
 
     connect() {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -52,17 +60,36 @@ export default class extends Controller {
         this.cat = null;
     }
 
+    /** The 🐾 button: come if the cooldown is over, otherwise say why not. */
+    call(event) {
+        const button = event.detail?.button;
+        if (this.cat || this.arriving) return this.answer(pick(HERE), button);
+
+        const lastLeft = Number(localStorage.getItem(LAST_LEFT_KEY)) || 0;
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reducedMotion || Date.now() - lastLeft < this.callCooldownMinutesValue * 60 * 1000) {
+            return this.answer(pick(BUSY), button);
+        }
+        this.answer(pick(COMING), button);
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.arrive(), 800);
+    }
+
     async arrive() {
         if (document.hidden) {
             this.timer = setTimeout(() => this.arrive(), 5000);
             return;
         }
+        if (this.cat || this.arriving) return;
+        this.arriving = true;
         const sheet = new Image();
         sheet.src = SHEET;
         try {
             await sheet.decode();
         } catch {
             return; // no picture, no cat
+        } finally {
+            this.arriving = false;
         }
         if (!this.element.isConnected) return;
 
@@ -114,6 +141,7 @@ export default class extends Controller {
         // Happy to have been noticed, then off to the nearer edge, faster.
         this.state = 'leaving';
         this.scheduleNext();
+        localStorage.setItem(LAST_LEFT_KEY, String(Date.now()));
         this.show(FRAME.happy);
         this.later(() => {
             const { x, y } = this.position;
@@ -228,14 +256,28 @@ export default class extends Controller {
     }
 
     say(text) {
+        this.bubble(text, this.position.x + WIDTH / 2, this.position.y - 8, '-50%', 1200);
+    }
+
+    /** The cat's answer to the 🐾 button, next to the button (right-aligned with it). */
+    answer(text, button) {
+        const box = button?.getBoundingClientRect();
+        const left = box ? box.right : window.innerWidth - 16;
+        const top = box ? box.top - 34 : window.innerHeight - 140;
+        this.bubble(text, left, top, '-100%', 2200);
+    }
+
+    bubble(text, left, top, shiftX, duration) {
         const bubble = document.createElement('span');
         bubble.className = 'cat-says';
         bubble.textContent = text;
-        bubble.style.left = `${this.position.x + WIDTH / 2}px`;
-        bubble.style.top = `${this.position.y - 8}px`;
+        bubble.style.left = `${left}px`;
+        bubble.style.top = `${top}px`;
         this.element.append(bubble);
-        bubble.animate([{ opacity: 1, translate: '-50% 0' }, { opacity: 0, translate: '-50% -40px' }], { duration: 1200 })
-            .onfinish = () => bubble.remove();
+        bubble.animate(
+            [{ opacity: 1, translate: `${shiftX} 0` }, { opacity: 1, translate: `${shiftX} -10px`, offset: 0.6 }, { opacity: 0, translate: `${shiftX} -40px` }],
+            { duration },
+        ).onfinish = () => bubble.remove();
     }
 
     scheduleNext() {
