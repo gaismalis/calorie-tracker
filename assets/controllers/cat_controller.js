@@ -4,8 +4,8 @@ import { Controller } from '@hotwired/stimulus';
 // number of times (1 to maxTaps): it pulls a grumpy or smug face each time, and at the last tap it's happy
 // and walks off. Rarely (1 in ZOMBIE_CHANCE) it's a zombie cat. The next visit is due minHours–maxHours
 // after the last one, kept in localStorage so page loads don't reset it; once due, the cat shows up a few
-// seconds into the next page. A cat that wasn't shooed comes back on the next page. Skipped for "reduce
-// motion".
+// seconds into the next page. Right after logging in (soon = true) it comes within SOON_SECONDS whatever the
+// schedule. A cat that wasn't shooed comes back on the next page. Skipped for "reduce motion".
 //
 // Frames: public/cat/cat-sprite.png, one row of 111x128 cells made from the CC0 "Orange Fat Cat"
 // (megupets.com) with bin/build-cat-sprite.php.
@@ -20,6 +20,7 @@ const FRAME = { walk: 0, walkFrames: 19, idle: 19, blink: 20, wave: 21, waveFram
 
 const NEXT_VISIT_KEY = 'cat.nextVisit';
 const ARRIVAL_SECONDS = [3, 12];
+const SOON_SECONDS = [1, 5];
 const WALK_PX_PER_SECOND = 90;
 const ZOMBIE_CHANCE = 20;
 const SOUNDS = ['meow', 'mrrp?', 'purrr', 'no.', '*yawn*', 'hmm?', 'mew', '5 more minutes', 'hiss'];
@@ -29,7 +30,7 @@ const between = (min, max) => min + Math.random() * (max - min);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
 export default class extends Controller {
-    static values = { minHours: Number, maxHours: Number, maxTaps: Number };
+    static values = { minHours: Number, maxHours: Number, maxTaps: Number, soon: Boolean };
 
     connect() {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -38,7 +39,11 @@ export default class extends Controller {
         if (!due) {
             due = this.scheduleNext();
         }
-        const wait = Math.max(due - Date.now(), between(...ARRIVAL_SECONDS) * 1000);
+        const soon = this.soonValue;
+        this.element.removeAttribute('data-cat-soon-value'); // not again when Turbo restores this page from its cache
+        const wait = soon
+            ? between(...SOON_SECONDS) * 1000
+            : Math.max(due - Date.now(), between(...ARRIVAL_SECONDS) * 1000);
         // setTimeout can't wait longer than ~24.8 days; check again when the page is opened next.
         if (wait < 2 ** 31) this.timer = setTimeout(() => this.arrive(), wait);
     }

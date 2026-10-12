@@ -4,6 +4,7 @@ namespace App\Tests\Functional;
 
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /** Just for fun: a cat now and then sits on the screen until tapped away (behaviour in cat_controller.js). */
@@ -22,9 +23,30 @@ class CatTest extends WebTestCase
             $crawler = $client->request('GET', $page);
             $layer = $crawler->filter('.cat-layer[data-controller=cat]');
             self::assertCount(1, $layer, $page);
-            self::assertSame('7', $layer->attr('data-cat-max-taps-value'), 'at most 7 taps to shoo it');
+            self::assertSame('5', $layer->attr('data-cat-max-taps-value'), 'at most 5 taps to shoo it');
+            self::assertNull($layer->attr('data-cat-soon-value'), 'no hurry without a fresh login');
             self::assertLessThan((float) $layer->attr('data-cat-max-hours-value'), (float) $layer->attr('data-cat-min-hours-value'));
         }
+    }
+
+    public function testRightAfterLoggingInTheCatComesSoonOnce(): void
+    {
+        $client = static::createClient();
+        $user = (new User())->setEmail('me@example.com');
+        $user->setPassword(static::getContainer()->get(UserPasswordHasherInterface::class)->hashPassword($user, 'correct-horse'));
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->persist($user);
+        $em->flush();
+
+        $client->request('GET', '/login');
+        $client->submitForm('Log in', ['_username' => 'me@example.com', '_password' => 'correct-horse']);
+        $crawler = $client->followRedirect();
+        while ($client->getResponse()->isRedirection()) {
+            $crawler = $client->followRedirect();
+        }
+
+        self::assertSame('true', $crawler->filter('.cat-layer')->attr('data-cat-soon-value'), 'first page after login');
+        self::assertNull($client->request('GET', $client->getRequest()->getPathInfo())->filter('.cat-layer')->attr('data-cat-soon-value'), 'only once');
     }
 
     public function testNoCatOnTheLoginPage(): void
@@ -40,6 +62,7 @@ class CatTest extends WebTestCase
         $script = file_get_contents(__DIR__.'/../../assets/controllers/cat_controller.js');
 
         self::assertStringContainsString('localStorage', $script, 'the next visit survives page loads');
+        self::assertStringContainsString('const SOON_SECONDS = [1, 5];', $script, 'within 5 seconds after login');
         self::assertStringContainsString('prefers-reduced-motion: reduce', $script);
         self::assertStringContainsString('Math.floor(Math.random() * this.maxTapsValue)', $script, '1 to maxTaps taps');
     }

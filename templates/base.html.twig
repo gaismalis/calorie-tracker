@@ -52,7 +52,8 @@
         </main>
         {% if app.user %}
             {# Just for fun: a cat that now and then sits on the screen until tapped away (assets/controllers/cat_controller.js). #}
-            <div class="cat-layer" data-controller="cat" data-cat-min-hours-value="2" data-cat-max-hours-value="6" data-cat-max-taps-value="7"></div>
+            <div class="cat-layer" data-controller="cat" data-cat-min-hours-value="2" data-cat-max-hours-value="6" data-cat-max-taps-value="5"
+                {%- if app.session.remove('cat_after_login') %} data-cat-soon-value="true"{% endif %}></div>
         {% endif %}
     </body>
 </html>
