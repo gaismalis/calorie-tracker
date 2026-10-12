@@ -43,4 +43,20 @@ class CatTest extends WebTestCase
         self::assertStringContainsString('prefers-reduced-motion: reduce', $script);
         self::assertStringContainsString('Math.floor(Math.random() * this.maxTapsValue)', $script, '1 to maxTaps taps');
     }
+
+    public function testTheSpriteSheetMatchesTheFramesTheControllerExpects(): void
+    {
+        $sheet = __DIR__.'/../../public/cat/cat-sprite.png';
+        $script = file_get_contents(__DIR__.'/../../assets/controllers/cat_controller.js');
+        preg_match('/CELL_WIDTH = (\d+)/', $script, $width);
+        preg_match('/CELL_HEIGHT = (\d+)/', $script, $height);
+        preg_match('/CELLS = (\d+)/', $script, $cells);
+
+        self::assertStringContainsString("'/cat/cat-sprite.png'", $script);
+        [$sheetWidth, $sheetHeight] = getimagesize($sheet);
+        self::assertSame((int) $width[1] * (int) $cells[1], $sheetWidth, 'one row of equal cells');
+        self::assertSame((int) $height[1], $sheetHeight);
+        self::assertLessThan(500_000, filesize($sheet), 'small enough for mobile data');
+        self::assertStringContainsString('CC0', file_get_contents(__DIR__.'/../../public/cat/README.txt'), 'licence noted');
+    }
 }
