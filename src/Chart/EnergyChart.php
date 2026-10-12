@@ -3,8 +3,9 @@
 namespace App\Chart;
 
 /**
- * Geometry for the "eaten vs burned" chart on the dashboard: one point per day, two lines.
- * Days without logged meals have no "eaten" point (unknown, not zero), so that line has gaps.
+ * Geometry for the "eaten vs target" chart on the dashboard: one bar per day (what was eaten) with a
+ * mark at that day's target. Bars over the target are flagged, so "how did I do" is readable at a glance.
+ * Days without logged meals have no bar (unknown, not zero); today is marked as still in progress.
  */
 final readonly class EnergyChart
 {
@@ -12,27 +13,33 @@ final readonly class EnergyChart
     /** Width of the version shown on phones, close to the card's real width so text keeps its size. */
     public const COMPACT_WIDTH = 340;
     public const HEIGHT = 220;
+    public const STATUS_WITHIN = 'within';
+    public const STATUS_OVER = 'over';
+    /** Eaten, but there's no target to compare with yet (no burn estimate). */
+    public const STATUS_UNKNOWN = 'unknown';
     private const MARGIN_LEFT = 48;
     private const MARGIN_RIGHT = 16;
-    private const MARGIN_TOP = 12;
+    private const MARGIN_TOP = 18; // room for the "+900" label above the tallest bar
     private const MARGIN_BOTTOM = 28;
+    private const BAR_SHARE = 0.6;
+    private const TARGET_MARK_SHARE = 0.9;
     private const Y_STEPS = [250, 500, 1000, 2000, 5000, 10000];
 
     /**
-     * @param list<string>                                                                          $eatenPaths  one SVG path per run of consecutive days
-     * @param list<array{x: float, y: float}>                                                       $eatenDots
-     * @param list<array{value: int, y: float}>                                                     $yTicks
-     * @param list<array{label: string, x: float}>                                                  $xTicks
-     * @param list<array{x: float, label: string, eaten: float|null, burned: float|null, today: bool}> $days
+     * @param list<array{value: int, y: float}>  $yTicks
+     * @param list<array{label: string, x: float}> $xTicks
+     * @param list<array{
+     *     x: float, label: string, eaten: float|null, burned: float|null, target: float|null, today: bool,
+     *     status: string|null, overBy: float|null, bar: array{x: float, y: float, width: float, height: float}|null,
+     *     targetMark: array{x1: float, x2: float, y: float}|null
+     * }> $days
      */
     private function __construct(
-        public array $eatenPaths,
-        public array $eatenDots,
-        public string $burnedPath,
         public array $yTicks,
         public array $xTicks,
         public array $days,
         public bool $empty,
+        public bool $hasTargets,
         public float $plotLeft,
         public float $plotRight,
         public float $plotTop,
@@ -42,13 +49,14 @@ final readonly class EnergyChart
     }
 
     /**
-     * @param array<string, float> $eaten  kcal eaten by date ('Y-m-d'); days without meals absent
-     * @param array<string, float> $burned kcal burned by date (baseline + exercise); empty when unknown
+     * @param array<string, float> $eaten   kcal eaten by date ('Y-m-d'); days without meals absent
+     * @param array<string, float> $burned  kcal burned by date (baseline + exercise); empty when unknown
+     * @param array<string, float> $targets daily intake target by date; empty when unknown
      * @param string               $lastDay last date shown ('Y-m-d')
      * @param string               $today   today's date, marked as "so far"
      * @param int                  $width   drawing width (WIDTH, or COMPACT_WIDTH for phones)
      */
-    public static function build(array $eaten, array $burned, string $lastDay, string $today, int $days = 14, int $width = self::WIDTH): self
+    public static function build(array $eaten, array $burned, array $targets, string $lastDay, string $today, int $days = 14, int $width = self::WIDTH): self
     {
         $last = new \DateTimeImmutable($lastDay);
         $dates = [];
@@ -60,51 +68,55 @@ final readonly class EnergyChart
         $right = $width - self::MARGIN_RIGHT;
         $top = self::MARGIN_TOP;
         $bottom = self::HEIGHT - self::MARGIN_BOTTOM;
-        $x = fn (int $i): float => round($left + ($right - $left) * $i / max(1, $days - 1), 1);
+        $slot = ($right - $left) / $days;
+        $x = fn (int $i): float => round($left + $slot * ($i + 0.5), 1);
 
         $values = [];
         foreach ($dates as $date) {
-            foreach ([$eaten[$date] ?? null, $burned[$date] ?? null] as $value) {
+            foreach ([$eaten[$date] ?? null, $targets[$date] ?? null] as $value) {
                 if (null !== $value) {
                     $values[] = $value;
                 }
             }
         }
-        [$min, $max, $step] = self::yDomain($values);
-        $y = fn (float $kcal): float => round($bottom - ($bottom - $top) * ($kcal - $min) / ($max - $min), 1);
+        [$max, $step] = self::yDomain($values);
+        $y = fn (float $kcal): float => round($bottom - ($bottom - $top) * $kcal / $max, 1);
 
-        $eatenPaths = [];
-        $eatenDots = [];
-        $current = '';
-        $burnedPath = '';
-        $hover = [];
+        $chartDays = [];
         foreach ($dates as $i => $date) {
             $e = $eaten[$date] ?? null;
-            $b = $burned[$date] ?? null;
-            if (null !== $e) {
-                $current .= ('' === $current ? 'M' : ' L').$x($i).' '.$y($e);
-                $eatenDots[] = ['x' => $x($i), 'y' => $y($e)];
-            } elseif ('' !== $current) {
-                $eatenPaths[] = $current;
-                $current = '';
-            }
-            if (null !== $b) {
-                $burnedPath .= ('' === $burnedPath ? 'M' : ' L').$x($i).' '.$y($b);
-            }
-            $hover[] = [
+            $target = $targets[$date] ?? null;
+            $status = match (true) {
+                null === $e => null,
+                null === $target => self::STATUS_UNKNOWN,
+                round($e) > round($target) => self::STATUS_OVER,
+                default => self::STATUS_WITHIN,
+            };
+            $chartDays[] = [
                 'x' => $x($i),
                 'label' => (new \DateTimeImmutable($date))->format('D, j M').($date === $today ? ' (so far)' : ''),
                 'eaten' => null === $e ? null : round($e),
-                'burned' => null === $b ? null : round($b),
+                'burned' => isset($burned[$date]) ? round($burned[$date]) : null,
+                'target' => null === $target ? null : round($target),
                 'today' => $date === $today,
+                'status' => $status,
+                'overBy' => self::STATUS_OVER === $status ? round($e) - round($target) : null,
+                'bar' => null === $e ? null : [
+                    'x' => round($x($i) - $slot * self::BAR_SHARE / 2, 1),
+                    'y' => $y($e),
+                    'width' => round($slot * self::BAR_SHARE, 1),
+                    'height' => round($bottom - $y($e), 1),
+                ],
+                'targetMark' => null === $target ? null : [
+                    'x1' => round($x($i) - $slot * self::TARGET_MARK_SHARE / 2, 1),
+                    'x2' => round($x($i) + $slot * self::TARGET_MARK_SHARE / 2, 1),
+                    'y' => $y($target),
+                ],
             ];
-        }
-        if ('' !== $current) {
-            $eatenPaths[] = $current;
         }
 
         $yTicks = [];
-        for ($value = $min; $value <= $max + 1e-9; $value += $step) {
+        for ($value = 0; $value <= $max + 1e-9; $value += $step) {
             $yTicks[] = ['value' => (int) $value, 'y' => $y($value)];
         }
 
@@ -114,7 +126,9 @@ final readonly class EnergyChart
             array_unshift($xTicks, ['label' => (new \DateTimeImmutable($dates[$i]))->format('j M'), 'x' => $x($i)]);
         }
 
-        return new self($eatenPaths, $eatenDots, $burnedPath, $yTicks, $xTicks, $hover, [] === $values, $left, $right, $top, $bottom, $width);
+        $shown = fn (array $byDate) => array_intersect_key($byDate, array_flip($dates));
+
+        return new self($yTicks, $xTicks, $chartDays, [] === $shown($eaten), [] !== $shown($targets), $left, $right, $top, $bottom, $width);
     }
 
     public function isCompact(): bool
@@ -125,37 +139,42 @@ final readonly class EnergyChart
     /** @return list<array{x: float, label: string, rows: list<array{series: string, value: string, name: string}>}> tooltip content per day */
     public function hover(): array
     {
+        $kcal = fn (float $value) => number_format($value, 0, '.', ' ').' kcal';
+
         return array_map(fn (array $day) => [
             'x' => $day['x'],
             'label' => $day['label'],
             'rows' => array_values(array_filter([
-                ['series' => 'eaten', 'value' => null === $day['eaten'] ? 'not logged' : number_format($day['eaten'], 0, '.', ' ').' kcal', 'name' => 'Eaten'],
-                null === $day['burned'] ? null : ['series' => 'burned', 'value' => number_format($day['burned'], 0, '.', ' ').' kcal', 'name' => 'Burned'],
+                ['series' => 'eaten-'.($day['status'] ?? 'none'), 'value' => null === $day['eaten'] ? 'not logged' : $kcal($day['eaten']), 'name' => 'Eaten'],
+                null === $day['target'] ? null : ['series' => 'target', 'value' => $kcal($day['target']), 'name' => 'Target'],
+                null === $day['burned'] ? null : ['series' => 'burned', 'value' => $kcal($day['burned']), 'name' => 'Burned'],
+                match ($day['status']) {
+                    self::STATUS_OVER => ['series' => 'balance', 'value' => $kcal($day['overBy']), 'name' => 'over target'],
+                    self::STATUS_WITHIN => ['series' => 'balance', 'value' => $kcal($day['target'] - $day['eaten']), 'name' => $day['today'] ? 'left' : 'under target'],
+                    default => null,
+                },
             ])),
         ], $this->days);
     }
 
     /**
+     * Axis from 0 (bars must start at zero) up to a clean value above everything, at most 5 steps.
+     *
      * @param list<float> $values
      *
-     * @return array{float, float, float}
+     * @return array{float, float} max, step
      */
     private static function yDomain(array $values): array
     {
-        if ([] === $values) {
-            return [1000.0, 3000.0, 500.0];
-        }
-        $low = min($values) - 100;
-        $high = max($values) + 100;
+        $high = ([] === $values ? 2900 : max($values)) + 100;
         foreach (self::Y_STEPS as $step) {
-            $min = max(0, floor($low / $step) * $step);
             $max = ceil($high / $step) * $step;
-            if (($max - $min) / $step <= 5) {
-                return [$min, $max, (float) $step];
+            if ($max / $step <= 5) {
+                return [$max, (float) $step];
             }
         }
         $step = (float) self::Y_STEPS[array_key_last(self::Y_STEPS)];
 
-        return [max(0, floor($low / $step) * $step), ceil($high / $step) * $step, $step];
+        return [ceil($high / $step) * $step, $step];
     }
 }

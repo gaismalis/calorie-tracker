@@ -4,8 +4,11 @@ namespace App\Tests\Functional;
 
 use App\Entity\MealEntry;
 use App\Entity\User;
+use App\Entity\WeightEntry;
 use App\Nutrition\EstimatedItem;
 use App\Nutrition\MealEstimate;
+use App\Profile\ActivityLevel;
+use App\Profile\Sex;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -151,16 +154,18 @@ class DashboardTest extends WebTestCase
         self::assertMatchesRegularExpression('#^/meals/\d+/edit$#', $adjust->attr('href'));
     }
 
-    public function testChartShowsEatenDaysAndNoBurnedLineWithoutEstimate(): void
+    public function testChartShowsEatenBarsWithoutTargetsBeforeThereIsAnEstimate(): void
     {
         $this->storeMeal('dinner', $this->user->today()->modify('-3 days')->setTime(19, 0));
         $this->storeMeal('lunch');
 
         $crawler = $this->client->request('GET', '/');
 
-        self::assertCount(2, $crawler->filter('.energy-chart.chart-wide svg[role=img] circle.eaten-dot'));
-        self::assertCount(0, $crawler->filter('.energy-chart svg[role=img] path.burned-line'));
-        self::assertSelectorTextContains('.chart-note', '"Burned" appears once');
+        self::assertCount(2, $crawler->filter('.energy-chart.chart-wide svg[role=img] rect.bar-unknown'));
+        self::assertCount(1, $crawler->filter('.energy-chart.chart-wide svg[role=img] rect.bar-today'));
+        self::assertCount(0, $crawler->filter('.energy-chart svg[role=img] .target-mark'));
+        self::assertSelectorTextContains('.energy-chart .legend', 'Eaten');
+        self::assertSelectorTextContains('.chart-note', 'The daily target appears once');
         $days = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
         self::assertCount(14, $days);
         self::assertStringEndsWith('(so far)', end($days)['label']);
@@ -174,9 +179,32 @@ class DashboardTest extends WebTestCase
 
         self::assertSame('0 0 680 220', $crawler->filter('.energy-chart.chart-wide svg[role=img]')->attr('viewbox'));
         self::assertSame('0 0 340 220', $crawler->filter('.energy-chart.chart-compact svg[role=img]')->attr('viewbox'));
-        self::assertCount(1, $crawler->filter('.energy-chart.chart-compact svg[role=img] circle.eaten-dot'));
+        self::assertCount(1, $crawler->filter('.energy-chart.chart-compact svg[role=img] rect.bar-unknown'));
         $days = json_decode($crawler->filter('.energy-chart.chart-compact')->attr('data-chart-hover-days-value'), true);
         self::assertCount(14, $days, 'hover works on the compact chart too');
+    }
+
+    public function testChartComparesEachDayWithItsTarget(): void
+    {
+        $this->user->setSex(Sex::Male)->setBirthDate(new \DateTimeImmutable('1990-01-01'))->setHeightCm(180)
+            ->setActivityLevel(ActivityLevel::Sedentary)->setWeeklyGoalKg(0.0);
+        $this->em()->persist(new WeightEntry($this->user, $this->user->today(), 80.0));
+        $this->em()->flush();
+        $yesterday = $this->user->today()->modify('-1 day');
+        $this->storeMeal('feast', $yesterday->setTime(19, 0), 5000);
+        $this->storeMeal('salad', $yesterday->modify('-1 day')->setTime(12, 0), 800);
+        $this->storeMeal('lunch');
+
+        $crawler = $this->client->request('GET', '/');
+
+        $wide = $crawler->filter('.energy-chart.chart-wide svg[role=img]');
+        self::assertCount(1, $wide->filter('rect.bar-over'));
+        self::assertCount(2, $wide->filter('rect.bar-within'), 'the salad day and today so far');
+        self::assertCount(14, $wide->filter('.target-mark'));
+        self::assertMatchesRegularExpression('/^\+\d[\d ]*$/', $wide->filter('.over-label')->text());
+        self::assertCount(0, $crawler->filter('.energy-chart.chart-compact .over-label'), 'no room for labels on phones');
+        self::assertSelectorTextContains('.energy-chart .legend', 'Within target');
+        self::assertSelectorTextContains('.chart-note', 'Today is shown faded');
     }
 
     public function testEmailInTheHeaderCanBeHiddenOnPhones(): void
@@ -187,10 +215,10 @@ class DashboardTest extends WebTestCase
         self::assertSelectorTextContains('.topbar a.logout', 'Log out');
     }
 
-    private function storeMeal(string $text, ?\DateTimeImmutable $at = null): void
+    private function storeMeal(string $text, ?\DateTimeImmutable $at = null, float $kcal = 600): void
     {
         $entry = new MealEntry($this->user, $text, $at ?? new \DateTimeImmutable());
-        $entry->applyEstimate(new MealEstimate([new EstimatedItem('Food', 300, 600, 30, 60, 20)], 'test'), new \DateTimeImmutable());
+        $entry->applyEstimate(new MealEstimate([new EstimatedItem('Food', 300, $kcal, 30, 60, 20)], 'test'), new \DateTimeImmutable());
         $this->em()->persist($entry);
         $this->em()->flush();
     }

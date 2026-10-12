@@ -170,12 +170,19 @@ button.link.danger svg { vertical-align: -3px; }
 .eaten-at ul { flex-basis: 100%; margin: 0; }
 .viz-root .empty-label { text-anchor: middle; dominant-baseline: middle; font-size: 13px; fill: var(--text-secondary); }
 
-/* Energy chart (dashboard): burned = series 1 (blue), eaten = series 2 (orange), same validated pair. */
-.energy-chart .burned-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.energy-chart .eaten-line { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.energy-chart .eaten-dot { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
-.energy-chart .tooltip .tip-burned .key { background: var(--series-1); }
-.energy-chart .tooltip .tip-eaten .key { background: var(--series-2); }
+/* Energy chart (dashboard): eaten per day as bars, green within the target, orange (series 2) over; target = dark mark. */
+.energy-chart .bar-within { fill: var(--accent); }
+.energy-chart .bar-over { fill: var(--series-2); }
+.energy-chart .bar-unknown { fill: var(--series-1); }
+.energy-chart .bar-today { opacity: 0.45; }
+.energy-chart .target-mark { stroke: var(--text-primary); stroke-width: 2; stroke-linecap: round; }
+.energy-chart .over-label { text-anchor: middle; fill: #b84a1f; font-weight: 600; }
+.energy-chart .tooltip .key { height: 8px; width: 8px; border-radius: 2px; }
+.energy-chart .tooltip .tip-eaten-within .key { background: var(--accent); }
+.energy-chart .tooltip .tip-eaten-over .key { background: var(--series-2); }
+.energy-chart .tooltip .tip-eaten-unknown .key { background: var(--series-1); }
+.energy-chart .tooltip .tip-target .key { background: var(--text-primary); height: 2px; border-radius: 0; }
+.energy-chart .tooltip .tip-burned .key, .energy-chart .tooltip .tip-balance .key, .energy-chart .tooltip .tip-eaten-none .key { background: none; }
 .chart-note { margin: 0.5rem 0 0; }
 
 /* Dashboard overview */
@@ -223,7 +230,6 @@ button.secondary { background: none; color: var(--muted); border: 1px solid var(
 .meal-form-row button.secondary + button { margin-left: 0; }
 main.container { padding-bottom: 5rem; } /* room for the floating button */
 .add-menu button { display: flex; gap: 0.5rem; align-items: center; }
-.energy-chart .legend-dot { stroke: none; }
 .add-menu a { display: flex; gap: 0.5rem; align-items: center; padding: 0.6rem 1.1rem; border-radius: 6px; text-decoration: none;
     background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); }
 .add-menu a:hover { background: var(--bg); }

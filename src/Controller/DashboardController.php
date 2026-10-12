@@ -100,15 +100,17 @@ class DashboardController extends AbstractController
         $exercise = $exercises->dailyExercise($user, $first, $end);
 
         $burned = [];
+        $targets = [];
         if (null !== $energy->getBaseline()) {
             for ($d = $first; $d < $end; $d = $d->modify('+1 day')) {
                 $date = $d->format('Y-m-d');
                 $burned[$date] = $energy->burnedWith($exercise[$date] ?? 0.0);
+                $targets[$date] = $energy->targetFor($user->getWeeklyGoalKg(), $exercise[$date] ?? 0.0);
             }
         }
 
         return array_map(
-            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), self::CHART_DAYS, $width),
+            fn (int $width) => EnergyChart::build($eaten, $burned, $targets, $day->format('Y-m-d'), $today->format('Y-m-d'), self::CHART_DAYS, $width),
             [EnergyChart::WIDTH, EnergyChart::COMPACT_WIDTH],
         );
     }
