@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Nutrition\EstimatedItem;
 use App\Nutrition\MealEstimate;
 use App\Nutrition\NutritionEstimator;
+use App\Nutrition\Per100g;
 use App\Tests\Support\FakeNutritionEstimator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -157,6 +158,58 @@ class MealLoggingTest extends WebTestCase
         $other = $this->storeFailedEntry(new \DateTimeImmutable('-2 hours'), $this->createUser('other@example.com'));
         $this->client->request('POST', '/meals/'.$other->getId().'/retry', ['_token' => 'x']);
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testValuesPer100gCanBeCorrectedFromTheLabel(): void
+    {
+        $entry = $this->storeEntry($this->user, 'skyr and an apple', new \DateTimeImmutable(), [
+            EstimatedItem::fromPer100g('Skyr', 150, new Per100g(63, 11, 4, 0.2)),
+            EstimatedItem::fromPer100g('Apple', 180, new Per100g(52, 0.3, 14, 0.2)),
+        ]);
+        [$skyr, $apple] = $entry->getItems()->toArray();
+
+        $crawler = $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        self::assertSame('63', $crawler->filter('input[name="per100g['.$skyr->getId().'][kcal]"]')->attr('value'));
+        $this->client->submitForm('Save', [
+            'grams['.$skyr->getId().']' => '200',
+            'per100g['.$skyr->getId().'][kcal]' => '57',
+            'per100g['.$skyr->getId().'][protein]' => '10,5',
+            'per100g['.$skyr->getId().'][carbs]' => '3.8',
+            'per100g['.$skyr->getId().'][fat]' => '0',
+        ]);
+
+        self::assertResponseRedirects('/?log=food');
+        $this->em()->clear();
+        $entry = $this->em()->find(MealEntry::class, $entry->getId());
+        [$skyr, $apple] = $entry->getItems()->toArray();
+        self::assertEquals(new Per100g(57, 10.5, 3.8, 0), $skyr->getPer100g());
+        self::assertSame([200.0, 114.0, 21.0, 7.6, 0.0], [$skyr->getGrams(), $skyr->getKcal(), $skyr->getProtein(), $skyr->getCarbs(), $skyr->getFat()]);
+        self::assertEquals(new Per100g(52, 0.3, 14, 0.2), $apple->getPer100g(), 'untouched item unchanged');
+        self::assertEqualsWithDelta(114 + 93.6, $entry->getKcal(), 0.001, 'meal total is recalculated');
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function invalidPer100g(): iterable
+    {
+        yield 'more kcal than pure fat' => ['kcal', '950'];
+        yield 'more than 100 g protein in 100 g' => ['protein', '101'];
+        yield 'negative' => ['fat', '-1'];
+        yield 'not a number' => ['carbs', 'lots'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidPer100g')]
+    public function testImpossibleValuesPer100gAreRejected(string $field, string $value): void
+    {
+        $entry = $this->storeEntry($this->user, 'skyr', new \DateTimeImmutable(), [EstimatedItem::fromPer100g('Skyr', 150, new Per100g(63, 11, 4, 0.2))]);
+        $skyr = $entry->getItems()->first();
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $this->client->submitForm('Save', ['per100g['.$skyr->getId().']['.$field.']' => $value]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('table.adjust', 'Per 100 g: kcal between 0 and 900');
+        $this->em()->clear();
+        self::assertSame(94.5, $this->em()->find(MealEntry::class, $entry->getId())->getKcal(), 'nothing changed');
     }
 
     public function testAdjustingGramsScalesNutritionProportionally(): void

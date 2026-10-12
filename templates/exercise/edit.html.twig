@@ -49,7 +49,7 @@
                         <td>
                             <input type="number" name="kcal[{{ item.id }}]" value="{{ app.request.request.all('kcal')[item.id] ?? item.kcal|round }}"
                                    min="0" max="10000" step="any" inputmode="decimal" aria-label="kcal burned by {{ item.name }}"
-                                   data-action="input->portion-slider#edit">
+                                   data-amount data-action="input->portion-slider#edit">
                         </td>
                     </tr>
                 {% endfor %}

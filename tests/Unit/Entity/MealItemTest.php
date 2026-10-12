@@ -34,6 +34,18 @@ class MealItemTest extends TestCase
         self::assertEquals(new Per100g(63, 11, 4, 0.2), $item->getPer100g(), 'same food, different portion');
     }
 
+    public function testCorrectingValuesPer100gRecalculatesTotalsForTheSameAmount(): void
+    {
+        $item = $this->item(grams: 200, kcal: 300, protein: 10, carbs: 40, fat: 10); // older item, no stored values
+
+        $item->changePer100g(new Per100g(120, 6, 15, 4));
+
+        self::assertSame(200.0, $item->getGrams());
+        self::assertSame([240.0, 12.0, 30.0, 8.0], [$item->getKcal(), $item->getProtein(), $item->getCarbs(), $item->getFat()]);
+        $item->changeGrams(50);
+        self::assertSame(60.0, $item->getKcal(), 'corrected values are used from now on');
+    }
+
     public function testOlderItemsWithoutPer100gWorkThemOutFromTotals(): void
     {
         $item = $this->item(grams: 400, kcal: 240, protein: 16, carbs: 18, fat: 12);

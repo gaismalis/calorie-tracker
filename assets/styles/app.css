@@ -290,3 +290,7 @@ a.button:hover { filter: brightness(0.95); }
 .activity-choice .muted { font-size: 0.85rem; }
 .per100g { color: var(--muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .entry tr.per100g-row td, table.adjust tr.per100g-row td { text-align: left; padding-top: 0; border-top: 0; }
+.per100g-edit { display: grid; grid-template-columns: auto repeat(4, minmax(0, 4.5rem)); align-items: end; gap: 0 0.5rem; font-size: 0.75rem; color: var(--muted); }
+.per100g-edit .per100g-title { padding-bottom: 0.35rem; }
+.per100g-edit label { display: flex; flex-direction: column; gap: 0.1rem; margin: 0; font-size: 0.75rem; }
+table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding: 0.2rem 0.3rem; font-size: 0.85rem; }

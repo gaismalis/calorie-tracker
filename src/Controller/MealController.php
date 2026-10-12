@@ -6,6 +6,7 @@ use App\Entity\MealEntry;
 use App\Entity\User;
 use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
+use App\Nutrition\Per100g;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -87,14 +88,33 @@ class MealController extends AbstractController
             }
 
             $submitted = $request->request->all('grams');
+            $submittedPer100g = $request->request->all('per100g');
             $newGrams = [];
+            $newPer100g = [];
             foreach ($entry->getItems() as $item) {
-                $value = str_replace(',', '.', trim((string) ($submitted[$item->getId()] ?? '')));
-                if (!is_numeric($value) || (float) $value < 0 || (float) $value > self::MAX_ITEM_GRAMS) {
+                $value = self::number($submitted[$item->getId()] ?? null);
+                if (null === $value || $value < 0 || $value > self::MAX_ITEM_GRAMS) {
                     $errors[$item->getId()] = sprintf('Enter grams between 0 and %d.', self::MAX_ITEM_GRAMS);
                     continue;
                 }
-                $newGrams[$item->getId()] = (float) $value;
+                $newGrams[$item->getId()] = $value;
+
+                // Values per 100 g, e.g. typed from the label. Only sent for items that have them.
+                $per100g = $submittedPer100g[$item->getId()] ?? null;
+                if (is_array($per100g)) {
+                    $parsed = [];
+                    foreach (['kcal' => Per100g::MAX_KCAL, 'protein' => Per100g::MAX_MACRO_GRAMS, 'carbs' => Per100g::MAX_MACRO_GRAMS, 'fat' => Per100g::MAX_MACRO_GRAMS] as $field => $max) {
+                        $parsed[$field] = self::number($per100g[$field] ?? null);
+                        if (null === $parsed[$field] || $parsed[$field] < 0 || $parsed[$field] > $max) {
+                            $errors[$item->getId()] = sprintf('Per 100 g: kcal between 0 and %d; protein, carbs and fat between 0 and %d g.', Per100g::MAX_KCAL, Per100g::MAX_MACRO_GRAMS);
+                            continue 2;
+                        }
+                    }
+                    $corrected = new Per100g(...array_map(fn (float $v) => round($v, 1), $parsed));
+                    if ($corrected != $item->getPer100g()) { // only real corrections; unchanged values stay as they were
+                        $newPer100g[$item->getId()] = $corrected;
+                    }
+                }
             }
 
             if (!$errors) {
@@ -104,6 +124,9 @@ class MealController extends AbstractController
                         $entry->getItems()->removeElement($item);
                     } else {
                         $item->changeGrams($newGrams[$item->getId()]);
+                        if (isset($newPer100g[$item->getId()])) {
+                            $item->changePer100g($newPer100g[$item->getId()]);
+                        }
                     }
                 }
 
@@ -167,4 +190,12 @@ class MealController extends AbstractController
         return $this->redirect($this->dayUrl($user, $day, 'food'));
     }
 
+
+    /** A submitted number ("12,5" or "12.5"), or null if it isn't one. */
+    private static function number(mixed $value): ?float
+    {
+        $value = str_replace(',', '.', trim(is_scalar($value) ? (string) $value : ''));
+
+        return is_numeric($value) ? (float) $value : null;
+    }
 }

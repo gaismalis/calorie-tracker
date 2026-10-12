@@ -115,6 +115,19 @@ class MealItem
     }
 
     /**
+     * Corrects the nutrition values (e.g. from the product label) and recalculates the totals for the
+     * current amount. Call {@see MealEntry::recalculateTotals()} afterwards.
+     */
+    public function changePer100g(Per100g $per100g): void
+    {
+        $this->kcalPer100g = $per100g->kcal;
+        $this->proteinPer100g = $per100g->protein;
+        $this->carbsPer100g = $per100g->carbs;
+        $this->fatPer100g = $per100g->fat;
+        ['kcal' => $this->kcal, 'protein' => $this->protein, 'carbs' => $this->carbs, 'fat' => $this->fat] = $per100g->forGrams($this->grams);
+    }
+
+    /**
      * Changes the amount and scales kcal and macros proportionally (same food, different portion).
      * Call {@see MealEntry::recalculateTotals()} afterwards.
      */

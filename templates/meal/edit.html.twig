@@ -29,7 +29,7 @@
         <p class="slider-value muted"><span data-portion-slider-target="percent">100</span>% of {{ isNew ? 'our estimate' : 'what you logged' }}</p>
 
         <details class="review-details"{% if errors is not empty %} open{% endif %}>
-            <summary>Details: amounts and time</summary>
+            <summary>Details: amounts, nutrition and time</summary>
             <div class="eaten-at">
                 <label>Eaten on
                     <input type="date" name="eaten_date" required max="{{ 'now'|date('Y-m-d', app.user.timezone) }}"
@@ -41,32 +41,52 @@
                 </label>
                 {% if errors.eatenAt is defined %}<ul><li>{{ errors.eatenAt }}</li></ul>{% endif %}
             </div>
+            {# One <tbody> per item: its amounts row, then its values per 100 g (editable, e.g. from the label). #}
             <table class="adjust">
                 <thead><tr><th>Item</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr></thead>
-                <tbody>
                 {% for item in entry.items %}
-                    <tr data-portion-slider-target="row" data-base="{{ item.grams }}"
-                        data-kcal="{{ item.kcal }}" data-protein="{{ item.protein }}" data-carbs="{{ item.carbs }}" data-fat="{{ item.fat }}">
-                        <td>
-                            {{ item.name }}
-                            {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
-                            {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
-                        </td>
-                        <td>
-                            <input type="number" name="grams[{{ item.id }}]" value="{{ app.request.request.all('grams')[item.id] ?? item.grams|round(1) }}"
-                                   min="0" max="5000" step="any" inputmode="decimal" aria-label="Grams of {{ item.name }}"
-                                   data-action="input->portion-slider#edit">
-                        </td>
-                        <td data-field="kcal">{{ item.kcal|round }}</td>
-                        <td data-field="protein">{{ item.protein|round(1) }}</td>
-                        <td data-field="carbs">{{ item.carbs|round(1) }}</td>
-                        <td data-field="fat">{{ item.fat|round(1) }}</td>
-                    </tr>
-                    {{ m.per100g_row(item, 6) }}
+                    {% set per = item.per100g %}
+                    {% set sent = app.request.request.all('per100g')[item.id] ?? {} %}
+                    <tbody data-portion-slider-target="row" data-base="{{ item.grams }}"
+                           data-kcal="{{ item.kcal }}" data-protein="{{ item.protein }}" data-carbs="{{ item.carbs }}" data-fat="{{ item.fat }}">
+                        <tr>
+                            <td>
+                                {{ item.name }}
+                                {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
+                                {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
+                            </td>
+                            <td>
+                                <input type="number" name="grams[{{ item.id }}]" value="{{ app.request.request.all('grams')[item.id] ?? item.grams|round(1) }}"
+                                       min="0" max="5000" step="any" inputmode="decimal" aria-label="Grams of {{ item.name }}"
+                                       data-amount data-action="input->portion-slider#edit">
+                            </td>
+                            <td data-field="kcal">{{ item.kcal|round }}</td>
+                            <td data-field="protein">{{ item.protein|round(1) }}</td>
+                            <td data-field="carbs">{{ item.carbs|round(1) }}</td>
+                            <td data-field="fat">{{ item.fat|round(1) }}</td>
+                        </tr>
+                        {% if per %}
+                            <tr class="per100g-row">
+                                <td colspan="6">
+                                    <div class="per100g-edit" role="group" aria-label="Values per 100 g of {{ item.name }}">
+                                        <span class="per100g-title">per 100 g</span>
+                                        {% for field, label in {kcal: 'kcal', protein: 'P', carbs: 'C', fat: 'F'} %}
+                                            <label>
+                                                <span>{{ label }}</span>
+                                                <input type="number" name="per100g[{{ item.id }}][{{ field }}]" value="{{ sent[field] ?? attribute(per, field)|round(1) }}"
+                                                       min="0" max="{{ field == 'kcal' ? 900 : 100 }}" step="any" inputmode="decimal"
+                                                       aria-label="{{ {kcal: 'kcal', protein: 'Protein (g)', carbs: 'Carbs (g)', fat: 'Fat (g)'}[field] }} per 100 g of {{ item.name }}"
+                                                       data-per100="{{ field }}" data-action="input->portion-slider#edit">
+                                            </label>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
                 {% endfor %}
-                </tbody>
             </table>
-            <p class="muted small">Set an item to 0 to remove it.</p>
+            <p class="muted small">Set an item to 0 g to remove it. Values per 100 g can be corrected from the label.</p>
         </details>
 
         <input type="hidden" name="_token" value="{{ csrf_token('meal_edit_' ~ entry.id) }}">
