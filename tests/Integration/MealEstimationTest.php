@@ -7,6 +7,8 @@ use App\Entity\User;
 use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
 use App\Estimation\EstimationStatus;
+use App\Ai\Photo;
+use App\Entity\PendingMealPhoto;
 use App\Message\EstimateMeal;
 use App\MessageHandler\EstimateMealHandler;
 use App\Nutrition\EstimatedItem;
@@ -92,6 +94,52 @@ class MealEstimationTest extends KernelTestCase
         self::assertSame(4, $entry->getEstimationAttempts(), '1 quick try + 3 retries');
         self::assertSame('HTTP 503', $entry->getLastEstimationError());
         self::assertSame([5.0, null, null, null], $this->estimator()->timeLimits, 'background attempts have no 5 s limit');
+    }
+
+    public function testPhotoIsKeptForRetriesAndDeletedOnceEstimated(): void
+    {
+        $photo = new Photo('jpeg bytes', 'image/jpeg');
+        $this->estimator()->willFail();
+        [$entry, $outcome] = $this->estimation()->logMeal($this->user, 'cooked in butter', photo: $photo);
+
+        self::assertSame(EstimationOutcome::Retrying, $outcome);
+        self::assertTrue($entry->isFromPhoto());
+        self::assertSame('cooked in butter', $this->estimator()->received[0]);
+        self::assertEquals($photo, $this->estimator()->photos[0]);
+        self::assertSame(1, $this->em()->getRepository(PendingMealPhoto::class)->count([]), 'kept for the background retry');
+
+        $this->em()->clear();
+        $this->estimator()->willReturn(self::apple());
+        self::assertSame(EstimationOutcome::Estimated, $this->estimation()->runScheduledAttempt($entry->getId()));
+
+        self::assertEquals($photo, $this->estimator()->photos[1], 'the retry sends the same photo, read back from the database');
+        $this->em()->clear();
+        self::assertSame(0, $this->em()->getRepository(PendingMealPhoto::class)->count([]), 'not kept once estimated');
+        self::assertTrue($this->reload($entry)->isFromPhoto(), 'the meal remembers it came from a photo');
+    }
+
+    public function testPhotoWithoutFoodLeavesNothingBehind(): void
+    {
+        $this->estimator()->willReturn(new MealEstimate([], 'test'));
+
+        [, $outcome] = $this->estimation()->logMeal($this->user, '', photo: new Photo('cat picture', 'image/png'));
+
+        self::assertSame(EstimationOutcome::NoFood, $outcome);
+        $this->em()->clear();
+        self::assertSame(0, $this->em()->getRepository(MealEntry::class)->count([]));
+        self::assertSame(0, $this->em()->getRepository(PendingMealPhoto::class)->count([]));
+    }
+
+    public function testDeletingAMealDeletesItsPhoto(): void
+    {
+        $this->estimator()->willFail();
+        [$entry] = $this->estimation()->logMeal($this->user, '', photo: new Photo('jpeg bytes', 'image/jpeg'));
+
+        $this->em()->remove($entry);
+        $this->em()->flush();
+        $this->em()->clear();
+
+        self::assertSame(0, $this->em()->getRepository(PendingMealPhoto::class)->count([]));
     }
 
     public function testBackgroundRetrySucceeds(): void

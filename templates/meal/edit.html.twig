@@ -8,7 +8,7 @@
 <turbo-frame id="entry-panel">
     <form method="post" action="{{ path('app_meal_edit', {id: entry.id}) }}" class="review" data-controller="portion-slider"
           {% if isNew %}data-reload-on-close{% endif %}>
-        <p class="raw">“{{ entry.rawText }}”</p>
+        <p class="raw">{{ m.meal_text(entry) }}</p>
         <h2 id="entry-title" class="review-headline">
             {{ isNew ? "We think it's about" : 'About' }}
             <strong><span data-portion-slider-target="total">{{ entry.kcal|round }}</span> kcal</strong>

@@ -6,10 +6,12 @@ use App\Entity\MealEntry;
 use App\Entity\User;
 use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
+use App\Ai\Photo;
 use App\Nutrition\FoodCategory;
 use App\Nutrition\Per100g;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -43,8 +45,12 @@ class MealController extends AbstractController
         $formDay = $this->parseLocalDate($user, $request->request->getString('date')) ?? $user->today();
 
         $description = trim($request->request->getString('description'));
-        if ('' === $description) {
-            return $this->flashAndGoToDay($user, $formDay, 'error', 'Tell me what you ate first.');
+        $photo = $this->uploadedPhoto($request);
+        if (is_string($photo)) {
+            return $this->flashAndGoToDay($user, $formDay, 'error', $photo);
+        }
+        if ('' === $description && null === $photo) {
+            return $this->flashAndGoToDay($user, $formDay, 'error', 'Tell me what you ate, or add a photo.');
         }
         if (mb_strlen($description) > self::MAX_DESCRIPTION_LENGTH) {
             return $this->flashAndGoToDay($user, $formDay, 'error', sprintf('Please keep it under %d characters.', self::MAX_DESCRIPTION_LENGTH));
@@ -55,12 +61,14 @@ class MealController extends AbstractController
             return $this->flashAndGoToDay($user, $formDay, 'error', $eatenAt);
         }
 
-        [$entry, $outcome] = $estimation->logMeal($user, $description, $eatenAt);
+        [$entry, $outcome] = $estimation->logMeal($user, $description, $eatenAt, $photo);
         $back = $eatenAt ?? $user->today();
 
         return match ($outcome) {
             EstimationOutcome::Estimated => $this->redirectToRoute('app_meal_edit', ['id' => $entry->getId(), 'new' => 1]),
-            EstimationOutcome::NoFood => $this->flashAndGoToDay($user, $back, 'error', "I couldn't find any food in that. Try e.g. \"2 eggs and a slice of toast\"."),
+            EstimationOutcome::NoFood => $this->flashAndGoToDay($user, $back, 'error', null !== $photo
+                ? "I couldn't find any food in that photo. Try another one, or describe the meal."
+                : "I couldn't find any food in that. Try e.g. \"2 eggs and a slice of toast\"."),
             EstimationOutcome::Retrying => $this->flashAndGoToDay($user, $back, 'info', "Saved. The AI is slow right now, so we'll estimate it in the background. The numbers will appear here shortly."),
             EstimationOutcome::Failed => $this->flashAndGoToDay($user, $back, 'error', 'Saved, but we could not estimate it. You can retry later.'),
         };
@@ -205,6 +213,32 @@ class MealController extends AbstractController
         return $this->redirect($this->dayUrl($user, $day, 'food'));
     }
 
+
+    /**
+     * The meal photo from the form: null without one, or an error message. Not stored as a file; only its
+     * bytes go along with the meal until it's estimated.
+     */
+    private function uploadedPhoto(Request $request): Photo|string|null
+    {
+        $file = $request->files->get('photo');
+        if (!$file instanceof UploadedFile) {
+            return null;
+        }
+        if (!$file->isValid()) {
+            return \in_array($file->getError(), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
+                ? 'That photo is too big. Try a smaller one.'
+                : "The photo didn't upload. Please try again.";
+        }
+        if ($file->getSize() > Photo::MAX_BYTES) {
+            return 'That photo is too big. Try a smaller one.';
+        }
+        $type = $file->getMimeType();
+        if (!\in_array($type, Photo::MIME_TYPES, true)) {
+            return 'Please use a JPEG, PNG, WebP or HEIC photo.';
+        }
+
+        return new Photo(file_get_contents($file->getPathname()), $type);
+    }
 
     /** A submitted number ("12,5" or "12.5"), or null if it isn't one. */
     private static function number(mixed $value): ?float

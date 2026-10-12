@@ -2,7 +2,9 @@
 
 namespace App\Meal;
 
+use App\Ai\Photo;
 use App\Entity\MealEntry;
+use App\Entity\PendingMealPhoto;
 use App\Entity\User;
 use App\Estimation\Estimable;
 use App\Estimation\EstimationOutcome;
@@ -10,6 +12,7 @@ use App\Estimation\EstimationWorkflow;
 use App\Message\EstimateMeal;
 use App\Nutrition\NutritionEstimator;
 use App\Repository\MealEntryRepository;
+use App\Repository\PendingMealPhotoRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -25,6 +28,7 @@ final class MealEstimation extends EstimationWorkflow
     public function __construct(
         private readonly NutritionEstimator $estimator,
         private readonly MealEntryRepository $meals,
+        private readonly PendingMealPhotoRepository $photos,
         EntityManagerInterface $entityManager,
         MessageBusInterface $bus,
         ClockInterface $clock,
@@ -35,20 +39,29 @@ final class MealEstimation extends EstimationWorkflow
 
     /**
      * Saves a new meal (eaten now unless $eatenAt is given) and tries to estimate it right away.
-     * A meal without any food is not kept.
+     * A meal without any food is not kept. A photo is kept only until the meal is estimated.
      *
      * @return array{MealEntry, EstimationOutcome}
      */
-    public function logMeal(User $user, string $description, ?\DateTimeImmutable $eatenAt = null): array
+    public function logMeal(User $user, string $description, ?\DateTimeImmutable $eatenAt = null, ?Photo $photo = null): array
     {
         $entry = new MealEntry($user, $description, $eatenAt ?? $this->clock->now());
+        if (null !== $photo) {
+            $entry->markFromPhoto();
+            $this->entityManager->persist(new PendingMealPhoto($entry, $photo));
+        }
 
         return [$entry, $this->saveAndEstimate($entry)];
     }
 
     protected function estimateAndApply(Estimable $entry, ?float $timeLimit, \DateTimeImmutable $now): bool
     {
-        $estimate = $this->estimator->estimate($entry->getRawText(), $timeLimit);
+        $pending = $entry->isFromPhoto() ? $this->photos->findForEntry($entry) : null;
+        $estimate = $this->estimator->estimate($entry->getRawText(), $timeLimit, $pending?->getPhoto());
+        if (null !== $pending) {
+            // Estimated (or nothing to estimate): the photo isn't needed any more.
+            $this->entityManager->remove($pending);
+        }
         if ([] === $estimate->items) {
             return false;
         }

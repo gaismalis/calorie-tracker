@@ -19,7 +19,7 @@
                 <article class="entry entry-{{ entry.status.value }}">
                     <header>
                         <span class="time">{{ entry.eatenAt|date('H:i', app.user.timezone) }}</span>
-                        <span class="raw">“{{ entry.rawText }}”</span>
+                        <span class="raw">{{ m.meal_text(entry) }}</span>
                         {% if entry.estimatedBy == 'random' %}<span class="badge" title="Numbers from the random fake provider">fake</span>{% endif %}
                         {% if entry.pending %}
                             <span class="status">⏳ Estimating…</span>

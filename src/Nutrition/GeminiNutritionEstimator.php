@@ -4,12 +4,14 @@ namespace App\Nutrition;
 
 use App\Ai\AiEstimationException;
 use App\Ai\GeminiClient;
+use App\Ai\Photo;
 
 final class GeminiNutritionEstimator implements NutritionEstimator
 {
     private const INSTRUCTIONS = <<<'TXT'
         You are a nutrition estimator for a calorie tracking app. The user describes, in their own words and
-        possibly any language, what they ate. Split it into individual food items and give for each item:
+        possibly any language, what they ate, and/or sends a photo of it. Split it into individual food items and
+        give for each item:
         its weight in grams, and its kcal, protein, carbs and fat (grams) PER 100 g.
 
         Rules:
@@ -28,7 +30,12 @@ final class GeminiNutritionEstimator implements NutritionEstimator
           alcohol-free beer is not alcohol); "snack" for sweets, desserts and snack foods (chocolate, candy,
           cookies, cake, ice cream, tiramisu, chips); "food" for everything else, including meals, fast food,
           bread, fruit and non-alcoholic drinks.
-        - If the text contains no food or drink at all, return an empty items list.
+        - With a photo: identify every food and drink in it and estimate each portion from the photo, using the
+          plate, bowl, cutlery, glass or packaging for scale. Include the cooking oil, butter, dressings and
+          sauces such a dish typically has even when they aren't visible, and say so in "assumption". If there is
+          also text, it adds details the photo can't show and wins over what the photo suggests (amounts,
+          ingredients, how it was cooked). If the photo shows a nutrition label, use its values per 100 g.
+        - If neither the text nor the photo contains any food or drink, return an empty items list.
         TXT;
 
     private const RESPONSE_SCHEMA = [
@@ -59,15 +66,17 @@ final class GeminiNutritionEstimator implements NutritionEstimator
     {
     }
 
-    public function estimate(string $mealDescription, ?float $timeLimit = null): MealEstimate
+    public function estimate(string $mealDescription, ?float $timeLimit = null, ?Photo $photo = null): MealEstimate
     {
+        $text = trim($mealDescription);
         try {
             $result = $this->gemini->generateJson(
                 self::INSTRUCTIONS,
-                $mealDescription,
+                '' === $text ? '(No description: estimate the meal in the photo.)' : $text,
                 self::RESPONSE_SCHEMA,
                 fn (array $data) => is_array($data['items'] ?? null),
                 $timeLimit,
+                null === $photo ? [] : [$photo],
             );
         } catch (AiEstimationException $e) {
             throw new NutritionEstimationException($e->getMessage(), previous: $e);

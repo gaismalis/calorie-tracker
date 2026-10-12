@@ -3,6 +3,7 @@
 namespace App\Tests\Unit\Nutrition;
 
 use App\Ai\GeminiClient;
+use App\Ai\Photo;
 use App\Nutrition\FoodCategory;
 use App\Nutrition\GeminiNutritionEstimator;
 use App\Nutrition\NutritionEstimationException;
@@ -79,6 +80,39 @@ class GeminiNutritionEstimatorTest extends TestCase
         self::assertCount(1, $estimate->items);
         self::assertSame(0.0, $estimate->items[0]->kcal);
         self::assertSame(0.0, $estimate->items[0]->protein);
+    }
+
+    public function testPhotoIsSentAsAnImageBeforeTheText(): void
+    {
+        $response = self::geminiReply(['items' => []]);
+
+        $this->estimator([$response], 'gemini-3.5-flash-lite')->estimate('cooked in butter', photo: new Photo('jpeg bytes', 'image/jpeg'));
+
+        $parts = json_decode($response->getRequestOptions()['body'], true)['contents'][0]['parts'];
+        self::assertSame(['inlineData' => ['mimeType' => 'image/jpeg', 'data' => base64_encode('jpeg bytes')]], $parts[0]);
+        self::assertSame(['text' => 'cooked in butter'], $parts[1]);
+        $instructions = json_decode($response->getRequestOptions()['body'], true)['systemInstruction']['parts'][0]['text'];
+        self::assertStringContainsString('Include the cooking oil, butter, dressings and', $instructions);
+    }
+
+    public function testPhotoWithoutTextAsksToEstimateFromThePhoto(): void
+    {
+        $response = self::geminiReply(['items' => []]);
+
+        $this->estimator([$response], 'gemini-3.5-flash-lite')->estimate('', photo: new Photo('png bytes', 'image/png'));
+
+        $parts = json_decode($response->getRequestOptions()['body'], true)['contents'][0]['parts'];
+        self::assertCount(2, $parts);
+        self::assertSame('(No description: estimate the meal in the photo.)', $parts[1]['text']);
+    }
+
+    public function testWithoutPhotoOnlyTextIsSent(): void
+    {
+        $response = self::geminiReply(['items' => []]);
+
+        $this->estimator([$response], 'gemini-3.5-flash-lite')->estimate('an apple');
+
+        self::assertSame([['text' => 'an apple']], json_decode($response->getRequestOptions()['body'], true)['contents'][0]['parts']);
     }
 
     public function testFailsWithoutApiKey(): void

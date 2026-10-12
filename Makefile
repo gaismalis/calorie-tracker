@@ -21,12 +21,12 @@ start: db migrate ## Start Postgres, migrations, the app (http://127.0.0.1:8000,
 	@echo "App: http://127.0.0.1:$(PORT)  + background worker  (Ctrl+C stops both)"
 	@trap 'kill 0' INT TERM EXIT; \
 		$(CONSOLE) messenger:consume async --quiet & \
-		php -S 127.0.0.1:$(PORT) -t public
+		php -d upload_max_filesize=12M -d post_max_size=14M -S 127.0.0.1:$(PORT) -t public
 
 server: ## Run only the PHP dev server (Ctrl+C to stop)
 	@$(MAKE) --no-print-directory provider
 	@echo "App: http://127.0.0.1:$(PORT)  (Ctrl+C to stop)"
-	php -S 127.0.0.1:$(PORT) -t public
+	php -d upload_max_filesize=12M -d post_max_size=14M -S 127.0.0.1:$(PORT) -t public
 
 worker: ## Run only the background worker that retries meal estimates (-vv shows what it does)
 	$(CONSOLE) messenger:consume async -vv

@@ -16,3 +16,6 @@
 
 {# A number with its sign: "+250", "−0.23" (real minus sign), "0". #}
 {% macro signed(value, decimals) %}{{ (value < 0 ? '−' : (value > 0 ? '+' : '')) ~ value|abs|number_format(decimals, '.', ' ') }}{% endmacro %}
+
+{# How a meal was described: "“2 eggs…”", "📷 Photo", or "📷 “cooked in butter”" for a photo with a note. #}
+{% macro meal_text(entry) %}{% if entry.fromPhoto %}<span class="photo-mark" title="Logged with a photo">📷</span>{% if entry.rawText is empty %} Photo{% endif %}{% endif %}{% if entry.rawText is not empty %}{{ entry.fromPhoto ? ' ' }}“{{ entry.rawText }}”{% endif %}{% endmacro %}

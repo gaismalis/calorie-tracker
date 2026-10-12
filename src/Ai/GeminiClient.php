@@ -50,10 +50,11 @@ final class GeminiClient
      * @param array<mixed>                $schema    Gemini responseSchema the answer must follow
      * @param callable(array<mixed>): bool $isUsable  false makes the client try the next model
      * @param float|null                  $timeLimit seconds for the whole call including retries; null = no limit
+     * @param list<Photo>                 $photos    sent before the text (e.g. a meal photo)
      *
      * @throws AiEstimationException
      */
-    public function generateJson(string $instructions, string $text, array $schema, callable $isUsable, ?float $timeLimit = null): GeminiResult
+    public function generateJson(string $instructions, string $text, array $schema, callable $isUsable, ?float $timeLimit = null, array $photos = []): GeminiResult
     {
         if ('' === $this->apiKey) {
             throw new AiEstimationException('GEMINI_API_KEY is not set. Add it to .env.local.');
@@ -72,7 +73,7 @@ final class GeminiClient
                 }
 
                 try {
-                    return $this->call($model, $instructions, $text, $schema, $isUsable, $remaining);
+                    return $this->call($model, $instructions, $text, $schema, $isUsable, $remaining, $photos);
                 } catch (GeminiAttemptFailed $e) {
                     $failures[] = $model.': '.$e->getMessage();
                     if (!$e->retrySameModel || $attempt === self::ATTEMPTS_PER_MODEL) {
@@ -94,14 +95,17 @@ final class GeminiClient
      * @throws GeminiAttemptFailed   when retrying or another model may help
      * @throws AiEstimationException when nothing will help (bad key, invalid request)
      */
-    private function call(string $model, string $instructions, string $text, array $schema, callable $isUsable, ?float $remaining): GeminiResult
+    private function call(string $model, string $instructions, string $text, array $schema, callable $isUsable, ?float $remaining, array $photos = []): GeminiResult
     {
         try {
             $response = $this->httpClient->request('POST', sprintf(self::ENDPOINT, rawurlencode($model)), [
                 'headers' => ['x-goog-api-key' => $this->apiKey],
                 'json' => [
                     'systemInstruction' => ['parts' => [['text' => $instructions]]],
-                    'contents' => [['role' => 'user', 'parts' => [['text' => $text]]]],
+                    'contents' => [['role' => 'user', 'parts' => [
+                        ...array_map(fn (Photo $photo) => ['inlineData' => ['mimeType' => $photo->mimeType, 'data' => base64_encode($photo->bytes)]], $photos),
+                        ['text' => $text],
+                    ]]],
                     // No temperature/topP/topK or thinkingBudget: newer models reject them (400); defaults are used.
                     'generationConfig' => [
                         'responseMimeType' => 'application/json',

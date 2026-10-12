@@ -32,6 +32,10 @@ class MealEntry implements Estimable
     #[ORM\Column(type: 'text')]
     private string $rawText;
 
+    /** Logged with a photo (the photo itself is only kept until it's estimated, see PendingMealPhoto). */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $fromPhoto = false;
+
     #[ORM\Column]
     private \DateTimeImmutable $eatenAt;
 
@@ -109,6 +113,16 @@ class MealEntry implements Estimable
     public function getRawText(): string
     {
         return $this->rawText;
+    }
+
+    public function isFromPhoto(): bool
+    {
+        return $this->fromPhoto;
+    }
+
+    public function markFromPhoto(): void
+    {
+        $this->fromPhoto = true;
     }
 
     public function getEatenAt(): \DateTimeImmutable

@@ -18,6 +18,7 @@ use App\Tests\Support\FakeNutritionEstimator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 class MealLoggingTest extends WebTestCase
@@ -31,6 +32,63 @@ class MealLoggingTest extends WebTestCase
         $this->client->disableReboot(); // keep the same FakeNutritionEstimator instance across requests
         $this->user = $this->createUser('eater@example.com');
         $this->client->loginUser($this->user);
+    }
+
+    public function testAMealCanBeLoggedFromAPhotoWithOptionalDetails(): void
+    {
+        $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Pasta carbonara', 350, 620, 25, 70, 26, 'cream sauce and cooking fat included')], 'gemini:test'));
+
+        $crawler = $this->client->request('GET', '/meals/new');
+        self::assertSame('multipart/form-data', $crawler->filter('form.meal-form')->attr('enctype'));
+        self::assertSame('image/*', $crawler->filter('input[type=file][name=photo]')->attr('accept'));
+        $form = $crawler->selectButton('Log meal')->form();
+        $form['description'] = 'large plate';
+        $form['photo']->upload($this->photoFile());
+        $this->client->submit($form);
+
+        $entry = $this->em()->getRepository(MealEntry::class)->findOneBy(['user' => $this->user]);
+        self::assertResponseRedirects('/meals/'.$entry->getId().'/edit?new=1');
+        self::assertSame(['large plate'], $this->estimator()->received);
+        self::assertSame('image/png', $this->estimator()->photos[0]?->mimeType);
+        self::assertSame(file_get_contents($this->photoFile()->getPathname()), $this->estimator()->photos[0]->bytes);
+        self::assertTrue($entry->isFromPhoto());
+
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.review .raw', '📷 “large plate”');
+        self::assertSelectorTextContains('table.adjust', 'Pasta carbonara');
+    }
+
+    public function testAPhotoAloneIsEnough(): void
+    {
+        $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Banana', 120, 107, 1.3, 27, 0.4)], 'gemini:test'));
+
+        $crawler = $this->client->request('GET', '/meals/new');
+        $form = $crawler->selectButton('Log meal')->form();
+        $form['description'] = '';
+        $form['photo']->upload($this->photoFile());
+        $this->client->submit($form);
+
+        self::assertSame([''], $this->estimator()->received);
+        $this->client->request('GET', '/');
+        self::assertSelectorTextContains('#panel-food .raw', '📷 Photo');
+    }
+
+    public function testFilesThatAreNotPhotosAreRejected(): void
+    {
+        $text = sys_get_temp_dir().'/not-a-photo-'.bin2hex(random_bytes(4)).'.txt';
+        file_put_contents($text, 'just text');
+
+        $crawler = $this->client->request('GET', '/meals/new');
+        $form = $crawler->selectButton('Log meal')->form();
+        $form['description'] = 'pasta';
+        $form['photo']->upload(new UploadedFile($text, 'menu.txt', 'text/plain', test: true));
+        $this->client->submit($form);
+        unlink($text);
+
+        self::assertSame([], $this->estimator()->received, 'the AI is not asked');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.flash-error', 'Please use a JPEG, PNG, WebP or HEIC photo.');
+        self::assertSame(0, $this->em()->getRepository(MealEntry::class)->count([]));
     }
 
     public function testLoggingAMealStoresItemsAndShowsTotals(): void
@@ -75,7 +133,7 @@ class MealLoggingTest extends WebTestCase
         $this->client->submitForm('Log meal', ['description' => '   ']);
         $this->client->followRedirect();
 
-        self::assertSelectorTextContains('.flash-error', 'Tell me what you ate first');
+        self::assertSelectorTextContains('.flash-error', 'Tell me what you ate, or add a photo.');
         self::assertSame([], $this->estimator()->received);
     }
 
@@ -631,6 +689,17 @@ class MealLoggingTest extends WebTestCase
         $this->em()->flush();
 
         return $entry;
+    }
+
+    /** A tiny real PNG (2×2 px), made here so the test needs no image files. */
+    private function photoFile(): UploadedFile
+    {
+        $path = sys_get_temp_dir().'/meal-photo-test.png';
+        if (!is_file($path)) {
+            file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg=='));
+        }
+
+        return new UploadedFile($path, 'meal.png', 'image/png', test: true);
     }
 
     private function asyncTransport(): InMemoryTransport
