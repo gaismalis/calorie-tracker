@@ -50,5 +50,9 @@
             {% endfor %}
             {% block body %}{% endblock %}
         </main>
+        {% if app.user %}
+            {# Just for fun: a cat that now and then sits on the screen until tapped away (assets/controllers/cat_controller.js). #}
+            <div class="cat-layer" data-controller="cat" data-cat-min-hours-value="2" data-cat-max-hours-value="6" data-cat-max-taps-value="7"></div>
+        {% endif %}
     </body>
 </html>
