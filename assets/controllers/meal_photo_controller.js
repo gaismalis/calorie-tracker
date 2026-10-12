@@ -1,6 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 
-// "📷 Photo" in the add-meal form: shows a preview, makes the text optional (it becomes "details the photo
+// "📷 Take photo" in the add-meal form (opens the camera on phones): shows a preview, makes the text optional (it becomes "details the photo
 // can't show"), and shrinks the photo in the browser before upload (long side MAX_SIDE px, JPEG), so it
 // uploads quickly on mobile data. If shrinking isn't possible the original is sent; the server checks it.
 const MAX_SIDE = 1600;

@@ -14,8 +14,9 @@
                 placeholder="{{ placeholder }}"></textarea>
             {# The photo is only used to estimate the meal and is deleted once it's estimated. #}
             <div class="meal-photo">
-                <label class="button secondary photo-button"><span aria-hidden="true">📷</span> Photo
-                    <input type="file" name="photo" accept="image/*" hidden data-meal-photo-target="input" data-action="change->meal-photo#choose">
+                {# capture: phones open the camera straight away; computers show a file picker instead. #}
+                <label class="button secondary photo-button"><span aria-hidden="true">📷</span> Take photo
+                    <input type="file" name="photo" accept="image/*" capture="environment" hidden data-meal-photo-target="input" data-action="change->meal-photo#choose">
                 </label>
                 <span class="photo-preview" data-meal-photo-target="preview" hidden>
                     <img alt="The meal photo" data-meal-photo-target="image">

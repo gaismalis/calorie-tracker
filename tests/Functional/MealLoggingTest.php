@@ -41,6 +41,7 @@ class MealLoggingTest extends WebTestCase
         $crawler = $this->client->request('GET', '/meals/new');
         self::assertSame('multipart/form-data', $crawler->filter('form.meal-form')->attr('enctype'));
         self::assertSame('image/*', $crawler->filter('input[type=file][name=photo]')->attr('accept'));
+        self::assertSame('environment', $crawler->filter('input[type=file][name=photo]')->attr('capture'), 'phones open the (rear) camera straight away');
         $form = $crawler->selectButton('Log meal')->form();
         $form['description'] = 'large plate';
         $form['photo']->upload($this->photoFile());
