@@ -7,6 +7,9 @@ namespace App\Chart;
  * mark at what was burned that day (baseline + logged exercise, no goal adjustment). Days where more was
  * eaten than burned are flagged. Days without logged meals have no bar (unknown, not zero); today is
  * marked as still in progress.
+ *
+ * Long ranges use one bar per week instead ($daysPerBar = 7): eaten and burned are then averages per
+ * logged day of that week, so a bar stays comparable with a single day.
  */
 final readonly class EnergyChart
 {
@@ -24,6 +27,8 @@ final readonly class EnergyChart
     private const MARGIN_BOTTOM = 28;
     private const BAR_SHARE = 0.6;
     private const BURNED_MARK_SHARE = 0.9;
+    /** Narrower bar slots than this have no room for "+900" labels (they would touch). */
+    private const MIN_SLOT_FOR_LABELS = 36;
     private const Y_STEPS = [250, 500, 1000, 2000, 5000, 10000];
 
     /**
@@ -33,7 +38,7 @@ final readonly class EnergyChart
      *     x: float, label: string, eaten: float|null, burned: float|null, today: bool,
      *     status: string|null, overBy: float|null, bar: array{x: float, y: float, width: float, height: float}|null,
      *     burnedMark: array{x1: float, x2: float, y: float}|null
-     * }> $days
+     * }> $days one entry per bar (a day, or a week when $daysPerBar is 7)
      */
     private function __construct(
         public array $yTicks,
@@ -46,58 +51,69 @@ final readonly class EnergyChart
         public float $plotTop,
         public float $plotBottom,
         public int $width,
+        public int $daysPerBar,
+        public bool $roomForLabels,
+        /** First date shown ('Y-m-d'). */
+        public string $from,
     ) {
     }
 
     /**
-     * @param array<string, float> $eaten   kcal eaten by date ('Y-m-d'); days without meals absent
-     * @param array<string, float> $burned  kcal burned by date (baseline + exercise); empty when unknown
-     * @param string               $lastDay last date shown ('Y-m-d')
-     * @param string               $today   today's date, marked as "so far"
-     * @param int                  $width   drawing width (WIDTH, or COMPACT_WIDTH for phones)
+     * @param array<string, float> $eaten      kcal eaten by date ('Y-m-d'); days without meals absent
+     * @param array<string, float> $burned     kcal burned by date (baseline + exercise); empty when unknown
+     * @param string               $lastDay    last date shown ('Y-m-d')
+     * @param string               $today      today's date, marked as "so far"
+     * @param int                  $days       number of days shown (a multiple of $daysPerBar)
+     * @param int                  $width      drawing width (WIDTH, or COMPACT_WIDTH for phones)
+     * @param int                  $daysPerBar 1 (a bar per day) or 7 (a bar per week, for long ranges)
      */
-    public static function build(array $eaten, array $burned, string $lastDay, string $today, int $days = 14, int $width = self::WIDTH): self
+    public static function build(array $eaten, array $burned, string $lastDay, string $today, int $days = 14, int $width = self::WIDTH, int $daysPerBar = 1): self
     {
         $last = new \DateTimeImmutable($lastDay);
         $dates = [];
         for ($i = $days - 1; $i >= 0; --$i) {
             $dates[] = $last->modify("-$i days")->format('Y-m-d');
         }
+        $buckets = array_chunk($dates, $daysPerBar);
+        $bars = count($buckets);
 
         $left = self::MARGIN_LEFT;
         $right = $width - self::MARGIN_RIGHT;
         $top = self::MARGIN_TOP;
         $bottom = self::HEIGHT - self::MARGIN_BOTTOM;
-        $slot = ($right - $left) / $days;
+        $slot = ($right - $left) / $bars;
         $x = fn (int $i): float => round($left + $slot * ($i + 0.5), 1);
 
+        // Eaten and burned per bar: a day's values, or a week's averages per logged day.
         $values = [];
-        foreach ($dates as $date) {
-            foreach ([$eaten[$date] ?? null, $burned[$date] ?? null] as $value) {
-                if (null !== $value) {
-                    $values[] = $value;
-                }
-            }
+        $perBar = [];
+        foreach ($buckets as $bucket) {
+            $logged = array_values(array_filter($bucket, fn (string $date) => isset($eaten[$date])));
+            $withBurned = array_values(array_filter([] === $logged ? $bucket : $logged, fn (string $date) => isset($burned[$date])));
+            $e = [] === $logged ? null : array_sum(array_map(fn ($d) => $eaten[$d], $logged)) / count($logged);
+            $b = [] === $withBurned ? null : array_sum(array_map(fn ($d) => $burned[$d], $withBurned)) / count($withBurned);
+            $perBar[] = [$e, $b];
+            array_push($values, ...array_filter([$e, $b], fn ($v) => null !== $v));
         }
         [$max, $step] = self::yDomain($values);
         $y = fn (float $kcal): float => round($bottom - ($bottom - $top) * $kcal / $max, 1);
 
         $chartDays = [];
-        foreach ($dates as $i => $date) {
-            $e = $eaten[$date] ?? null;
-            $b = $burned[$date] ?? null;
+        foreach ($buckets as $i => $bucket) {
+            [$e, $b] = $perBar[$i];
             $status = match (true) {
                 null === $e => null,
                 null === $b => self::STATUS_UNKNOWN,
                 round($e) > round($b) => self::STATUS_OVER,
                 default => self::STATUS_UNDER,
             };
+            $isToday = in_array($today, $bucket, true);
             $chartDays[] = [
                 'x' => $x($i),
-                'label' => (new \DateTimeImmutable($date))->format('D, j M').($date === $today ? ' (so far)' : ''),
+                'label' => self::label($bucket).($isToday ? ' (so far)' : ''),
                 'eaten' => null === $e ? null : round($e),
                 'burned' => null === $b ? null : round($b),
-                'today' => $date === $today,
+                'today' => $isToday,
                 'status' => $status,
                 'overBy' => self::STATUS_OVER === $status ? round($e) - round($b) : null,
                 'bar' => null === $e ? null : [
@@ -119,15 +135,17 @@ final readonly class EnergyChart
             $yTicks[] = ['value' => (int) $value, 'y' => $y($value)];
         }
 
+        // At most ~6 date labels (4 on phones), so they don't touch; anchored on the last bar.
         $xTicks = [];
-        $tickEvery = $width < self::WIDTH ? 4 : 3; // fewer date labels when narrow, so they don't touch
-        for ($i = $days - 1; $i >= 0; $i -= $tickEvery) { // anchored on the last day
-            array_unshift($xTicks, ['label' => (new \DateTimeImmutable($dates[$i]))->format('j M'), 'x' => $x($i)]);
+        $tickEvery = (int) max(1, ceil($bars / ($width < self::WIDTH ? 4 : 6)));
+        for ($i = $bars - 1; $i >= 0; $i -= $tickEvery) {
+            array_unshift($xTicks, ['label' => (new \DateTimeImmutable($buckets[$i][0]))->format('j M'), 'x' => $x($i)]);
         }
 
         $shown = fn (array $byDate) => array_intersect_key($byDate, array_flip($dates));
 
-        return new self($yTicks, $xTicks, $chartDays, [] === $shown($eaten), [] !== $shown($burned), $left, $right, $top, $bottom, $width);
+        return new self($yTicks, $xTicks, $chartDays, [] === $shown($eaten), [] !== $shown($burned), $left, $right, $top, $bottom,
+            $width, $daysPerBar, $slot >= self::MIN_SLOT_FOR_LABELS, $dates[0]);
     }
 
     public function isCompact(): bool
@@ -153,6 +171,22 @@ final readonly class EnergyChart
                 },
             ])),
         ], $this->days);
+    }
+
+    /**
+     * "Mon, 5 Oct" for a day; "5 – 11 Oct" or "29 Sep – 5 Oct" for a week.
+     *
+     * @param list<string> $bucket
+     */
+    private static function label(array $bucket): string
+    {
+        $first = new \DateTimeImmutable($bucket[0]);
+        if (1 === count($bucket)) {
+            return $first->format('D, j M');
+        }
+        $last = new \DateTimeImmutable(end($bucket));
+
+        return ($first->format('M') === $last->format('M') ? $first->format('j') : $first->format('j M')).' – '.$last->format('j M');
     }
 
     /**

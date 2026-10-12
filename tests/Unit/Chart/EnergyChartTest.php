@@ -102,6 +102,42 @@ class EnergyChartTest extends TestCase
         self::assertSame(array_column($wide->yTicks, 'value'), array_column($compact->yTicks, 'value'), 'same scale, only narrower');
     }
 
+    public function testWeeklyBarsAverageTheLoggedDaysOfEachWeek(): void
+    {
+        // 14 days ending Thu 1 Oct → weeks 18–24 Sep and 25 Sep – 1 Oct.
+        $burned = [];
+        for ($i = 13; $i >= 0; --$i) {
+            $burned[(new \DateTimeImmutable('2026-10-01'))->modify("-$i days")->format('Y-m-d')] = 2000.0;
+        }
+        $burned['2026-09-28'] = 2600.0; // workout day
+
+        $chart = EnergyChart::build(
+            ['2026-09-19' => 1800.0, '2026-09-28' => 2600.0, '2026-09-29' => 1800.0],
+            $burned,
+            '2026-10-01',
+            '2026-10-01',
+            14,
+            daysPerBar: 7,
+        );
+
+        self::assertCount(2, $chart->days);
+        self::assertSame(7, $chart->daysPerBar);
+        self::assertSame('18 – 24 Sep', $chart->days[0]['label']);
+        self::assertSame('25 Sep – 1 Oct (so far)', $chart->days[1]['label']);
+        self::assertSame(1800.0, $chart->days[0]['eaten'], 'only the logged day counts, not 7');
+        self::assertSame(2200.0, $chart->days[1]['eaten']);
+        self::assertSame(2300.0, $chart->days[1]['burned'], 'burned averaged over the same logged days');
+        self::assertSame(EnergyChart::STATUS_UNDER, $chart->days[1]['status']);
+        self::assertSame('2026-09-18', $chart->from);
+    }
+
+    public function testManyBarsLeaveNoRoomForOverLabels(): void
+    {
+        self::assertTrue(EnergyChart::build([], [], '2026-10-01', '2026-10-01', 7)->roomForLabels);
+        self::assertTrue(EnergyChart::build([], [], '2026-10-01', '2026-10-01', 7, EnergyChart::COMPACT_WIDTH)->roomForLabels);
+        self::assertFalse(EnergyChart::build([], [], '2026-10-01', '2026-10-01', 30)->roomForLabels);
+    }
+
     /** @return iterable<string, array{float}> */
     public static function extremeDays(): iterable
     {

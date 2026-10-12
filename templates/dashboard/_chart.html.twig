@@ -1,6 +1,24 @@
 {# What was eaten each day (bars) against what was burned that day (dark mark; not the goal-adjusted target). Less = accent green, more = series-2 orange plus a "+N" label, so colour isn't the only cue. #}
-<section class="card">
-    <h2>Last 14 days</h2>
+<section class="card energy">
+{# Week / Month / All reload just this frame (same page with ?chart=…); nothing is stored, so a refresh shows the week again. #}
+<turbo-frame id="energy-chart">
+    {% set first = charts|first %}
+    <div class="chart-header">
+        <h2>Eaten vs burned</h2>
+        <nav class="range" aria-label="Chart period">
+            {% for period in chartPeriods %}
+                <a href="{{ isToday ? path('app_dashboard', {chart: period}) : path('app_day', {date: day|date('Y-m-d', app.user.timezone), chart: period}) }}"
+                   {% if period == chartPeriod %}aria-current="true"{% endif %}>{{ {week: 'Week', month: 'Month', all: 'All'}[period] }}</a>
+            {% endfor %}
+        </nav>
+    </div>
+    <p class="muted chart-period">
+        {%- if chartPeriod == 'all' -%}
+            Since {{ first.from|date('j M Y', false) }}{% if first.daysPerBar == 7 %} · one bar per week, averages per logged day{% endif %}
+        {%- else -%}
+            Last {{ first.days|length }} days
+        {%- endif -%}
+    </p>
     {# Wide and compact (phone) versions; CSS shows the one that fits the screen. #}
     {% for chart in charts %}
         <div class="viz-root energy-chart {{ chart.compact ? 'chart-compact' : 'chart-wide' }}" data-controller="chart-hover" data-chart-hover-days-value="{{ chart.hover|json_encode }}">
@@ -14,7 +32,7 @@
                 {% endif %}
             </ul>
             <svg viewBox="0 0 {{ chart.width }} {{ constant('App\\Chart\\EnergyChart::HEIGHT') }}"
-                 role="img" aria-label="Calories eaten per day for the last 14 days{{ chart.hasBurned ? ', compared with calories burned' }}"
+                 role="img" aria-label="Calories eaten per {{ chart.daysPerBar == 7 ? 'week (average per day)' : 'day' }}{{ chart.hasBurned ? ', compared with calories burned' }}"
                  data-chart-hover-target="svg">
                 <g class="grid">
                     {% for tick in chart.yTicks %}
@@ -28,13 +46,13 @@
                     {% endfor %}
                 </g>
                 {% if chart.empty %}
-                    <text x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" y="{{ (chart.plotTop + chart.plotBottom) / 2 }}" class="empty-label">{% if chart.compact %}<tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="-0.6em">Nothing logged in these 14 days yet.</tspan><tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="1.3em">Tap + to add a meal.</tspan>{% else %}Nothing logged in these 14 days yet. Tap + to add a meal.{% endif %}</text>
+                    <text x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" y="{{ (chart.plotTop + chart.plotBottom) / 2 }}" class="empty-label">{% if chart.compact %}<tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="-0.6em">Nothing logged in this period yet.</tspan><tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="1.3em">Tap + to add a meal.</tspan>{% else %}Nothing logged in this period yet. Tap + to add a meal.{% endif %}</text>
                 {% endif %}
                 <g class="bars">
                     {% for day in chart.days|filter(day => day.bar) %}
                         <rect x="{{ day.bar.x }}" y="{{ day.bar.y }}" width="{{ day.bar.width }}" height="{{ day.bar.height }}" rx="2"
                               class="bar-{{ day.status }}{{ day.today ? ' bar-today' }}"/>
-                        {% if day.overBy and not chart.compact %}
+                        {% if day.overBy and chart.roomForLabels %}
                             <text x="{{ day.x }}" y="{{ day.bar.y - 5 }}" class="over-label">+{{ day.overBy|number_format(0, '.', ' ') }}</text>
                         {% endif %}
                     {% endfor %}
@@ -57,4 +75,5 @@
     {% elseif charts|first.days|filter(day => day.today and day.bar)|length > 0 %}
         <p class="muted chart-note">Today is shown faded until the day is over.</p>
     {% endif %}
+</turbo-frame>
 </section>

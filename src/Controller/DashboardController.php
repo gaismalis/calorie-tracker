@@ -27,7 +27,11 @@ class DashboardController extends AbstractController
 {
     use DayAwareController;
 
-    private const CHART_DAYS = 14;
+    /** Chart periods (?chart=…) and their length in days; "all" starts at the first logged meal. Not stored: a refresh shows the week again. */
+    public const CHART_PERIODS = ['week' => 7, 'month' => 30, 'all' => null];
+    private const DEFAULT_CHART_PERIOD = 'week';
+    /** Longer ranges get a bar per week instead of per day. */
+    private const MAX_DAILY_BARS = 92;
 
     #[Route('/', name: 'app_dashboard', methods: ['GET'])]
     #[Route('/day/{date}', name: 'app_day', requirements: ['date' => '\d{4}-\d{2}-\d{2}'], methods: ['GET'])]
@@ -72,6 +76,7 @@ class DashboardController extends AbstractController
             }
         }
         $needsAttention = array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending() || $e->isFailed());
+        $chartPeriod = array_key_exists($request->query->getString('chart'), self::CHART_PERIODS) ? $request->query->getString('chart') : self::DEFAULT_CHART_PERIOD;
         // Coming back from an action inside the log (delete, retry, adjust): keep it open on that tab.
         $returnToLog = in_array($request->query->get('log'), ['food', 'exercise'], true) ? $request->query->get('log') : null;
 
@@ -87,7 +92,9 @@ class DashboardController extends AbstractController
             'energy' => $energy,
             'burned' => $energy->burnedWith($exerciseKcal),
             'target' => $energy->targetFor($user->getWeeklyGoalKg(), $exerciseKcal),
-            'charts' => $this->charts($user, $mealRepository, $exerciseRepository, $energy, $day, $today),
+            'charts' => $this->charts($user, $mealRepository, $exerciseRepository, $energy, $day, $today, $chartPeriod),
+            'chartPeriod' => $chartPeriod,
+            'chartPeriods' => array_keys(self::CHART_PERIODS),
             'week' => $this->week($user, $mealRepository, $exerciseRepository, $weightRepository, $energy, $day, $day == $today),
             'retryAt' => $retryAt,
             'hasPending' => array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending()),
@@ -97,9 +104,17 @@ class DashboardController extends AbstractController
     }
 
     /** @return list<EnergyChart> the full-width chart and the compact one for phones; CSS shows the one that fits */
-    private function charts(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, EnergyEstimate $energy, \DateTimeImmutable $day, \DateTimeImmutable $today): array
+    private function charts(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, EnergyEstimate $energy, \DateTimeImmutable $day, \DateTimeImmutable $today, string $period): array
     {
-        $first = $day->modify(sprintf('-%d days', self::CHART_DAYS - 1));
+        $days = self::CHART_PERIODS[$period];
+        if (null === $days) { // all: from the first logged meal (at least a week)
+            $firstMeal = $meals->firstMealDay($user);
+            $days = null === $firstMeal || $firstMeal > $day ? 0 : (int) $firstMeal->diff($day)->days + 1;
+            $days = max(self::CHART_PERIODS['week'], $days);
+        }
+        $daysPerBar = $days > self::MAX_DAILY_BARS ? 7 : 1;
+        $days = (int) ceil($days / $daysPerBar) * $daysPerBar; // whole weeks
+        $first = $day->modify(sprintf('-%d days', $days - 1));
         $end = $day->modify('+1 day');
         $eaten = $meals->dailyIntake($user, $first, $end);
         $exercise = $exercises->dailyExercise($user, $first, $end);
@@ -113,7 +128,7 @@ class DashboardController extends AbstractController
         }
 
         return array_map(
-            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), self::CHART_DAYS, $width),
+            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), $days, $width, $daysPerBar),
             [EnergyChart::WIDTH, EnergyChart::COMPACT_WIDTH],
         );
     }

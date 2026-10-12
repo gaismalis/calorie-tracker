@@ -34,7 +34,7 @@ class DashboardTest extends WebTestCase
         $cards = $crawler->filter('main .card')->each(fn ($n) => $n->attr('class'));
         self::assertCount(4, $cards);
         self::assertStringContainsString('overview', $cards[0]);
-        self::assertSame('Last 14 days', $crawler->filter('main .card')->eq(1)->filter('h2')->text());
+        self::assertSame('Eaten vs burned', $crawler->filter('main .card')->eq(1)->filter('h2')->text());
         self::assertStringContainsString('week', $cards[2]);
         self::assertStringContainsString('log', $cards[3]);
     }
@@ -168,7 +168,7 @@ class DashboardTest extends WebTestCase
         self::assertSelectorTextContains('.energy-chart .legend', 'Eaten');
         self::assertSelectorTextContains('.chart-note', '"Burned" appears once');
         $days = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
-        self::assertCount(14, $days);
+        self::assertCount(7, $days, 'a week by default');
         self::assertStringEndsWith('(so far)', end($days)['label']);
     }
 
@@ -182,7 +182,7 @@ class DashboardTest extends WebTestCase
         self::assertSame('0 0 340 220', $crawler->filter('.energy-chart.chart-compact svg[role=img]')->attr('viewbox'));
         self::assertCount(1, $crawler->filter('.energy-chart.chart-compact svg[role=img] rect.bar-unknown'));
         $days = json_decode($crawler->filter('.energy-chart.chart-compact')->attr('data-chart-hover-days-value'), true);
-        self::assertCount(14, $days, 'hover works on the compact chart too');
+        self::assertCount(7, $days, 'hover works on the compact chart too');
     }
 
     public function testChartComparesEachDayWithWhatWasBurned(): void
@@ -202,9 +202,11 @@ class DashboardTest extends WebTestCase
         $wide = $crawler->filter('.energy-chart.chart-wide svg[role=img]');
         self::assertCount(1, $wide->filter('rect.bar-over'));
         self::assertCount(2, $wide->filter('rect.bar-under'), 'pasta day: over the target, but less than burned; and today so far');
-        self::assertCount(14, $wide->filter('.burned-mark'));
+        self::assertCount(7, $wide->filter('.burned-mark'));
         self::assertMatchesRegularExpression('/^\+\d[\d ]*$/', $wide->filter('.over-label')->text());
-        self::assertCount(0, $crawler->filter('.energy-chart.chart-compact .over-label'), 'no room for labels on phones');
+        self::assertCount(1, $crawler->filter('.energy-chart.chart-compact .over-label'), 'a week fits labels on phones too');
+        $month = $this->client->request('GET', '/?chart=month');
+        self::assertCount(0, $month->filter('.energy-chart.chart-compact .over-label'), '30 bars on a phone: no room');
         self::assertSelectorTextContains('.energy-chart .legend', 'Ate less than burned');
         self::assertSelectorTextContains('.chart-note', 'Today is shown faded');
     }
@@ -216,6 +218,63 @@ class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertSelectorTextContains('#panel-food .per100g', 'per 100 g: 200 kcal · P 10 · C 20 · F 6.7');
+    }
+
+    public function testChartPeriodButtonsSwitchOnlyTheChartFrame(): void
+    {
+        $crawler = $this->client->request('GET', '/');
+
+        $links = $crawler->filter('turbo-frame#energy-chart nav.range a');
+        self::assertSame(['Week', 'Month', 'All'], $links->each(fn ($a) => $a->text()));
+        self::assertSame(['/?chart=week', '/?chart=month', '/?chart=all'], $links->each(fn ($a) => $a->attr('href')));
+        self::assertSame('Week', $crawler->filter('nav.range a[aria-current]')->text());
+        self::assertSelectorTextContains('.chart-period', 'Last 7 days');
+    }
+
+    public function testMonthShowsThirtyDays(): void
+    {
+        $crawler = $this->client->request('GET', '/?chart=month');
+
+        self::assertSame('Month', $crawler->filter('nav.range a[aria-current]')->text());
+        self::assertCount(30, json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true));
+        self::assertSelectorTextContains('.chart-period', 'Last 30 days');
+    }
+
+    public function testAllStartsAtTheFirstMealAndUsesWeeksForLongHistories(): void
+    {
+        $today = $this->user->today();
+        $this->storeMeal('first', $today->modify('-20 days')->setTime(12, 0));
+
+        $crawler = $this->client->request('GET', '/?chart=all');
+        self::assertCount(21, json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true), 'a bar per day');
+        self::assertSelectorTextContains('.chart-period', 'Since '.$today->modify('-20 days')->format('j M Y'));
+
+        $this->storeMeal('long ago', $today->modify('-200 days')->setTime(12, 0));
+        $crawler = $this->client->request('GET', '/?chart=all');
+        $bars = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
+        self::assertCount(29, $bars, '201 days → 29 weekly bars');
+        self::assertStringContainsString(' – ', end($bars)['label']);
+        self::assertSelectorTextContains('.chart-period', 'one bar per week');
+    }
+
+    public function testAllWithoutMealsAndUnknownPeriodsShowAWeek(): void
+    {
+        $crawler = $this->client->request('GET', '/?chart=all');
+        self::assertCount(7, json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true));
+
+        $crawler = $this->client->request('GET', '/?chart=decade');
+        self::assertSame('Week', $crawler->filter('nav.range a[aria-current]')->text());
+    }
+
+    public function testPeriodButtonsOnAPastDayStayOnThatDay(): void
+    {
+        $day = $this->user->today()->modify('-3 days')->format('Y-m-d');
+
+        $crawler = $this->client->request('GET', '/day/'.$day.'?chart=month');
+
+        self::assertSame('/day/'.$day.'?chart=week', $crawler->filter('nav.range a')->first()->attr('href'));
+        $bars = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
+        self::assertSame((new \DateTimeImmutable($day))->format('D, j M'), end($bars)['label']);
     }
 
     public function testWeeklySummaryCoversTheSevenDaysBeforeToday(): void

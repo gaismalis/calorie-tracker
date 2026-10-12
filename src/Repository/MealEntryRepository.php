@@ -76,4 +76,19 @@ class MealEntryRepository extends ServiceEntityRepository
 
         return $byDay;
     }
+
+    /** The user's local date of their first estimated meal, or null without any. */
+    public function firstMealDay(User $user): ?\DateTimeImmutable
+    {
+        $first = $this->createQueryBuilder('m')
+            ->select('MIN(m.eatenAt)')
+            ->where('m.user = :user')
+            ->andWhere('m.status = :estimated')
+            ->setParameter('user', $user)
+            ->setParameter('estimated', EstimationStatus::Estimated)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return null === $first ? null : (new \DateTimeImmutable($first, new \DateTimeZone('UTC')))->setTimezone($user->getDateTimeZone())->setTime(0, 0);
+    }
 }

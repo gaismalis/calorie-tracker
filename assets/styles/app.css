@@ -307,3 +307,5 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .week-status-on_track { color: var(--accent); font-weight: 600; }
 .week-facts { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
 .week-facts strong { color: var(--text); font-weight: 600; }
+.energy .chart-header h2 { margin-bottom: 0.15rem; }
+.energy .chart-period { margin: 0 0 0.5rem; font-size: 0.85rem; }

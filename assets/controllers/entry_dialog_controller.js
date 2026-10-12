@@ -41,8 +41,8 @@ export default class extends Controller {
         if (!this.dialogTarget.open) this.dialogTarget.showModal();
     }
 
-    loaded() {
-        if (!this.dialogTarget.open) return;
+    loaded(event) {
+        if (event.target !== this.frameTarget || !this.dialogTarget.open) return; // ignore other frames (the chart)
         this.dialogTarget.querySelector('textarea, input[type=range]')?.focus();
         // Show "Estimating…" on the submit button while the AI works (up to ~5 s).
         this.frameTarget.querySelectorAll('form').forEach((form) => form.addEventListener('submit', () => {
