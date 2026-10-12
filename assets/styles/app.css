@@ -288,3 +288,5 @@ a.button:hover { filter: brightness(0.95); }
 .activity-choice input { margin-top: 0.2rem; }
 .activity-choice > span { display: flex; flex-direction: column; gap: 0.1rem; }
 .activity-choice .muted { font-size: 0.85rem; }
+.per100g { color: var(--muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.entry tr.per100g-row td, table.adjust tr.per100g-row td { text-align: left; padding-top: 0; border-top: 0; }

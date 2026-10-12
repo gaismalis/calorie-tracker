@@ -208,6 +208,15 @@ class DashboardTest extends WebTestCase
         self::assertSelectorTextContains('.chart-note', 'Today is shown faded');
     }
 
+    public function testLogShowsValuesPer100gForEachItem(): void
+    {
+        $this->storeMeal('lunch'); // 300 g, 600 kcal, P 30, C 60, F 20
+
+        $this->client->request('GET', '/');
+
+        self::assertSelectorTextContains('#panel-food .per100g', 'per 100 g: 200 kcal · P 10 · C 20 · F 6.7');
+    }
+
     public function testEmailInTheHeaderCanBeHiddenOnPhones(): void
     {
         $this->client->request('GET', '/');

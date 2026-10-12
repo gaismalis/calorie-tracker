@@ -62,6 +62,15 @@ class RandomNutritionEstimatorTest extends TestCase
         }
     }
 
+    public function testTotalsFollowFromPer100gValues(): void
+    {
+        $item = (new RandomNutritionEstimator())->estimate('250 g rice')->items[0];
+
+        self::assertNotNull($item->per100g);
+        self::assertEqualsWithDelta($item->per100g->kcal * 2.5, $item->kcal, 0.06);
+        self::assertEqualsWithDelta($item->per100g->protein * 2.5, $item->protein, 0.06);
+    }
+
     public function testSameSeedGivesSameNumbers(): void
     {
         $a = (new RandomNutritionEstimator(new Randomizer(new Mt19937(42))))->estimate('rice, chicken');

@@ -7,3 +7,9 @@
         <span class="adaptive-progress">Your logged meals (~{{ adaptive.averageIntake|round }} kcal/day) and weight don't add up yet, so we're not using them. Make sure you log everything you eat.</span>
     {%- endif -%}
 {% endmacro %}
+
+{# Full-width row under a meal item: "per 100 g: 155 kcal · P 8 · C 48 · F 3" (its own row so it fits on one line on phones). #}
+{% macro per100g_row(item, columns) %}
+    {% set per = item.per100g %}
+    {% if per %}<tr class="per100g-row"><td colspan="{{ columns }}"><span class="per100g">per 100 g: {{ per.kcal|round }} kcal · P {{ per.protein|round(1) }} · C {{ per.carbs|round(1) }} · F {{ per.fat|round(1) }}</span></td></tr>{% endif %}
+{% endmacro %}

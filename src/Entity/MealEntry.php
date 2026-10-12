@@ -72,7 +72,7 @@ class MealEntry implements Estimable
         $this->items->clear();
         foreach ($estimate->items as $item) {
             $this->items->add(new MealItem(
-                $this, $item->name, $item->grams, $item->kcal, $item->protein, $item->carbs, $item->fat, $item->assumption,
+                $this, $item->name, $item->grams, $item->kcal, $item->protein, $item->carbs, $item->fat, $item->assumption, $item->per100g,
             ));
         }
         $this->recalculateTotals();

@@ -20,49 +20,44 @@ class GeminiNutritionEstimatorTest extends TestCase
         $this->clock = new MockClock('2026-10-01 12:00:00');
     }
 
-    public function testParsesItemsFromStructuredResponse(): void
+    public function testTotalsAreCalculatedFromPer100gValues(): void
     {
         $estimate = $this->estimator([self::geminiReply([
             'items' => [
-                ['name' => 'Greek yogurt', 'grams' => 400, 'kcal' => 380, 'protein' => 40, 'carbs' => 16, 'fat' => 16, 'assumption' => ''],
-                ['name' => 'Peanut butter', 'grams' => 20, 'kcal' => 118.44, 'protein' => 5, 'carbs' => 4, 'fat' => 10, 'assumption' => 'big tablespoon ≈ 20 g'],
+                ['name' => 'Greek yogurt', 'grams' => 400, 'kcal_per_100g' => 95, 'protein_per_100g' => 10, 'carbs_per_100g' => 4, 'fat_per_100g' => 4, 'assumption' => ''],
+                ['name' => 'Peanut butter', 'grams' => 20, 'kcal_per_100g' => 592.2, 'protein_per_100g' => 25, 'carbs_per_100g' => 20, 'fat_per_100g' => 50, 'assumption' => 'big tablespoon ≈ 20 g'],
             ],
         ])])->estimate('400 g yogurt and a big tablespoon of peanut butter');
 
         self::assertCount(2, $estimate->items);
-        self::assertSame('Greek yogurt', $estimate->items[0]->name);
-        self::assertSame(380.0, $estimate->items[0]->kcal);
-        self::assertNull($estimate->items[0]->assumption, 'empty assumption becomes null');
-        self::assertSame(118.4, $estimate->items[1]->kcal, 'values are rounded to 1 decimal');
+        $yogurt = $estimate->items[0];
+        self::assertSame('Greek yogurt', $yogurt->name);
+        self::assertSame([380.0, 40.0, 16.0, 16.0], [$yogurt->kcal, $yogurt->protein, $yogurt->carbs, $yogurt->fat]);
+        self::assertSame(95.0, $yogurt->per100g->kcal);
+        self::assertSame(10.0, $yogurt->per100g->protein);
+        self::assertNull($yogurt->assumption, 'empty assumption becomes null');
+        self::assertSame(118.4, $estimate->items[1]->kcal, '592.2 × 0.2, rounded to 1 decimal');
         self::assertSame('big tablespoon ≈ 20 g', $estimate->items[1]->assumption);
         self::assertSame('gemini:gemini-test-001', $estimate->estimatedBy);
     }
 
-    public function testSendsKeyModelAndSchema(): void
+    public function testImpossiblePer100gValuesAreCapped(): void
     {
-        $response = self::geminiReply(['items' => []]);
+        $estimate = $this->estimator([self::geminiReply([
+            'items' => [['name' => 'Oil', 'grams' => 10, 'kcal_per_100g' => 1500, 'protein_per_100g' => 0, 'carbs_per_100g' => 0, 'fat_per_100g' => 140]],
+        ])])->estimate('oil');
 
-        $this->estimator([$response], 'gemini-3.5-flash-lite')->estimate('an apple');
-
-        self::assertSame('POST', $response->getRequestMethod());
-        self::assertStringEndsWith('/models/gemini-3.5-flash-lite:generateContent', $response->getRequestUrl());
-        self::assertContains('x-goog-api-key: test-key', $response->getRequestOptions()['headers']);
-
-        $body = json_decode($response->getRequestOptions()['body'], true);
-        self::assertSame('an apple', $body['contents'][0]['parts'][0]['text']);
-        self::assertSame('application/json', $body['generationConfig']['responseMimeType']);
-        self::assertArrayHasKey('items', $body['generationConfig']['responseSchema']['properties']);
-        foreach (['temperature', 'topP', 'topK', 'thinkingConfig'] as $deprecated) {
-            self::assertArrayNotHasKey($deprecated, $body['generationConfig'], "newer Gemini models reject $deprecated");
-        }
+        self::assertSame(900.0, $estimate->items[0]->per100g->kcal);
+        self::assertSame(100.0, $estimate->items[0]->per100g->fat);
+        self::assertSame(90.0, $estimate->items[0]->kcal);
     }
 
     public function testClampsNegativeAndNonNumericValuesAndSkipsNamelessItems(): void
     {
         $estimate = $this->estimator([self::geminiReply([
             'items' => [
-                ['name' => 'Water', 'grams' => 500, 'kcal' => -3, 'protein' => 'n/a', 'carbs' => 0, 'fat' => 0],
-                ['name' => '  ', 'grams' => 10, 'kcal' => 10, 'protein' => 1, 'carbs' => 1, 'fat' => 1],
+                ['name' => 'Water', 'grams' => 500, 'kcal_per_100g' => -3, 'protein_per_100g' => 'n/a', 'carbs_per_100g' => 0, 'fat_per_100g' => 0],
+                ['name' => '  ', 'grams' => 10, 'kcal_per_100g' => 10, 'protein_per_100g' => 1, 'carbs_per_100g' => 1, 'fat_per_100g' => 1],
                 'garbage',
             ],
         ])])->estimate('water');

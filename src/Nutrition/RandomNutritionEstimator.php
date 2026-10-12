@@ -40,19 +40,15 @@ final class RandomNutritionEstimator implements NutritionEstimator
                 $assumption = 'random portion (fake provider)';
             }
 
-            // Per-100 g values in realistic ranges, scaled to the portion.
-            $scale = $grams / 100;
-            $protein = round($this->randomizer->getFloat(0, 25) * $scale, 1);
-            $carbs = round($this->randomizer->getFloat(0, 60) * $scale, 1);
-            $fat = round($this->randomizer->getFloat(0, 30) * $scale, 1);
+            // Per-100 g values in realistic ranges; totals follow from the portion.
+            $protein = round($this->randomizer->getFloat(0, 25), 1);
+            $carbs = round($this->randomizer->getFloat(0, 60), 1);
+            $fat = round($this->randomizer->getFloat(0, 30), 1);
 
-            $items[] = new EstimatedItem(
+            $items[] = EstimatedItem::fromPer100g(
                 name: $part,
                 grams: $grams,
-                kcal: round(4 * $protein + 4 * $carbs + 9 * $fat, 1),
-                protein: $protein,
-                carbs: $carbs,
-                fat: $fat,
+                per100g: new Per100g(round(4 * $protein + 4 * $carbs + 9 * $fat, 1), $protein, $carbs, $fat),
                 assumption: $assumption,
             );
         }

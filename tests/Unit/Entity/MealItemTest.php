@@ -5,6 +5,7 @@ namespace App\Tests\Unit\Entity;
 use App\Entity\MealEntry;
 use App\Entity\MealItem;
 use App\Entity\User;
+use App\Nutrition\Per100g;
 use PHPUnit\Framework\TestCase;
 
 class MealItemTest extends TestCase
@@ -20,6 +21,25 @@ class MealItemTest extends TestCase
         self::assertSame(4.0, $item->getProtein());
         self::assertSame(4.5, $item->getCarbs());
         self::assertSame(3.0, $item->getFat());
+    }
+
+    public function testPer100gValuesAreKeptAndDriveTheTotals(): void
+    {
+        $entry = new MealEntry((new User())->setEmail('a@b.c'), 'skyr', new \DateTimeImmutable());
+        $item = new MealItem($entry, 'Skyr', 150, 94.5, 16.5, 6, 0.3, null, new Per100g(63, 11, 4, 0.2));
+
+        self::assertEquals(new Per100g(63, 11, 4, 0.2), $item->getPer100g());
+        $item->changeGrams(300);
+        self::assertSame([189.0, 33.0, 12.0, 0.6], [$item->getKcal(), $item->getProtein(), $item->getCarbs(), $item->getFat()]);
+        self::assertEquals(new Per100g(63, 11, 4, 0.2), $item->getPer100g(), 'same food, different portion');
+    }
+
+    public function testOlderItemsWithoutPer100gWorkThemOutFromTotals(): void
+    {
+        $item = $this->item(grams: 400, kcal: 240, protein: 16, carbs: 18, fat: 12);
+
+        self::assertEquals(new Per100g(60, 4, 4.5, 3), $item->getPer100g());
+        self::assertNull($this->item(grams: 0, kcal: 5, protein: 0, carbs: 1, fat: 0)->getPer100g(), 'no weight, no per-100 g');
     }
 
     public function testRepeatedChangesDoNotDrift(): void

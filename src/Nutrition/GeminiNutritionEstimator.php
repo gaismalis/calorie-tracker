@@ -9,14 +9,20 @@ final class GeminiNutritionEstimator implements NutritionEstimator
 {
     private const INSTRUCTIONS = <<<'TXT'
         You are a nutrition estimator for a calorie tracking app. The user describes, in their own words and
-        possibly any language, what they ate. Split it into individual food items and estimate for each item:
-        weight in grams, kcal, protein, carbs and fat (grams).
+        possibly any language, what they ate. Split it into individual food items and give for each item:
+        its weight in grams, and its kcal, protein, carbs and fat (grams) PER 100 g.
 
         Rules:
-        - Approximate is fine; be realistic, using typical values for the most common version of the food.
+        - Per-100 g values are what a nutrition label shows. For drinks, give them per 100 ml and use ml as grams.
+        - If the user names a specific brand or product (e.g. "Alpro soya yogurt", "Snickers", "Lidl protein
+          pudding"), use the nutrition values of that exact product as you know them from its label, and put the
+          brand/product in the item name. Only if you don't know that product, use typical values for a generic
+          food of that kind and say so in "assumption" (e.g. "brand not known, generic values used").
+        - Otherwise use typical values for the most common version of the food. Be realistic; approximate is fine.
         - Use quantities the user gives. If they give none or use vague units ("big tablespoon", "a bowl",
-          "handful"), pick a typical portion and state it in "assumption" (e.g. "big tablespoon ≈ 20 g").
-          Leave "assumption" empty when nothing had to be guessed.
+          "handful", "1 pack"), pick a typical portion (for a branded product: its usual package or serving size)
+          and state it in "assumption" (e.g. "big tablespoon ≈ 20 g"). Leave "assumption" empty when nothing had
+          to be guessed.
         - Name items concisely in the user's language.
         - If the text contains no food or drink at all, return an empty items list.
         TXT;
@@ -31,13 +37,13 @@ final class GeminiNutritionEstimator implements NutritionEstimator
                     'properties' => [
                         'name' => ['type' => 'STRING'],
                         'grams' => ['type' => 'NUMBER'],
-                        'kcal' => ['type' => 'NUMBER'],
-                        'protein' => ['type' => 'NUMBER'],
-                        'carbs' => ['type' => 'NUMBER'],
-                        'fat' => ['type' => 'NUMBER'],
+                        'kcal_per_100g' => ['type' => 'NUMBER'],
+                        'protein_per_100g' => ['type' => 'NUMBER'],
+                        'carbs_per_100g' => ['type' => 'NUMBER'],
+                        'fat_per_100g' => ['type' => 'NUMBER'],
                         'assumption' => ['type' => 'STRING'],
                     ],
-                    'required' => ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat'],
+                    'required' => ['name', 'grams', 'kcal_per_100g', 'protein_per_100g', 'carbs_per_100g', 'fat_per_100g'],
                 ],
             ],
         ],
@@ -68,13 +74,16 @@ final class GeminiNutritionEstimator implements NutritionEstimator
                 continue;
             }
             $assumption = trim((string) ($item['assumption'] ?? ''));
-            $items[] = new EstimatedItem(
+            // Totals are calculated here from the per-100 g values, so the two always agree.
+            $items[] = EstimatedItem::fromPer100g(
                 name: trim($item['name']),
                 grams: self::nonNegative($item['grams'] ?? 0),
-                kcal: self::nonNegative($item['kcal'] ?? 0),
-                protein: self::nonNegative($item['protein'] ?? 0),
-                carbs: self::nonNegative($item['carbs'] ?? 0),
-                fat: self::nonNegative($item['fat'] ?? 0),
+                per100g: Per100g::plausible(
+                    self::nonNegative($item['kcal_per_100g'] ?? 0),
+                    self::nonNegative($item['protein_per_100g'] ?? 0),
+                    self::nonNegative($item['carbs_per_100g'] ?? 0),
+                    self::nonNegative($item['fat_per_100g'] ?? 0),
+                ),
                 assumption: '' === $assumption ? null : $assumption,
             );
         }

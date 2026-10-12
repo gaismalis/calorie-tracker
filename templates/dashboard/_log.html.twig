@@ -1,4 +1,5 @@
 {# The day's food and exercise, collapsed unless something needs attention (estimating or failed). #}
+{% import 'dashboard/_macros.html.twig' as m %}
 {% set exerciseNeedsAttention = exercises|filter(e => e.pending or e.failed) is not empty %}
 {% set mealsNeedAttention = meals|filter(e => e.pending or e.failed) is not empty %}
 {% set firstTab = returnToLog ?? (exerciseNeedsAttention and not mealsNeedAttention ? 'exercise' : 'food') %}
@@ -48,6 +49,7 @@
                                     <td>{{ item.carbs|round(1) }}</td>
                                     <td>{{ item.fat|round(1) }}</td>
                                 </tr>
+                                {{ m.per100g_row(item, 6) }}
                             {% endfor %}
                             </tbody>
                         </table>
