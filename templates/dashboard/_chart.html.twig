@@ -1,20 +1,20 @@
-{# What was eaten each day (bars) against that day's target (dark mark). Within = accent green, over = series-2 orange plus a "+N" label, so colour isn't the only cue. #}
+{# What was eaten each day (bars) against what was burned that day (dark mark; not the goal-adjusted target). Less = accent green, more = series-2 orange plus a "+N" label, so colour isn't the only cue. #}
 <section class="card">
     <h2>Last 14 days</h2>
     {# Wide and compact (phone) versions; CSS shows the one that fits the screen. #}
     {% for chart in charts %}
         <div class="viz-root energy-chart {{ chart.compact ? 'chart-compact' : 'chart-wide' }}" data-controller="chart-hover" data-chart-hover-days-value="{{ chart.hover|json_encode }}">
             <ul class="legend" aria-label="Legend">
-                {% if chart.hasTargets %}
-                    <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-within"/></svg> Within target</li>
-                    <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-over"/></svg> Over</li>
-                    <li><svg width="16" height="10" aria-hidden="true"><line x1="0" y1="5" x2="16" y2="5" class="target-mark"/></svg> Target</li>
+                {% if chart.hasBurned %}
+                    <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-under"/></svg> Ate less than burned</li>
+                    <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-over"/></svg> Ate more</li>
+                    <li><svg width="16" height="10" aria-hidden="true"><line x1="0" y1="5" x2="16" y2="5" class="burned-mark"/></svg> Burned</li>
                 {% else %}
                     <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-unknown"/></svg> Eaten</li>
                 {% endif %}
             </ul>
             <svg viewBox="0 0 {{ chart.width }} {{ constant('App\\Chart\\EnergyChart::HEIGHT') }}"
-                 role="img" aria-label="Calories eaten per day for the last 14 days{{ chart.hasTargets ? ', compared with the daily target' }}"
+                 role="img" aria-label="Calories eaten per day for the last 14 days{{ chart.hasBurned ? ', compared with calories burned' }}"
                  data-chart-hover-target="svg">
                 <g class="grid">
                     {% for tick in chart.yTicks %}
@@ -39,9 +39,9 @@
                         {% endif %}
                     {% endfor %}
                 </g>
-                <g class="targets">
-                    {% for day in chart.days|filter(day => day.targetMark) %}
-                        <line x1="{{ day.targetMark.x1 }}" x2="{{ day.targetMark.x2 }}" y1="{{ day.targetMark.y }}" y2="{{ day.targetMark.y }}" class="target-mark"/>
+                <g class="burned">
+                    {% for day in chart.days|filter(day => day.burnedMark) %}
+                        <line x1="{{ day.burnedMark.x1 }}" x2="{{ day.burnedMark.x2 }}" y1="{{ day.burnedMark.y }}" y2="{{ day.burnedMark.y }}" class="burned-mark"/>
                     {% endfor %}
                 </g>
                 <line class="crosshair" data-chart-hover-target="crosshair" y1="{{ chart.plotTop }}" y2="{{ chart.plotBottom }}" x1="0" x2="0" visibility="hidden"/>
@@ -53,7 +53,7 @@
         </div>
     {% endfor %}
     {% if not energy.complete %}
-        <p class="muted chart-note">The daily target appears once we can estimate what you burn (see above).</p>
+        <p class="muted chart-note">"Burned" appears once we can estimate what you burn (see above).</p>
     {% elseif charts|first.days|filter(day => day.today and day.bar)|length > 0 %}
         <p class="muted chart-note">Today is shown faded until the day is over.</p>
     {% endif %}

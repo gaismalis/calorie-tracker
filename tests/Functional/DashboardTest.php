@@ -154,7 +154,7 @@ class DashboardTest extends WebTestCase
         self::assertMatchesRegularExpression('#^/meals/\d+/edit$#', $adjust->attr('href'));
     }
 
-    public function testChartShowsEatenBarsWithoutTargetsBeforeThereIsAnEstimate(): void
+    public function testChartShowsPlainEatenBarsBeforeThereIsAnEstimate(): void
     {
         $this->storeMeal('dinner', $this->user->today()->modify('-3 days')->setTime(19, 0));
         $this->storeMeal('lunch');
@@ -163,9 +163,9 @@ class DashboardTest extends WebTestCase
 
         self::assertCount(2, $crawler->filter('.energy-chart.chart-wide svg[role=img] rect.bar-unknown'));
         self::assertCount(1, $crawler->filter('.energy-chart.chart-wide svg[role=img] rect.bar-today'));
-        self::assertCount(0, $crawler->filter('.energy-chart svg[role=img] .target-mark'));
+        self::assertCount(0, $crawler->filter('.energy-chart svg[role=img] .burned-mark'));
         self::assertSelectorTextContains('.energy-chart .legend', 'Eaten');
-        self::assertSelectorTextContains('.chart-note', 'The daily target appears once');
+        self::assertSelectorTextContains('.chart-note', '"Burned" appears once');
         $days = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
         self::assertCount(14, $days);
         self::assertStringEndsWith('(so far)', end($days)['label']);
@@ -184,26 +184,27 @@ class DashboardTest extends WebTestCase
         self::assertCount(14, $days, 'hover works on the compact chart too');
     }
 
-    public function testChartComparesEachDayWithItsTarget(): void
+    public function testChartComparesEachDayWithWhatWasBurned(): void
     {
+        // Burns ~2100/day; the goal (−1 kg/week ≈ −1100/day) must not move the comparison.
         $this->user->setSex(Sex::Male)->setBirthDate(new \DateTimeImmutable('1990-01-01'))->setHeightCm(180)
-            ->setActivityLevel(ActivityLevel::Sedentary)->setWeeklyGoalKg(0.0);
+            ->setActivityLevel(ActivityLevel::Sedentary)->setWeeklyGoalKg(-1.0);
         $this->em()->persist(new WeightEntry($this->user, $this->user->today(), 80.0));
         $this->em()->flush();
         $yesterday = $this->user->today()->modify('-1 day');
         $this->storeMeal('feast', $yesterday->setTime(19, 0), 5000);
-        $this->storeMeal('salad', $yesterday->modify('-1 day')->setTime(12, 0), 800);
+        $this->storeMeal('pasta', $yesterday->modify('-1 day')->setTime(12, 0), 1800);
         $this->storeMeal('lunch');
 
         $crawler = $this->client->request('GET', '/');
 
         $wide = $crawler->filter('.energy-chart.chart-wide svg[role=img]');
         self::assertCount(1, $wide->filter('rect.bar-over'));
-        self::assertCount(2, $wide->filter('rect.bar-within'), 'the salad day and today so far');
-        self::assertCount(14, $wide->filter('.target-mark'));
+        self::assertCount(2, $wide->filter('rect.bar-under'), 'pasta day: over the target, but less than burned; and today so far');
+        self::assertCount(14, $wide->filter('.burned-mark'));
         self::assertMatchesRegularExpression('/^\+\d[\d ]*$/', $wide->filter('.over-label')->text());
         self::assertCount(0, $crawler->filter('.energy-chart.chart-compact .over-label'), 'no room for labels on phones');
-        self::assertSelectorTextContains('.energy-chart .legend', 'Within target');
+        self::assertSelectorTextContains('.energy-chart .legend', 'Ate less than burned');
         self::assertSelectorTextContains('.chart-note', 'Today is shown faded');
     }
 

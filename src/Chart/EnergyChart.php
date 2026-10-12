@@ -3,9 +3,10 @@
 namespace App\Chart;
 
 /**
- * Geometry for the "eaten vs target" chart on the dashboard: one bar per day (what was eaten) with a
- * mark at that day's target. Bars over the target are flagged, so "how did I do" is readable at a glance.
- * Days without logged meals have no bar (unknown, not zero); today is marked as still in progress.
+ * Geometry for the "eaten vs burned" chart on the dashboard: one bar per day (what was eaten) with a
+ * mark at what was burned that day (baseline + logged exercise, no goal adjustment). Days where more was
+ * eaten than burned are flagged. Days without logged meals have no bar (unknown, not zero); today is
+ * marked as still in progress.
  */
 final readonly class EnergyChart
 {
@@ -13,25 +14,25 @@ final readonly class EnergyChart
     /** Width of the version shown on phones, close to the card's real width so text keeps its size. */
     public const COMPACT_WIDTH = 340;
     public const HEIGHT = 220;
-    public const STATUS_WITHIN = 'within';
+    public const STATUS_UNDER = 'under';
     public const STATUS_OVER = 'over';
-    /** Eaten, but there's no target to compare with yet (no burn estimate). */
+    /** Eaten, but there's no burn estimate to compare with yet. */
     public const STATUS_UNKNOWN = 'unknown';
     private const MARGIN_LEFT = 48;
     private const MARGIN_RIGHT = 16;
     private const MARGIN_TOP = 18; // room for the "+900" label above the tallest bar
     private const MARGIN_BOTTOM = 28;
     private const BAR_SHARE = 0.6;
-    private const TARGET_MARK_SHARE = 0.9;
+    private const BURNED_MARK_SHARE = 0.9;
     private const Y_STEPS = [250, 500, 1000, 2000, 5000, 10000];
 
     /**
      * @param list<array{value: int, y: float}>  $yTicks
      * @param list<array{label: string, x: float}> $xTicks
      * @param list<array{
-     *     x: float, label: string, eaten: float|null, burned: float|null, target: float|null, today: bool,
+     *     x: float, label: string, eaten: float|null, burned: float|null, today: bool,
      *     status: string|null, overBy: float|null, bar: array{x: float, y: float, width: float, height: float}|null,
-     *     targetMark: array{x1: float, x2: float, y: float}|null
+     *     burnedMark: array{x1: float, x2: float, y: float}|null
      * }> $days
      */
     private function __construct(
@@ -39,7 +40,7 @@ final readonly class EnergyChart
         public array $xTicks,
         public array $days,
         public bool $empty,
-        public bool $hasTargets,
+        public bool $hasBurned,
         public float $plotLeft,
         public float $plotRight,
         public float $plotTop,
@@ -51,12 +52,11 @@ final readonly class EnergyChart
     /**
      * @param array<string, float> $eaten   kcal eaten by date ('Y-m-d'); days without meals absent
      * @param array<string, float> $burned  kcal burned by date (baseline + exercise); empty when unknown
-     * @param array<string, float> $targets daily intake target by date; empty when unknown
      * @param string               $lastDay last date shown ('Y-m-d')
      * @param string               $today   today's date, marked as "so far"
      * @param int                  $width   drawing width (WIDTH, or COMPACT_WIDTH for phones)
      */
-    public static function build(array $eaten, array $burned, array $targets, string $lastDay, string $today, int $days = 14, int $width = self::WIDTH): self
+    public static function build(array $eaten, array $burned, string $lastDay, string $today, int $days = 14, int $width = self::WIDTH): self
     {
         $last = new \DateTimeImmutable($lastDay);
         $dates = [];
@@ -73,7 +73,7 @@ final readonly class EnergyChart
 
         $values = [];
         foreach ($dates as $date) {
-            foreach ([$eaten[$date] ?? null, $targets[$date] ?? null] as $value) {
+            foreach ([$eaten[$date] ?? null, $burned[$date] ?? null] as $value) {
                 if (null !== $value) {
                     $values[] = $value;
                 }
@@ -85,32 +85,31 @@ final readonly class EnergyChart
         $chartDays = [];
         foreach ($dates as $i => $date) {
             $e = $eaten[$date] ?? null;
-            $target = $targets[$date] ?? null;
+            $b = $burned[$date] ?? null;
             $status = match (true) {
                 null === $e => null,
-                null === $target => self::STATUS_UNKNOWN,
-                round($e) > round($target) => self::STATUS_OVER,
-                default => self::STATUS_WITHIN,
+                null === $b => self::STATUS_UNKNOWN,
+                round($e) > round($b) => self::STATUS_OVER,
+                default => self::STATUS_UNDER,
             };
             $chartDays[] = [
                 'x' => $x($i),
                 'label' => (new \DateTimeImmutable($date))->format('D, j M').($date === $today ? ' (so far)' : ''),
                 'eaten' => null === $e ? null : round($e),
-                'burned' => isset($burned[$date]) ? round($burned[$date]) : null,
-                'target' => null === $target ? null : round($target),
+                'burned' => null === $b ? null : round($b),
                 'today' => $date === $today,
                 'status' => $status,
-                'overBy' => self::STATUS_OVER === $status ? round($e) - round($target) : null,
+                'overBy' => self::STATUS_OVER === $status ? round($e) - round($b) : null,
                 'bar' => null === $e ? null : [
                     'x' => round($x($i) - $slot * self::BAR_SHARE / 2, 1),
                     'y' => $y($e),
                     'width' => round($slot * self::BAR_SHARE, 1),
                     'height' => round($bottom - $y($e), 1),
                 ],
-                'targetMark' => null === $target ? null : [
-                    'x1' => round($x($i) - $slot * self::TARGET_MARK_SHARE / 2, 1),
-                    'x2' => round($x($i) + $slot * self::TARGET_MARK_SHARE / 2, 1),
-                    'y' => $y($target),
+                'burnedMark' => null === $b ? null : [
+                    'x1' => round($x($i) - $slot * self::BURNED_MARK_SHARE / 2, 1),
+                    'x2' => round($x($i) + $slot * self::BURNED_MARK_SHARE / 2, 1),
+                    'y' => $y($b),
                 ],
             ];
         }
@@ -128,7 +127,7 @@ final readonly class EnergyChart
 
         $shown = fn (array $byDate) => array_intersect_key($byDate, array_flip($dates));
 
-        return new self($yTicks, $xTicks, $chartDays, [] === $shown($eaten), [] !== $shown($targets), $left, $right, $top, $bottom, $width);
+        return new self($yTicks, $xTicks, $chartDays, [] === $shown($eaten), [] !== $shown($burned), $left, $right, $top, $bottom, $width);
     }
 
     public function isCompact(): bool
@@ -146,11 +145,10 @@ final readonly class EnergyChart
             'label' => $day['label'],
             'rows' => array_values(array_filter([
                 ['series' => 'eaten-'.($day['status'] ?? 'none'), 'value' => null === $day['eaten'] ? 'not logged' : $kcal($day['eaten']), 'name' => 'Eaten'],
-                null === $day['target'] ? null : ['series' => 'target', 'value' => $kcal($day['target']), 'name' => 'Target'],
                 null === $day['burned'] ? null : ['series' => 'burned', 'value' => $kcal($day['burned']), 'name' => 'Burned'],
                 match ($day['status']) {
-                    self::STATUS_OVER => ['series' => 'balance', 'value' => $kcal($day['overBy']), 'name' => 'over target'],
-                    self::STATUS_WITHIN => ['series' => 'balance', 'value' => $kcal($day['target'] - $day['eaten']), 'name' => $day['today'] ? 'left' : 'under target'],
+                    self::STATUS_OVER => ['series' => 'balance', 'value' => $kcal($day['overBy']), 'name' => 'more than burned'],
+                    self::STATUS_UNDER => ['series' => 'balance', 'value' => $kcal($day['burned'] - $day['eaten']), 'name' => 'less than burned'.($day['today'] ? ' so far' : '')],
                     default => null,
                 },
             ])),
