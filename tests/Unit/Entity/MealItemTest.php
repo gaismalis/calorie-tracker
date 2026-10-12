@@ -5,6 +5,7 @@ namespace App\Tests\Unit\Entity;
 use App\Entity\MealEntry;
 use App\Entity\MealItem;
 use App\Entity\User;
+use App\Nutrition\FoodCategory;
 use App\Nutrition\Per100g;
 use PHPUnit\Framework\TestCase;
 
@@ -52,6 +53,17 @@ class MealItemTest extends TestCase
 
         self::assertEquals(new Per100g(60, 4, 4.5, 3), $item->getPer100g());
         self::assertNull($this->item(grams: 0, kcal: 5, protein: 0, carbs: 1, fat: 0)->getPer100g(), 'no weight, no per-100 g');
+    }
+
+    public function testOlderItemsWithoutCategoryCountAsFoodUntilCategorized(): void
+    {
+        $item = $this->item(grams: 500, kcal: 215, protein: 2, carbs: 18, fat: 0);
+
+        self::assertFalse($item->isCategorized());
+        self::assertSame(FoodCategory::Food, $item->getCategory());
+        $item->setCategory(FoodCategory::Alcohol);
+        self::assertTrue($item->isCategorized());
+        self::assertSame(FoodCategory::Alcohol, $item->getCategory());
     }
 
     public function testRepeatedChangesDoNotDrift(): void

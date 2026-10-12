@@ -42,7 +42,7 @@
                             <tbody>
                             {% for item in entry.items %}
                                 <tr>
-                                    <td>{{ item.name }}{% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}</td>
+                                    <td>{{ item.name }}{% if item.category.value != 'food' %} <span class="category-tag category-{{ item.category.value }}" title="{{ item.category.label }}">{{ item.category.icon }} {{ item.category.label }}</span>{% endif %}{% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}</td>
                                     <td>{{ item.grams|round }}</td>
                                     <td>{{ item.kcal|round }}</td>
                                     <td>{{ item.protein|round(1) }}</td>

@@ -3,6 +3,7 @@
 namespace App\Tests\Unit\Nutrition;
 
 use App\Ai\GeminiClient;
+use App\Nutrition\FoodCategory;
 use App\Nutrition\GeminiNutritionEstimator;
 use App\Nutrition\NutritionEstimationException;
 use PHPUnit\Framework\TestCase;
@@ -39,6 +40,19 @@ class GeminiNutritionEstimatorTest extends TestCase
         self::assertSame(118.4, $estimate->items[1]->kcal, '592.2 × 0.2, rounded to 1 decimal');
         self::assertSame('big tablespoon ≈ 20 g', $estimate->items[1]->assumption);
         self::assertSame('gemini:gemini-test-001', $estimate->estimatedBy);
+    }
+
+    public function testEachItemGetsACategoryAndUnknownOnesAreGuessedFromTheName(): void
+    {
+        $item = fn (string $name, ?string $category) => ['name' => $name, 'grams' => 100, 'kcal_per_100g' => 100, 'protein_per_100g' => 1, 'carbs_per_100g' => 1, 'fat_per_100g' => 1] + (null === $category ? [] : ['category' => $category]);
+        $estimate = $this->estimator([self::geminiReply(['items' => [
+            $item('Burger', 'food'), $item('Beer', 'alcohol'), $item('Brownie', 'snack'), $item('Glass of wine', 'drink'), $item('Cookie', null),
+        ]])])->estimate('burger, beer, brownie, wine and a cookie');
+
+        self::assertSame(
+            [FoodCategory::Food, FoodCategory::Alcohol, FoodCategory::Snack, FoodCategory::Alcohol, FoodCategory::Snack],
+            array_map(fn ($i) => $i->category, $estimate->items),
+        );
     }
 
     public function testImpossiblePer100gValuesAreCapped(): void

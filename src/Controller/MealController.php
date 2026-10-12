@@ -6,6 +6,7 @@ use App\Entity\MealEntry;
 use App\Entity\User;
 use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
+use App\Nutrition\FoodCategory;
 use App\Nutrition\Per100g;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -89,6 +90,8 @@ class MealController extends AbstractController
 
             $submitted = $request->request->all('grams');
             $submittedPer100g = $request->request->all('per100g');
+            $submittedCategories = $request->request->all('category');
+            $newCategories = [];
             $newGrams = [];
             $newPer100g = [];
             foreach ($entry->getItems() as $item) {
@@ -98,6 +101,15 @@ class MealController extends AbstractController
                     continue;
                 }
                 $newGrams[$item->getId()] = $value;
+
+                if (isset($submittedCategories[$item->getId()])) {
+                    $category = FoodCategory::tryFrom((string) $submittedCategories[$item->getId()]);
+                    if (null === $category) {
+                        $errors[$item->getId()] = 'Choose food, snack or alcohol.';
+                        continue;
+                    }
+                    $newCategories[$item->getId()] = $category;
+                }
 
                 // Values per 100 g, e.g. typed from the label. Only sent for items that have them.
                 $per100g = $submittedPer100g[$item->getId()] ?? null;
@@ -126,6 +138,9 @@ class MealController extends AbstractController
                         $item->changeGrams($newGrams[$item->getId()]);
                         if (isset($newPer100g[$item->getId()])) {
                             $item->changePer100g($newPer100g[$item->getId()]);
+                        }
+                        if (isset($newCategories[$item->getId()])) {
+                            $item->setCategory($newCategories[$item->getId()]);
                         }
                     }
                 }

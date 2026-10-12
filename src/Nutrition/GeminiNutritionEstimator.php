@@ -24,6 +24,10 @@ final class GeminiNutritionEstimator implements NutritionEstimator
           and state it in "assumption" (e.g. "big tablespoon ≈ 20 g"). Leave "assumption" empty when nothing had
           to be guessed.
         - Name items concisely in the user's language.
+        - Give each item a "category": "alcohol" for any alcoholic drink (beer, wine, spirits, cider, cocktails;
+          alcohol-free beer is not alcohol); "snack" for sweets, desserts and snack foods (chocolate, candy,
+          cookies, cake, ice cream, tiramisu, chips); "food" for everything else, including meals, fast food,
+          bread, fruit and non-alcoholic drinks.
         - If the text contains no food or drink at all, return an empty items list.
         TXT;
 
@@ -42,8 +46,9 @@ final class GeminiNutritionEstimator implements NutritionEstimator
                         'carbs_per_100g' => ['type' => 'NUMBER'],
                         'fat_per_100g' => ['type' => 'NUMBER'],
                         'assumption' => ['type' => 'STRING'],
+                        'category' => ['type' => 'STRING', 'enum' => ['food', 'snack', 'alcohol']],
                     ],
-                    'required' => ['name', 'grams', 'kcal_per_100g', 'protein_per_100g', 'carbs_per_100g', 'fat_per_100g'],
+                    'required' => ['name', 'grams', 'kcal_per_100g', 'protein_per_100g', 'carbs_per_100g', 'fat_per_100g', 'category'],
                 ],
             ],
         ],
@@ -85,6 +90,8 @@ final class GeminiNutritionEstimator implements NutritionEstimator
                     self::nonNegative($item['fat_per_100g'] ?? 0),
                 ),
                 assumption: '' === $assumption ? null : $assumption,
+                // Unknown or missing: guess from the name rather than calling a beer "food".
+                category: FoodCategory::tryFrom((string) ($item['category'] ?? '')) ?? FoodCategoryGuesser::guess($item['name']),
             );
         }
 

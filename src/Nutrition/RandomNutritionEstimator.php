@@ -50,6 +50,7 @@ final class RandomNutritionEstimator implements NutritionEstimator
                 grams: $grams,
                 per100g: new Per100g(round(4 * $protein + 4 * $carbs + 9 * $fat, 1), $protein, $carbs, $fat),
                 assumption: $assumption,
+                category: FoodCategoryGuesser::guess($part),
             );
         }
 

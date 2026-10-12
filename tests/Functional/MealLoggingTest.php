@@ -11,6 +11,7 @@ use App\Profile\Sex;
 use App\Entity\User;
 use App\Nutrition\EstimatedItem;
 use App\Nutrition\MealEstimate;
+use App\Nutrition\FoodCategory;
 use App\Nutrition\NutritionEstimator;
 use App\Nutrition\Per100g;
 use App\Tests\Support\FakeNutritionEstimator;
@@ -186,6 +187,42 @@ class MealLoggingTest extends WebTestCase
         self::assertSame([200.0, 114.0, 21.0, 7.6, 0.0], [$skyr->getGrams(), $skyr->getKcal(), $skyr->getProtein(), $skyr->getCarbs(), $skyr->getFat()]);
         self::assertEquals(new Per100g(52, 0.3, 14, 0.2), $apple->getPer100g(), 'untouched item unchanged');
         self::assertEqualsWithDelta(114 + 93.6, $entry->getKcal(), 0.001, 'meal total is recalculated');
+    }
+
+    public function testCategoryCanBeCorrectedAndIsShownInTheLog(): void
+    {
+        $entry = $this->storeEntry($this->user, 'pizza and a cola', new \DateTimeImmutable(), [
+            EstimatedItem::fromPer100g('Pizza', 300, new Per100g(266, 11, 33, 10)),
+            EstimatedItem::fromPer100g('Cola', 330, new Per100g(42, 0, 10.6, 0)),
+        ]);
+        [$pizza, $cola] = $entry->getItems()->toArray();
+
+        $crawler = $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        self::assertSame('food', $crawler->filter('select[name="category['.$cola->getId().']"] option[selected]')->attr('value'));
+        $this->client->submitForm('Save', ['category['.$cola->getId().']' => 'alcohol']); // it was a rum and cola
+
+        self::assertResponseRedirects('/?log=food');
+        $this->em()->clear();
+        [$pizza, $cola] = $this->em()->find(MealEntry::class, $entry->getId())->getItems()->toArray();
+        self::assertSame(FoodCategory::Food, $pizza->getCategory());
+        self::assertSame(FoodCategory::Alcohol, $cola->getCategory());
+
+        $crawler = $this->client->request('GET', '/');
+        self::assertSame(['🍷 Alcohol'], $crawler->filter('#panel-food .category-tag')->each(fn ($t) => $t->text()), 'food items get no tag');
+    }
+
+    public function testUnknownCategoryIsRejected(): void
+    {
+        $entry = $this->storeEntry($this->user, 'pizza', new \DateTimeImmutable(), [EstimatedItem::fromPer100g('Pizza', 300, new Per100g(266, 11, 33, 10))]);
+        $pizza = $entry->getItems()->first();
+
+        $this->client->request('GET', '/meals/'.$entry->getId().'/edit');
+        $form = $this->client->getCrawler()->selectButton('Save')->form();
+        $form['category['.$pizza->getId().']']->disableValidation()->setValue('dessert');
+        $this->client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('table.adjust', 'Choose food, snack or alcohol.');
     }
 
     /** @return iterable<string, array{string, string}> */

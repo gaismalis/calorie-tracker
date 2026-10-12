@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Nutrition\FoodCategory;
 use App\Nutrition\Per100g;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -27,6 +28,10 @@ class MealItem
     #[ORM\Column(nullable: true)]
     private ?float $fatPer100g = null;
 
+    /** Food, snack or alcohol; null for items logged before categories existed, until they're backfilled. */
+    #[ORM\Column(length: 16, nullable: true, enumType: FoodCategory::class)]
+    private ?FoodCategory $category = null;
+
     public function __construct(
         MealEntry $entry,
         #[ORM\Column(length: 255)]
@@ -45,8 +50,10 @@ class MealItem
         #[ORM\Column(type: 'text', nullable: true)]
         private ?string $assumption = null,
         ?Per100g $per100g = null,
+        ?FoodCategory $category = null,
     ) {
         $this->entry = $entry;
+        $this->category = $category;
         if (null !== $per100g) {
             $this->kcalPer100g = $per100g->kcal;
             $this->proteinPer100g = $per100g->protein;
@@ -98,6 +105,22 @@ class MealItem
     public function getAssumption(): ?string
     {
         return $this->assumption;
+    }
+
+    /** Not categorized yet (older items) counts as food. */
+    public function getCategory(): FoodCategory
+    {
+        return $this->category ?? FoodCategory::Food;
+    }
+
+    public function isCategorized(): bool
+    {
+        return null !== $this->category;
+    }
+
+    public function setCategory(FoodCategory $category): void
+    {
+        $this->category = $category;
     }
 
     /** Per-100 g values: as estimated, or (older items) worked out from the totals; null without a weight. */

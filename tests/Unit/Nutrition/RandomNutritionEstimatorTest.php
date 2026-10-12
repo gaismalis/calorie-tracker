@@ -71,6 +71,13 @@ class RandomNutritionEstimatorTest extends TestCase
         self::assertEqualsWithDelta($item->per100g->protein * 2.5, $item->protein, 0.06);
     }
 
+    public function testItemsAreCategorizedByName(): void
+    {
+        $items = (new RandomNutritionEstimator())->estimate('pasta, a beer and ice cream')->items;
+
+        self::assertSame(['food', 'alcohol', 'snack'], array_map(fn ($i) => $i->category->value, $items));
+    }
+
     public function testSameSeedGivesSameNumbers(): void
     {
         $a = (new RandomNutritionEstimator(new Randomizer(new Mt19937(42))))->estimate('rice, chicken');

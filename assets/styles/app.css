@@ -309,3 +309,8 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .week-facts strong { color: var(--text); font-weight: 600; }
 .energy .chart-header h2 { margin-bottom: 0.15rem; }
 .energy .chart-period { margin: 0 0 0.5rem; font-size: 0.85rem; }
+/* Food categories: snack and alcohol items are marked in the log; alcohol uses the chart's red. */
+.category-tag { display: inline-block; font-size: 0.7rem; padding: 0 0.35rem; border-radius: 4px; margin-left: 0.25rem; white-space: nowrap; vertical-align: 0.1em; }
+.category-snack { background: #fbeee4; color: #8a4b1a; }
+.category-alcohol { background: #fbe4e4; color: #a3201b; }
+.category-select { display: block; margin: 0.2rem 0; font-size: 0.8rem; padding: 0.1rem 0.2rem; border: 1px solid var(--border); border-radius: 4px; background: var(--card); }

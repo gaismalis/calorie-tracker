@@ -52,6 +52,12 @@
                         <tr>
                             <td>
                                 {{ item.name }}
+                                {% set chosen = app.request.request.all('category')[item.id] ?? item.category.value %}
+                                <select name="category[{{ item.id }}]" class="category-select" aria-label="Category of {{ item.name }}">
+                                    {% for category in enum('App\\Nutrition\\FoodCategory').cases() %}
+                                        <option value="{{ category.value }}"{% if category.value == chosen %} selected{% endif %}>{{ category.icon }} {{ category.label }}</option>
+                                    {% endfor %}
+                                </select>
                                 {% if item.assumption %}<div class="assumption">{{ item.assumption }}</div>{% endif %}
                                 {% if errors[item.id] is defined %}<ul><li>{{ errors[item.id] }}</li></ul>{% endif %}
                             </td>
@@ -86,7 +92,7 @@
                     </tbody>
                 {% endfor %}
             </table>
-            <p class="muted small">Set an item to 0 g to remove it. Values per 100 g can be corrected from the label.</p>
+            <p class="muted small">Set an item to 0 g to remove it. Values per 100 g can be corrected from the label, and the category if it's wrong.</p>
         </details>
 
         <input type="hidden" name="_token" value="{{ csrf_token('meal_edit_' ~ entry.id) }}">
