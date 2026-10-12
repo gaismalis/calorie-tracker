@@ -13,3 +13,6 @@
     {% set per = item.per100g %}
     {% if per %}<tr class="per100g-row"><td colspan="{{ columns }}"><span class="per100g">per 100 g: {{ per.kcal|round }} kcal · P {{ per.protein|round(1) }} · C {{ per.carbs|round(1) }} · F {{ per.fat|round(1) }}</span></td></tr>{% endif %}
 {% endmacro %}
+
+{# A number with its sign: "+250", "−0.23" (real minus sign), "0". #}
+{% macro signed(value, decimals) %}{{ (value < 0 ? '−' : (value > 0 ? '+' : '')) ~ value|abs|number_format(decimals, '.', ' ') }}{% endmacro %}

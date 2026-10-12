@@ -32,10 +32,11 @@ class DashboardTest extends WebTestCase
         $crawler = $this->client->request('GET', '/');
 
         $cards = $crawler->filter('main .card')->each(fn ($n) => $n->attr('class'));
-        self::assertCount(3, $cards);
+        self::assertCount(4, $cards);
         self::assertStringContainsString('overview', $cards[0]);
         self::assertSame('Last 14 days', $crawler->filter('main .card')->eq(1)->filter('h2')->text());
-        self::assertStringContainsString('log', $cards[2]);
+        self::assertStringContainsString('week', $cards[2]);
+        self::assertStringContainsString('log', $cards[3]);
     }
 
     public function testLogIsCollapsedByDefaultWithFoodTabFirst(): void
@@ -215,6 +216,49 @@ class DashboardTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertSelectorTextContains('#panel-food .per100g', 'per 100 g: 200 kcal · P 10 · C 20 · F 6.7');
+    }
+
+    public function testWeeklySummaryCoversTheSevenDaysBeforeToday(): void
+    {
+        // Burns ~2100/day (formula); goal: lose 0.5 kg/week.
+        $this->user->setSex(Sex::Male)->setBirthDate(new \DateTimeImmutable('1990-01-01'))->setHeightCm(180)
+            ->setActivityLevel(ActivityLevel::Sedentary)->setWeeklyGoalKg(-0.5);
+        $this->em()->persist(new WeightEntry($this->user, $this->user->today(), 80.0));
+        $this->em()->flush();
+        $today = $this->user->today();
+        foreach ([1, 2, 3, 4, 5] as $daysAgo) {
+            $this->storeMeal('food', $today->modify("-$daysAgo days")->setTime(12, 0), 1600);
+        }
+        $this->storeMeal('today does not count yet', $today->setTime(8, 0), 5000);
+
+        $crawler = $this->client->request('GET', '/');
+
+        $week = $crawler->filter('section.week');
+        self::assertStringContainsString($today->modify('-1 day')->format('j M'), $week->filter('.week-range')->text());
+        self::assertSame('1 600', $week->filter('.week-stats > div')->eq(0)->filter('strong')->text());
+        self::assertStringStartsWith('−', $week->filter('.week-balance strong')->text(), 'ate less than burned');
+        self::assertStringContainsString('goal lose 0.5 kg/week', $week->filter('.week-pace')->text());
+        self::assertStringContainsString('Meals logged on 5 of 7 days', $week->text());
+        self::assertStringContainsString('Exercise: none logged', $week->text());
+    }
+
+    public function testWeeklySummaryOnAPastDayEndsOnThatDay(): void
+    {
+        $day = $this->user->today()->modify('-10 days');
+        $this->storeMeal('food', $day->setTime(12, 0), 2000);
+
+        $crawler = $this->client->request('GET', '/day/'.$day->format('Y-m-d'));
+
+        self::assertStringEndsWith($day->format('j M'), $crawler->filter('.week-range')->text());
+        self::assertStringContainsString('Meals logged on 1 of 7 days, so these averages are rough', $crawler->filter('section.week')->text());
+        self::assertStringContainsString('"Burned" appears once', $crawler->filter('section.week')->text(), 'no profile yet');
+    }
+
+    public function testEmptyWeek(): void
+    {
+        $this->client->request('GET', '/');
+
+        self::assertSelectorTextContains('section.week', 'Nothing logged in these 7 days yet.');
     }
 
     public function testEmailInTheHeaderCanBeHiddenOnPhones(): void

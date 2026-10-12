@@ -1,0 +1,55 @@
+{# The last 7 full days at a glance (App\Summary\WeeklySummary). Dates are plain 'Y-m-d', so no timezone conversion. #}
+{% import 'dashboard/_macros.html.twig' as m %}
+{% set fromMonth = week.from|date('M', false) %}
+<section class="card week">
+    <h2>Last 7 days <span class="muted week-range">{{ week.from|date('j', false) }}{{ fromMonth != week.to|date('M', false) ? ' ' ~ fromMonth }} – {{ week.to|date('j M', false) }}</span></h2>
+    {% if week.empty %}
+        <p class="muted">Nothing logged in these 7 days yet.</p>
+    {% else %}
+        {% set balance = week.dailyBalance %}
+        <div class="week-stats">
+            <div>
+                <span class="label">Eaten</span>
+                <strong>{{ week.averageEaten is not null ? week.averageEaten|number_format(0, '.', ' ') : '–' }}</strong>
+                <span class="unit">kcal/day avg</span>
+            </div>
+            <div>
+                <span class="label">Burned</span>
+                <strong>{{ week.averageBurned is not null ? week.averageBurned|number_format(0, '.', ' ') : '–' }}</strong>
+                <span class="unit">kcal/day avg</span>
+            </div>
+            <div class="week-balance {{ balance is not null ? (balance <= 0 ? 'deficit' : 'surplus') }}">
+                <span class="label">Difference</span>
+                <strong>{{ balance is not null ? m.signed(balance, 0) : '–' }}</strong>
+                <span class="unit">kcal/day</span>
+            </div>
+        </div>
+
+        {% set pace = week.expectedKgPerWeek %}
+        {% if pace is not null %}
+            {% set goal = week.goalKgPerWeek %}
+            <p class="week-pace">
+                At this pace: <strong>{{ m.signed(pace, 2) }} kg/week</strong>
+                · goal {{ goal == 0 ? 'keep your weight' : (goal < 0 ? 'lose ' : 'gain ') ~ goal|abs ~ ' kg/week' }}
+                {%- set status = week.goalStatus %}
+                — <span class="week-status week-status-{{ status }}">
+                {%- if status == 'on_track' %}on track
+                {%- elseif status == 'faster' %}{{ goal < 0 ? 'losing' : 'gaining' }} faster than your goal
+                {%- elseif status == 'slower' %}{{ goal < 0 ? 'losing' : 'gaining' }} slower than your goal
+                {%- elseif goal == 0 %}drifting {{ pace < 0 ? 'down' : 'up' }}
+                {%- else %}not {{ goal < 0 ? 'losing' : 'gaining' }} at this pace
+                {%- endif %}</span>
+            </p>
+        {% elseif week.averageBurned is null and week.loggedDays > 0 %}
+            <p class="muted">"Burned" appears once we can estimate what you burn (see above).</p>
+        {% endif %}
+
+        <ul class="week-facts">
+            {% if week.trendChangeKg is not null %}
+                <li>Weight trend: <strong>{{ week.trendChangeKg|round(1) == 0 ? 'no change' : m.signed(week.trendChangeKg, 1) ~ ' kg' }}</strong> over these days</li>
+            {% endif %}
+            <li>Exercise: {% if week.exerciseDays > 0 %}<strong>{{ week.exerciseKcal|number_format(0, '.', ' ') }} kcal</strong> on {{ week.exerciseDays }} {{ week.exerciseDays == 1 ? 'day' : 'days' }}{% else %}none logged{% endif %}</li>
+            <li>Meals logged on <strong>{{ week.loggedDays }} of 7 days</strong>{% if week.loggedDays > 0 and week.rough %}, so these averages are rough{% endif %}</li>
+        </ul>
+    {% endif %}
+</section>

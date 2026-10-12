@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Chart\EnergyChart;
 use App\Energy\EnergyCalculator;
 use App\Energy\EnergyEstimate;
+use App\Energy\WeightTrend;
 use App\Entity\ExerciseEntry;
 use App\Entity\MealEntry;
 use App\Entity\User;
@@ -13,13 +14,15 @@ use App\Exercise\ExerciseEstimation;
 use App\Meal\MealEstimation;
 use App\Repository\ExerciseEntryRepository;
 use App\Repository\MealEntryRepository;
+use App\Repository\WeightEntryRepository;
+use App\Summary\WeeklySummary;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
-/** The main page: the day's totals, the last 14 days, and the day's food and exercise. */
+/** The main page: the day's totals, the last 14 days, the week's summary, and the day's food and exercise. */
 class DashboardController extends AbstractController
 {
     use DayAwareController;
@@ -32,6 +35,7 @@ class DashboardController extends AbstractController
         #[CurrentUser] User $user,
         MealEntryRepository $mealRepository,
         ExerciseEntryRepository $exerciseRepository,
+        WeightEntryRepository $weightRepository,
         EnergyCalculator $energyCalculator,
         MealEstimation $mealEstimation,
         ExerciseEstimation $exerciseEstimation,
@@ -84,6 +88,7 @@ class DashboardController extends AbstractController
             'burned' => $energy->burnedWith($exerciseKcal),
             'target' => $energy->targetFor($user->getWeeklyGoalKg(), $exerciseKcal),
             'charts' => $this->charts($user, $mealRepository, $exerciseRepository, $energy, $day, $today),
+            'week' => $this->week($user, $mealRepository, $exerciseRepository, $weightRepository, $energy, $day, $day == $today),
             'retryAt' => $retryAt,
             'hasPending' => array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending()),
             'openLog' => $needsAttention || null !== $returnToLog,
@@ -110,6 +115,25 @@ class DashboardController extends AbstractController
         return array_map(
             fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), self::CHART_DAYS, $width),
             [EnergyChart::WIDTH, EnergyChart::COMPACT_WIDTH],
+        );
+    }
+
+    /** The 7 full days up to the shown day: today isn't over, so for today the week ends yesterday. */
+    private function week(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, WeightEntryRepository $weights, EnergyEstimate $energy, \DateTimeImmutable $day, bool $isToday): WeeklySummary
+    {
+        $last = $isToday ? $day->modify('-1 day') : $day;
+        $first = $last->modify(sprintf('-%d days', WeeklySummary::DAYS - 1));
+        $end = $last->modify('+1 day');
+        // Warm the trend up with earlier weigh-ins, as on the weight page.
+        $trend = WeightTrend::daily($weights->weightsByDate($user, $first->modify('-60 days')));
+
+        return WeeklySummary::calculate(
+            $meals->dailyIntake($user, $first, $end),
+            $exercises->dailyExercise($user, $first, $end),
+            $trend,
+            $energy->getBaseline(),
+            $last->format('Y-m-d'),
+            $user->getWeeklyGoalKg(),
         );
     }
 

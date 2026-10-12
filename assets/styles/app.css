@@ -294,3 +294,16 @@ a.button:hover { filter: brightness(0.95); }
 .per100g-edit .per100g-title { padding-bottom: 0.35rem; }
 .per100g-edit label { display: flex; flex-direction: column; gap: 0.1rem; margin: 0; font-size: 0.75rem; }
 table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding: 0.2rem 0.3rem; font-size: 0.85rem; }
+/* Weekly summary (dashboard/_week.html.twig). Deficit/surplus use the same green/orange as the chart. */
+.week h2 { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.week .week-range { font-size: 0.9rem; font-weight: normal; }
+.week-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
+.week-stats > div { display: flex; flex-direction: column; }
+.week-stats .label, .week-stats .unit { color: var(--muted); font-size: 0.8rem; }
+.week-stats strong { font-size: 1.4rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.week-balance.deficit strong { color: var(--accent); }
+.week-balance.surplus strong { color: #b84a1f; }
+.week-pace { margin: 0 0 0.5rem; }
+.week-status-on_track { color: var(--accent); font-weight: 600; }
+.week-facts { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
+.week-facts strong { color: var(--text); font-weight: 600; }
