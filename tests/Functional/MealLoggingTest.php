@@ -36,7 +36,7 @@ class MealLoggingTest extends WebTestCase
 
     public function testAMealCanBeLoggedFromAPhotoWithOptionalDetails(): void
     {
-        $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Pasta carbonara', 350, 620, 25, 70, 26, 'cream sauce and cooking fat included')], 'gemini:test'));
+        $this->estimator()->willReturn(new MealEstimate([new EstimatedItem('Pasta carbonara', 350, 620, 25, 70, 26, 'cream sauce and cooking fat included')], 'gemini:test', 'Pasta carbonara dinner'));
 
         $crawler = $this->client->request('GET', '/meals/new');
         self::assertSame('multipart/form-data', $crawler->filter('form.meal-form')->attr('enctype'));
@@ -55,7 +55,7 @@ class MealLoggingTest extends WebTestCase
         self::assertTrue($entry->isFromPhoto());
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.review .raw', '📷 “large plate”');
+        self::assertSelectorTextContains('.review .raw', '📷Pasta carbonara dinner · “large plate”');
         self::assertSelectorTextContains('table.adjust', 'Pasta carbonara');
     }
 
@@ -71,7 +71,7 @@ class MealLoggingTest extends WebTestCase
 
         self::assertSame([''], $this->estimator()->received);
         $this->client->request('GET', '/');
-        self::assertSelectorTextContains('#panel-food .raw', '📷 Photo');
+        self::assertSelectorTextContains('#panel-food .raw', '📷Banana', 'named after what was found, not "Photo"');
     }
 
     public function testFilesThatAreNotPhotosAreRejected(): void

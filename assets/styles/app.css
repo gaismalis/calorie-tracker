@@ -327,3 +327,4 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .photo-preview:not([hidden]) ~ .photo-hint { display: none; }
 .photo-hint { font-size: 0.8rem; }
 .photo-mark { font-style: normal; margin-right: 0.3rem; }
+.photo-note { color: var(--muted); }

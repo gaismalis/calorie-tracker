@@ -69,4 +69,20 @@ class MealEntryTest extends TestCase
         self::assertTrue($entry->isFailed());
         self::assertSame(2, $entry->getEstimationAttempts());
     }
+
+    public function testTitleComesFromTheAiOrTheItemNamesAndIsKeptShort(): void
+    {
+        $entry = new MealEntry(new User(), '', new \DateTimeImmutable());
+        $items = [new EstimatedItem('Rice', 200, 260, 5, 56, 1), new EstimatedItem('Chicken', 150, 250, 40, 0, 10)];
+
+        $entry->applyEstimate(new MealEstimate($items, 'test', 'Chicken with rice'), new \DateTimeImmutable());
+        self::assertSame('Chicken with rice', $entry->getTitle());
+
+        $entry->applyEstimate(new MealEstimate($items, 'test'), new \DateTimeImmutable());
+        self::assertSame('Rice, Chicken', $entry->getTitle(), 'no name from the AI: the item names');
+
+        $entry->applyEstimate(new MealEstimate($items, 'test', str_repeat('Ļoti garš ēdiena nosaukums ', 5)), new \DateTimeImmutable());
+        self::assertSame(MealEntry::TITLE_LENGTH, mb_strlen($entry->getTitle()));
+        self::assertStringEndsWith('…', $entry->getTitle());
+    }
 }

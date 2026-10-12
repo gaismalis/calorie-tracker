@@ -41,6 +41,16 @@ class GeminiNutritionEstimatorTest extends TestCase
         self::assertSame(118.4, $estimate->items[1]->kcal, '592.2 × 0.2, rounded to 1 decimal');
         self::assertSame('big tablespoon ≈ 20 g', $estimate->items[1]->assumption);
         self::assertSame('gemini:gemini-test-001', $estimate->estimatedBy);
+        self::assertNull($estimate->mealName, 'none in this answer');
+    }
+
+    public function testMealNameIsTakenFromTheAnswer(): void
+    {
+        $estimate = $this->estimator([self::geminiReply(['meal_name' => '  Spaghetti bolognese  ', 'items' => [
+            ['name' => 'Spaghetti', 'grams' => 200, 'kcal_per_100g' => 158, 'protein_per_100g' => 6, 'carbs_per_100g' => 31, 'fat_per_100g' => 1, 'category' => 'food'],
+        ]])])->estimate('', photo: new Photo('jpeg', 'image/jpeg'));
+
+        self::assertSame('Spaghetti bolognese', $estimate->mealName);
     }
 
     public function testEachItemGetsACategoryAndUnknownOnesAreGuessedFromTheName(): void

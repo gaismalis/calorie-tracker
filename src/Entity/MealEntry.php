@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Estimation\Estimable;
 use App\Estimation\EstimationState;
+use App\Nutrition\EstimatedItem;
 use App\Nutrition\MealEstimate;
 use App\Repository\MealEntryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -18,6 +19,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(columns: ['user_id', 'eaten_at'])]
 class MealEntry implements Estimable
 {
+    public const TITLE_LENGTH = 60;
+
     use EstimationState;
 
     #[ORM\Id]
@@ -31,6 +34,10 @@ class MealEntry implements Estimable
 
     #[ORM\Column(type: 'text')]
     private string $rawText;
+
+    /** Short name of the meal (from the AI, or the item names), e.g. "Spaghetti bolognese with salad". */
+    #[ORM\Column(length: self::TITLE_LENGTH, nullable: true)]
+    private ?string $title = null;
 
     /** Logged with a photo (the photo itself is only kept until it's estimated, see PendingMealPhoto). */
     #[ORM\Column(options: ['default' => false])]
@@ -80,7 +87,21 @@ class MealEntry implements Estimable
             ));
         }
         $this->recalculateTotals();
+        $this->title = self::shortTitle($estimate->mealName ?? implode(', ', array_map(fn (EstimatedItem $item) => $item->name, $estimate->items)));
         $this->estimationSucceeded($estimate->estimatedBy, $at);
+    }
+
+    public function getTitle(): ?string
+    {
+        return $this->title;
+    }
+
+    /** At most TITLE_LENGTH characters, cut with "…" (multibyte-safe); null when empty. */
+    public static function shortTitle(string $title): ?string
+    {
+        $title = trim(preg_replace('/\s+/u', ' ', $title));
+
+        return '' === $title ? null : mb_strimwidth($title, 0, self::TITLE_LENGTH, '…');
     }
 
     public function addItem(MealItem $item): void

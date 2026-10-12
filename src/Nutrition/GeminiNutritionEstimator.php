@@ -26,6 +26,8 @@ final class GeminiNutritionEstimator implements NutritionEstimator
           and state it in "assumption" (e.g. "big tablespoon ≈ 20 g"). Leave "assumption" empty when nothing had
           to be guessed.
         - Name items concisely in the user's language.
+        - Also give "meal_name": a short name for the whole meal in the user's language, at most 60 characters,
+          e.g. "Spaghetti bolognese with salad" or "Coffee and a croissant".
         - Give each item a "category": "alcohol" for any alcoholic drink (beer, wine, spirits, cider, cocktails;
           alcohol-free beer is not alcohol); "snack" for sweets, desserts and snack foods (chocolate, candy,
           cookies, cake, ice cream, tiramisu, chips); "food" for everything else, including meals, fast food,
@@ -41,6 +43,7 @@ final class GeminiNutritionEstimator implements NutritionEstimator
     private const RESPONSE_SCHEMA = [
         'type' => 'OBJECT',
         'properties' => [
+            'meal_name' => ['type' => 'STRING'],
             'items' => [
                 'type' => 'ARRAY',
                 'items' => [
@@ -59,7 +62,7 @@ final class GeminiNutritionEstimator implements NutritionEstimator
                 ],
             ],
         ],
-        'required' => ['items'],
+        'required' => ['items', 'meal_name'],
     ];
 
     public function __construct(private readonly GeminiClient $gemini)
@@ -104,7 +107,9 @@ final class GeminiNutritionEstimator implements NutritionEstimator
             );
         }
 
-        return new MealEstimate($items, 'gemini:'.$result->model);
+        $mealName = trim((string) ($result->data['meal_name'] ?? ''));
+
+        return new MealEstimate($items, 'gemini:'.$result->model, '' === $mealName ? null : $mealName);
     }
 
     private static function nonNegative(mixed $value): float
