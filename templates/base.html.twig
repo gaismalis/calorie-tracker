@@ -4,7 +4,14 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Calorie Tracker{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥗</text></svg>">
+        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+        <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+        {# Installable as a phone/desktop app (PWA): public/manifest.webmanifest, public/sw.js, public/icons/. #}
+        <link rel="manifest" href="/manifest.webmanifest">
+        <meta name="theme-color" content="#2f855a">
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+        <meta name="apple-mobile-web-app-title" content="Calories">
+        <meta name="mobile-web-app-capable" content="yes">
         {% block head %}{% endblock %}
         {% block stylesheets %}
         {% endblock %}

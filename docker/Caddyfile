@@ -8,5 +8,8 @@
 :{$PORT:8080} {
 	root * /app/public
 	encode zstd br gzip
+	# Installable app: the manifest's type isn't in Caddy's built-in list.
+	@manifest path /manifest.webmanifest
+	header @manifest Content-Type application/manifest+json
 	php_server
 }
