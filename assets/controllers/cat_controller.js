@@ -1,11 +1,13 @@
 import { Controller } from '@hotwired/stimulus';
 
-// Just for fun: now and then a cat walks onto the screen, waves, and sits on top of things. Tap it a random
-// number of times (1 to maxTaps): it pulls a grumpy or smug face each time, and at the last tap it's happy
-// and walks off. Rarely (1 in ZOMBIE_CHANCE) it's a zombie cat. The next visit is due minHours–maxHours
-// after the last one, kept in localStorage so page loads don't reset it; once due, the cat shows up a few
-// seconds into the next page. Right after logging in (soon = true) it comes within SOON_SECONDS whatever the
-// schedule. A cat that wasn't shooed comes back on the next page. Skipped for "reduce motion".
+// Just for fun: when you open the app, a cat walks onto the screen within a few seconds, waves, and sits on
+// top of things. Tap it a random number of times (1 to maxTaps): it pulls a grumpy or smug face each time,
+// and at the last tap it's happy and walks off. Ignore it and it gets bored: now and then it pulls a face,
+// meows and walks to another spot. Rarely (1 in ZOMBIE_CHANCE) it's a zombie cat.
+//
+// It comes at most once per gapMinutes: after it has been shooed away, the next visit is due gapMinutes
+// later, kept in localStorage so page loads don't reset it. A cat that wasn't shooed comes back on the next
+// page. Skipped for "reduce motion".
 //
 // Frames: public/cat/cat-sprite.png, one row of 111x128 cells made from the CC0 "Orange Fat Cat"
 // (megupets.com) with bin/build-cat-sprite.php.
@@ -19,31 +21,26 @@ const HEIGHT = CELL_HEIGHT * SCALE;
 const FRAME = { walk: 0, walkFrames: 19, idle: 19, blink: 20, wave: 21, waveFrames: 10, grin: 31, grumpy: 32, tsk: 33, happy: 34, zombie: 35 };
 
 const NEXT_VISIT_KEY = 'cat.nextVisit';
-const ARRIVAL_SECONDS = [3, 12];
-const SOON_SECONDS = [1, 5];
+const ARRIVAL_SECONDS = [1, 5];
+/** Sitting this long without a tap and the cat gets bored. */
+const BORED_SECONDS = [6, 14];
 const WALK_PX_PER_SECOND = 90;
 const ZOMBIE_CHANCE = 20;
 const SOUNDS = ['meow', 'mrrp?', 'purrr', 'no.', '*yawn*', 'hmm?', 'mew', '5 more minutes', 'hiss'];
+const BORED_SOUNDS = ['meow!', 'MEOW', 'hello?', 'pet me', 'mrrraow', 'feed me', 'hey!', 'I see you'];
 const ZOMBIE_SOUNDS = ['braaains', 'mrrrgh', 'brains?', 'uuurgh'];
 
 const between = (min, max) => min + Math.random() * (max - min);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
 export default class extends Controller {
-    static values = { minHours: Number, maxHours: Number, maxTaps: Number, soon: Boolean };
+    static values = { gapMinutes: Number, maxTaps: Number };
 
     connect() {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-        let due = Number(localStorage.getItem(NEXT_VISIT_KEY));
-        if (!due) {
-            due = this.scheduleNext();
-        }
-        const soon = this.soonValue;
-        this.element.removeAttribute('data-cat-soon-value'); // not again when Turbo restores this page from its cache
-        const wait = soon
-            ? between(...SOON_SECONDS) * 1000
-            : Math.max(due - Date.now(), between(...ARRIVAL_SECONDS) * 1000);
+        const due = Number(localStorage.getItem(NEXT_VISIT_KEY)) || 0;
+        const wait = Math.max(due - Date.now(), between(...ARRIVAL_SECONDS) * 1000);
         // setTimeout can't wait longer than ~24.8 days; check again when the page is opened next.
         if (wait < 2 ** 31) this.timer = setTimeout(() => this.arrive(), wait);
     }
@@ -87,14 +84,12 @@ export default class extends Controller {
         cat.addEventListener('click', () => this.tap());
         this.element.append(cat);
         this.cat = cat;
+        this.state = 'arriving';
 
         // Walk in from the nearer edge to a random spot.
-        const x = between(0.1, 0.8) * (window.innerWidth - WIDTH);
-        const y = between(0.3, 0.8) * (window.innerHeight - HEIGHT);
-        const fromX = x < (window.innerWidth - WIDTH) / 2 ? -WIDTH : window.innerWidth;
-        this.position = { x, y };
-        this.state = 'walking';
-        this.walk(fromX, x, WALK_PX_PER_SECOND, () => {
+        const spot = this.randomSpot();
+        const from = { x: spot.x < (window.innerWidth - WIDTH) / 2 ? -WIDTH : window.innerWidth, y: spot.y };
+        this.walk(from, spot, WALK_PX_PER_SECOND, () => {
             this.face(true);
             this.state = 'waving';
             this.loop(FRAME.wave, FRAME.waveFrames, 10, 2, () => this.sit());
@@ -102,10 +97,11 @@ export default class extends Controller {
     }
 
     tap() {
-        if (!this.cat || !['sitting', 'reacting'].includes(this.state)) return;
+        if (!this.cat || !['sitting', 'reacting', 'wandering'].includes(this.state)) return;
 
-        this.tapsLeft -= 1;
         this.stop();
+        if ('wandering' === this.state) this.halt();
+        this.tapsLeft -= 1;
         if (this.tapsLeft > 0) {
             this.state = 'reacting';
             this.show(pick([FRAME.grumpy, FRAME.tsk]));
@@ -120,10 +116,10 @@ export default class extends Controller {
         this.scheduleNext();
         this.show(FRAME.happy);
         this.later(() => {
-            const { x } = this.position;
-            const toX = x + WIDTH / 2 < window.innerWidth / 2 ? -WIDTH * 2 : window.innerWidth + WIDTH;
+            const { x, y } = this.position;
+            const to = { x: x + WIDTH / 2 < window.innerWidth / 2 ? -WIDTH * 2 : window.innerWidth + WIDTH, y };
             const cat = this.cat;
-            this.walk(x, toX, WALK_PX_PER_SECOND * 3, () => {
+            this.walk(this.position, to, WALK_PX_PER_SECOND * 3, () => {
                 cat.remove();
                 if (this.cat === cat) this.cat = null;
             });
@@ -132,28 +128,65 @@ export default class extends Controller {
 
     sit() {
         this.state = 'sitting';
+        this.blink();
+        clearTimeout(this.boredTimer);
+        this.boredTimer = setTimeout(() => this.bored(), between(...BORED_SECONDS) * 1000);
+    }
+
+    blink() {
         this.show(FRAME.idle);
-        // Blink now and then.
         this.later(() => {
             this.show(FRAME.blink);
-            this.later(() => this.sit(), 160);
+            this.later(() => this.blink(), 160);
         }, between(2000, 5000));
     }
 
-    walk(fromX, toX, pxPerSecond, done) {
-        const { y } = this.position;
-        this.face(toX >= fromX);
+    /** Ignored: pull a face and meow, then (usually) walk somewhere else and sit down again. */
+    bored() {
+        this.stop();
+        this.state = 'reacting';
+        this.show(pick([FRAME.grin, FRAME.grumpy, FRAME.tsk]));
+        this.say(pick(this.zombie ? ZOMBIE_SOUNDS : BORED_SOUNDS));
+        this.later(() => {
+            if (Math.random() < 0.25) return this.sit();
+            this.state = 'wandering';
+            this.walk(this.position, this.randomSpot(), WALK_PX_PER_SECOND, () => this.sit());
+        }, 1200);
+    }
+
+    walk(from, to, pxPerSecond, done) {
+        this.position = to;
+        this.face(to.x >= from.x);
         this.cat.classList.add('walking');
         this.loop(FRAME.walk, FRAME.walkFrames, Math.min(40, pxPerSecond / 4), Infinity);
         this.cat.getAnimations().forEach((a) => a.cancel());
-        this.cat.animate(
-            [{ transform: `translate(${fromX}px, ${y}px)` }, { transform: `translate(${toX}px, ${y}px)` }],
-            { duration: Math.abs(toX - fromX) / pxPerSecond * 1000, fill: 'forwards' },
-        ).onfinish = () => {
+        this.walking = this.cat.animate(
+            [{ transform: `translate(${from.x}px, ${from.y}px)` }, { transform: `translate(${to.x}px, ${to.y}px)` }],
+            { duration: Math.hypot(to.x - from.x, to.y - from.y) / pxPerSecond * 1000, fill: 'forwards' },
+        );
+        this.walking.onfinish = () => {
+            this.walking = null;
             this.cat?.classList.remove('walking');
             this.stop();
             done();
         };
+    }
+
+    /** Stops a walk where the cat is right now (tapped on the way). */
+    halt() {
+        if (!this.walking) return;
+        const box = this.cat.getBoundingClientRect();
+        const layer = this.element.getBoundingClientRect();
+        this.position = { x: box.left - layer.left, y: box.top - layer.top };
+        this.walking.onfinish = null;
+        this.walking = null;
+        this.cat.getAnimations().forEach((a) => a.cancel());
+        this.cat.style.transform = `translate(${this.position.x}px, ${this.position.y}px)`;
+        this.cat.classList.remove('walking');
+    }
+
+    randomSpot() {
+        return { x: between(0.1, 0.8) * (window.innerWidth - WIDTH), y: between(0.3, 0.8) * (window.innerHeight - HEIGHT) };
     }
 
     /** Plays frames first…first+count-1 at fps, `times` times over, then calls done. */
@@ -191,6 +224,7 @@ export default class extends Controller {
     stop() {
         clearInterval(this.ticker);
         clearTimeout(this.poseTimer);
+        clearTimeout(this.boredTimer);
     }
 
     say(text) {
@@ -205,9 +239,6 @@ export default class extends Controller {
     }
 
     scheduleNext() {
-        const due = Date.now() + between(this.minHoursValue, this.maxHoursValue) * 3600 * 1000;
-        localStorage.setItem(NEXT_VISIT_KEY, String(due));
-
-        return due;
+        localStorage.setItem(NEXT_VISIT_KEY, String(Date.now() + this.gapMinutesValue * 60 * 1000));
     }
 }
