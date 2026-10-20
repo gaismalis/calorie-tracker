@@ -119,6 +119,7 @@ class DashboardController extends AbstractController
         $end = $day->modify('+1 day');
         $eaten = $meals->dailyIntake($user, $first, $end);
         $alcohol = $meals->dailyCategoryIntake($user, FoodCategory::Alcohol, $first, $end);
+        $snacks = $meals->dailyCategoryIntake($user, FoodCategory::Snack, $first, $end);
         $exercise = $exercises->dailyExercise($user, $first, $end);
 
         $burned = [];
@@ -130,7 +131,7 @@ class DashboardController extends AbstractController
         }
 
         return array_map(
-            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), $days, $width, $daysPerBar, $alcohol),
+            fn (int $width) => EnergyChart::build($eaten, $burned, $day->format('Y-m-d'), $today->format('Y-m-d'), $days, $width, $daysPerBar, $alcohol, $snacks),
             [EnergyChart::WIDTH, EnergyChart::COMPACT_WIDTH],
         );
     }

@@ -30,6 +30,9 @@
                 {% else %}
                     <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-unknown"/></svg> Eaten</li>
                 {% endif %}
+                {% if chart.hasSnacks %}
+                    <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-snack"/></svg> Snacks</li>
+                {% endif %}
                 {% if chart.hasAlcohol %}
                     <li><svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" class="bar-alcohol"/></svg> Alcohol</li>
                 {% endif %}
@@ -58,6 +61,10 @@
                         {% if day.alcoholBar %}
                             <rect x="{{ day.alcoholBar.x }}" y="{{ day.alcoholBar.y }}" width="{{ day.alcoholBar.width }}" height="{{ day.alcoholBar.height }}" rx="2"
                                   class="bar-alcohol{{ day.today ? ' bar-today' }}"/>
+                        {% endif %}
+                        {% if day.snackBar %}
+                            <rect x="{{ day.snackBar.x }}" y="{{ day.snackBar.y }}" width="{{ day.snackBar.width }}" height="{{ day.snackBar.height }}" rx="2"
+                                  class="bar-snack{{ day.today ? ' bar-today' }}"/>
                         {% endif %}
                         {% if day.overBy and chart.roomForLabels %}
                             <text x="{{ day.x }}" y="{{ day.bar.y - 5 }}" class="over-label">+{{ day.overBy|number_format(0, '.', ' ') }}</text>

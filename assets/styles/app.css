@@ -178,6 +178,9 @@ button.link.danger svg { vertical-align: -3px; }
 /* Alcohol: the top part of the bar, deep red (darker than the orange of "ate more", so they stay apart), with a thin gap below. */
 .energy-chart .bar-alcohol { fill: #b3261e; stroke: var(--surface-1); stroke-width: 1; }
 .energy-chart .tooltip .tip-alcohol .key { background: #b3261e; }
+/* Snacks: right below the alcohol part, purple (apart from green, orange and red). */
+.energy-chart .bar-snack { fill: #7b4fb3; stroke: var(--surface-1); stroke-width: 1; }
+.energy-chart .tooltip .tip-snacks .key { background: #7b4fb3; }
 .energy-chart .burned-mark { stroke: var(--text-primary); stroke-width: 2; stroke-linecap: round; }
 .energy-chart .over-label { text-anchor: middle; fill: #b84a1f; font-weight: 600; }
 .energy-chart .tooltip .key { height: 8px; width: 8px; border-radius: 2px; }
@@ -312,9 +315,9 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .week-facts strong { color: var(--text); font-weight: 600; }
 .energy .chart-header h2 { margin-bottom: 0.15rem; }
 .energy .chart-period { margin: 0 0 0.5rem; font-size: 0.85rem; }
-/* Food categories: snack and alcohol items are marked in the log; alcohol uses the chart's red. */
+/* Food categories: snack and alcohol items are marked in the log, in the chart's purple and red. */
 .category-tag { display: inline-block; font-size: 0.7rem; padding: 0 0.35rem; border-radius: 4px; margin-left: 0.25rem; white-space: nowrap; vertical-align: 0.1em; }
-.category-snack { background: #fbeee4; color: #8a4b1a; }
+.category-snack { background: #efe6f8; color: #5e3a8c; }
 .category-alcohol { background: #fbe4e4; color: #a3201b; }
 .category-select { display: block; margin: 0.2rem 0; font-size: 0.8rem; padding: 0.1rem 0.2rem; border: 1px solid var(--border); border-radius: 4px; background: var(--card); }
 /* Meal photo in the add-meal form (meal_photo_controller.js). */

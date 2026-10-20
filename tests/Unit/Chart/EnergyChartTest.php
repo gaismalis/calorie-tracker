@@ -153,6 +153,41 @@ class EnergyChartTest extends TestCase
         self::assertFalse(EnergyChart::build(['2026-10-01' => 1500.0], [], '2026-10-01', '2026-10-01', 7)->hasAlcohol);
     }
 
+    public function testSnacksAreRightBelowTheAlcoholPart(): void
+    {
+        $chart = EnergyChart::build(
+            ['2026-09-30' => 2000.0, '2026-10-01' => 1500.0],
+            ['2026-09-30' => 2500.0, '2026-10-01' => 2500.0],
+            '2026-10-01',
+            '2026-10-02',
+            7,
+            alcohol: ['2026-09-30' => 500.0],
+            snacks: ['2026-09-30' => 500.0, '2026-10-01' => 300.0],
+        );
+
+        self::assertTrue($chart->hasSnacks);
+        $day = $chart->days[5];
+        self::assertSame(500.0, $day['snacks']);
+        self::assertEqualsWithDelta($day['alcoholBar']['y'] + $day['alcoholBar']['height'], $day['snackBar']['y'], 0.2, 'starts where alcohol ends');
+        self::assertEqualsWithDelta($day['bar']['height'] / 4, $day['snackBar']['height'], 0.2, '500 of 2000 kcal');
+        self::assertSame($chart->days[6]['bar']['y'], $chart->days[6]['snackBar']['y'], 'no alcohol: snacks at the top of the bar');
+        self::assertNull($chart->days[4]['snackBar'], 'no bar without meals');
+        self::assertSame(
+            [['series' => 'alcohol', 'value' => '500 kcal', 'name' => 'of it alcohol'], ['series' => 'snacks', 'value' => '500 kcal', 'name' => 'of it snacks']],
+            array_slice($chart->hover()[5]['rows'], 1, 2),
+        );
+        self::assertFalse(EnergyChart::build(['2026-10-01' => 1500.0], [], '2026-10-01', '2026-10-01', 7)->hasSnacks);
+    }
+
+    public function testSnacksNeverMakeTheBarTallerThanWhatWasEaten(): void
+    {
+        $chart = EnergyChart::build(['2026-10-01' => 1000.0], [], '2026-10-01', '2026-10-01', 7, alcohol: ['2026-10-01' => 700.0], snacks: ['2026-10-01' => 600.0]);
+        $day = $chart->days[6];
+
+        self::assertSame(300.0, $day['snacks'], 'only what is left after alcohol');
+        self::assertEqualsWithDelta($day['bar']['y'] + $day['bar']['height'], $day['snackBar']['y'] + $day['snackBar']['height'], 0.2, 'ends at the bottom of the bar');
+    }
+
     public function testWeeklyBarsAverageAlcoholPerLoggedDay(): void
     {
         $chart = EnergyChart::build(

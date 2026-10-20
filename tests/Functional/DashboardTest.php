@@ -302,7 +302,7 @@ class DashboardTest extends WebTestCase
         self::assertStringContainsString('Exercise: none logged', $week->text());
     }
 
-    public function testAlcoholIsShownInRedOnTheChartAndCountedInTheWeek(): void
+    public function testAlcoholAndSnacksAreShownOnTheChartAndCountedInTheWeek(): void
     {
         $yesterday = $this->user->today()->modify('-1 day')->setTime(20, 0);
         $entry = new MealEntry($this->user, 'pizza, 2 beers and ice cream', $yesterday);
@@ -317,9 +317,12 @@ class DashboardTest extends WebTestCase
         $crawler = $this->client->request('GET', '/');
 
         self::assertCount(1, $crawler->filter('.energy-chart.chart-wide svg[role=img] rect.bar-alcohol'));
+        self::assertCount(1, $crawler->filter('.energy-chart.chart-wide svg[role=img] rect.bar-snack'));
         self::assertSelectorTextContains('.energy-chart .legend', 'Alcohol');
+        self::assertSelectorTextContains('.energy-chart .legend', 'Snacks');
         $days = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
         self::assertContains(['series' => 'alcohol', 'value' => '430 kcal', 'name' => 'of it alcohol'], $days[5]['rows']);
+        self::assertContains(['series' => 'snacks', 'value' => '200 kcal', 'name' => 'of it snacks'], $days[5]['rows']);
         $week = $crawler->filter('section.week')->text();
         self::assertStringContainsString('🍷 Alcohol: 430 kcal (30% of what you ate)', $week);
         self::assertStringContainsString('🍫 Snacks: 200 kcal (14% of what you ate)', $week);
