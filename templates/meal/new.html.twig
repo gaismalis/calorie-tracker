@@ -24,6 +24,17 @@
                 </span>
                 <span class="muted photo-hint">A photo of the plate or the label; add details as text.</span>
             </div>
+            {% if recipes is not empty %}
+                {# One tap logs a recipe with its own numbers (no AI), at the time below; then the usual review to adjust the amount. #}
+                <div class="recipe-picks" role="group" aria-labelledby="recipe-picks-title">
+                    <span id="recipe-picks-title" class="muted small">Or one of <a href="{{ path('app_recipes') }}" data-turbo-frame="_top">your recipes</a> (no AI):</span>
+                    {% for recipe in recipes %}
+                        <button type="submit" class="recipe-pick secondary" formaction="{{ path('app_recipe_log', {id: recipe.id}) }}" formnovalidate>
+                            {{ recipe.name }} <span class="muted">{{ recipe.kcal|round }} kcal</span>
+                        </button>
+                    {% endfor %}
+                </div>
+            {% endif %}
             <div class="meal-form-row">
                 <label class="time">At <input type="time" name="time" aria-label="Time eaten">
                     <span class="muted">{{ day ? 'empty = 12:00' : 'empty = now' }}</span></label>

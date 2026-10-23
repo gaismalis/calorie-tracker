@@ -9,6 +9,7 @@ use App\Meal\MealEstimation;
 use App\Ai\Photo;
 use App\Nutrition\FoodCategory;
 use App\Nutrition\Per100g;
+use App\Repository\RecipeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -26,12 +27,12 @@ class MealController extends AbstractController
 
     /** The "what did you eat?" form; shown inside the dialog on the main page (Turbo frame), or as a page. */
     #[Route('/meals/new', name: 'app_meal_new', methods: ['GET'])]
-    public function new(#[CurrentUser] User $user, Request $request): Response
+    public function new(#[CurrentUser] User $user, Request $request, RecipeRepository $recipes): Response
     {
         $day = $this->parseLocalDate($user, $request->query->getString('date'));
         $isPast = null !== $day && $day < $user->today();
 
-        return $this->render('meal/new.html.twig', ['day' => $isPast ? $day : null]);
+        return $this->render('meal/new.html.twig', ['day' => $isPast ? $day : null, 'recipes' => $recipes->findForUser($user)]);
     }
 
     #[Route('/meals', name: 'app_meal_create', methods: ['POST'])]

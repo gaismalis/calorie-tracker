@@ -37,7 +37,7 @@ h1, h2 { margin-top: 0; font-size: 1.25rem; }
 
 label { display: block; margin: 0.75rem 0 0.25rem; font-size: 0.9rem; }
 label.checkbox { display: flex; gap: 0.4rem; align-items: center; }
-input[type=email], input[type=password], textarea {
+input[type=email], input[type=password], input[type=text], textarea {
     width: 100%; box-sizing: border-box; padding: 0.6rem; font: inherit;
     border: 1px solid var(--border); border-radius: 6px;
 }
@@ -367,3 +367,34 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .add-entry:has(.add-menu:not([hidden])) ~ .cat-call { visibility: hidden; } /* the + menu opens there */
 @media (min-width: 768px) { .cat-call { right: 1.5rem; bottom: 1.5rem; } }
 .cat-says { position: absolute; padding: 0.15rem 0.5rem; border-radius: 999px; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.2); font-size: 0.85rem; white-space: nowrap; }
+
+/* My recipes (recipe/*.html.twig): the list, the form (one block per food so it fits phones), picks in the meal dialog, 🔖 in the log. */
+.recipes-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.recipes-header h2 { margin: 0; }
+.recipes-header .button { margin: 0; }
+.recipe { border-top: 1px solid var(--border); padding: 0.6rem 0; }
+.recipe header { display: flex; gap: 0.6rem; align-items: baseline; }
+.recipe .recipe-title { flex: 1; font-weight: 600; }
+.recipe .kcal { font-weight: 600; white-space: nowrap; }
+.recipe .adjust-link { font-size: 0.85rem; }
+.recipe-macros { margin: 0.15rem 0 0; }
+.recipe-form .recipe-name { display: block; margin: 0.6rem 0 0.75rem; }
+.recipe-form .recipe-name input { margin-top: 0.2rem; }
+.recipe-item { border-top: 1px solid var(--border); padding: 0.5rem 0; }
+.recipe-item-head { display: flex; gap: 0.4rem; align-items: center; }
+.recipe-item-head input { flex: 1 1 auto; min-width: 0; padding: 0.4rem 0.5rem; }
+.recipe-item-head .category-select { flex: 0 0 auto; width: auto; margin: 0; padding: 0.4rem 0.3rem; font-size: 0.85rem; }
+.recipe-item-head button.link { margin: 0; }
+.recipe-item-numbers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; margin-top: 0.35rem; }
+.recipe-item-numbers label { display: flex; gap: 0.1rem; flex-direction: column; font-size: 0.75rem; color: var(--muted); margin: 0; }
+.recipe-item-numbers input { width: 100%; min-width: 0; padding: 0.35rem; font: inherit; font-size: 0.95rem; text-align: right; border: 1px solid var(--border); border-radius: 6px; }
+.recipe-form .add-food { color: var(--accent); padding: 0.3rem 0; font-size: 0.9rem; }
+.recipe-total { margin: 0.5rem 0 0; border-top: 2px solid var(--border); padding-top: 0.5rem; }
+.recipe-picks { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 0.6rem; }
+.recipe-picks > span { flex-basis: 100%; }
+.recipe-picks .recipe-pick { margin: 0; padding: 0.3rem 0.65rem; font-size: 0.9rem; border-radius: 999px; }
+.recipe-picks .recipe-pick .muted { font-size: 0.8rem; }
+.entry .bookmark { color: var(--muted); line-height: 1; }
+.entry a.bookmark:hover { color: var(--accent); }
+.entry .bookmark.saved { color: var(--accent); }
+.entry .bookmark svg { vertical-align: -2px; }

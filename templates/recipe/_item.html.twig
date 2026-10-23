@@ -1,0 +1,22 @@
+{# One food of a recipe: name, category, and the user's numbers for that amount. index is "__i__" in the <template> for new rows. #}
+<div class="recipe-item" data-recipe-form-target="item">
+    <div class="recipe-item-head">
+        <input type="text" name="items[{{ index }}][name]" value="{{ row.name }}" maxlength="255" placeholder="e.g. Greek yogurt 2%" aria-label="Food">
+        <select name="items[{{ index }}][category]" class="category-select" aria-label="Category">
+            {% for category in enum('App\\Nutrition\\FoodCategory').cases() %}
+                <option value="{{ category.value }}"{% if category.value == row.category %} selected{% endif %}>{{ category.icon }} {{ category.label }}</option>
+            {% endfor %}
+        </select>
+        <button type="button" class="link danger" aria-label="Remove this food" title="Remove" data-action="recipe-form#remove">✕</button>
+    </div>
+    <div class="recipe-item-numbers">
+        {% for field, label in {grams: 'g', kcal: 'kcal', protein: 'P', carbs: 'C', fat: 'F'} %}
+            <label><span>{{ label }}</span>
+                <input type="number" name="items[{{ index }}][{{ field }}]" value="{{ attribute(row, field) }}" min="0" step="any" inputmode="decimal"
+                       aria-label="{{ {grams: 'Grams', kcal: 'kcal', protein: 'Protein (g)', carbs: 'Carbs (g)', fat: 'Fat (g)'}[field] }}"
+                       {% if field != 'grams' %}data-total="{{ field }}"{% endif %}>
+            </label>
+        {% endfor %}
+    </div>
+    {% if error is defined and error %}<ul><li>{{ error }}</li></ul>{% endif %}
+</div>

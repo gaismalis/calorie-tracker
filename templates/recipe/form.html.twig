@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ recipe ? 'Edit recipe' : 'New recipe' }} · Calorie Tracker{% endblock %}
+
+{# New recipe, edit, or "save this meal as a recipe" (meal set). Opens in the dialog (frame entry-panel) or as a page. #}
+{% block body %}
+<section class="card">
+<turbo-frame id="entry-panel">
+    {% set action = recipe ? path('app_recipe_edit', {id: recipe.id}) : path('app_recipe_new', meal ? {fromMeal: meal.id} : {}) %}
+    <form method="post" action="{{ action }}" class="recipe-form" data-controller="recipe-form" data-action="input->recipe-form#update">
+        <h2 id="entry-title">{{ recipe ? 'Edit recipe' : (meal ? 'Save as a recipe' : 'New recipe') }}</h2>
+        <p class="muted small">
+            {%- if meal -%}
+                Check the amounts and numbers (e.g. from the label), so next time it's logged exactly, without the AI.
+            {%- else -%}
+                Your exact amounts and numbers (e.g. from the label). Logging it then needs no AI.
+            {%- endif -%}
+        </p>
+        <label class="recipe-name">Name
+            <input type="text" name="name" value="{{ name }}" maxlength="100" required placeholder="e.g. My Greek yogurt bowl" autofocus>
+        </label>
+        {% if errors.name is defined %}<ul><li>{{ errors.name }}</li></ul>{% endif %}
+
+        <div class="recipe-items" data-recipe-form-target="list">
+            {% for index, row in rows %}
+                {{ include('recipe/_item.html.twig', {index: index, row: row, error: errors[index] ?? null}) }}
+            {% endfor %}
+        </div>
+        {% if errors.items is defined %}<ul><li>{{ errors.items }}</li></ul>{% endif %}
+        <template data-recipe-form-target="template">
+            {{ include('recipe/_item.html.twig', {index: '__i__', row: {name: '', grams: '', kcal: '', protein: '', carbs: '', fat: '', category: 'food'}}) }}
+        </template>
+        <button type="button" class="link add-food" data-action="recipe-form#add">＋ Add food</button>
+
+        <p class="recipe-total">Total: <strong data-recipe-form-target="kcal">0</strong> kcal ·
+            P <span data-recipe-form-target="protein">0</span> g · C <span data-recipe-form-target="carbs">0</span> g · F <span data-recipe-form-target="fat">0</span> g</p>
+
+        <input type="hidden" name="_token" value="{{ csrf_token(recipe ? 'recipe_edit_' ~ recipe.id : 'recipe_new') }}">
+        <div class="review-actions">
+            <a href="{{ meal ? path('app_dashboard') : path('app_recipes') }}" class="muted" data-turbo-frame="_top" data-action="entry-dialog#close:prevent">Cancel</a>
+            <button type="submit">Save recipe</button>
+        </div>
+    </form>
+</turbo-frame>
+</section>
+{% endblock %}
