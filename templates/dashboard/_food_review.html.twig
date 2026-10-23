@@ -4,12 +4,18 @@
         {% if failed %}
             <h3>Food quality</h3>
             <p class="muted">Couldn't review your food right now. <a href="{{ path('app_food_review', {to: to}) }}">Try again</a></p>
-        {% elseif review is null %}
+        {% elseif tooFewDays %}
             <h3>Food quality</h3>
             <p class="muted">Log meals on at least {{ minDays }} of these 7 days to get a review of what you eat.</p>
+        {% elseif review is null %}
+            <h3>Food quality</h3>
+            <p class="muted">You've used today's {{ dailyLimit }} food reviews. Come back tomorrow for this one.</p>
         {% else %}
             {% set r = review.review %}
             <h3>Food quality <span class="food-rating food-rating-{{ r.rating }}">{{ r.rating|capitalize }}</span></h3>
+            {% if limitReached %}
+                <p class="muted small food-outdated">From before your latest changes to this week: you've used today's {{ dailyLimit }} food reviews, so it updates tomorrow.</p>
+            {% endif %}
             <p class="food-summary">{{ r.summary }}</p>
             {% if r.strengths is not empty %}
                 <p class="food-heading">👍 Going well</p>

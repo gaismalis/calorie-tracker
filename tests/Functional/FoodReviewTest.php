@@ -2,6 +2,7 @@
 
 namespace App\Tests\Functional;
 
+use App\Entity\AiUsage;
 use App\Entity\MealEntry;
 use App\Entity\User;
 use App\Entity\WeeklyFoodReview;
@@ -9,6 +10,7 @@ use App\Nutrition\EstimatedItem;
 use App\Nutrition\FoodCategory;
 use App\Nutrition\MealEstimate;
 use App\Review\FoodReview;
+use App\Review\WeeklyFoodReviews;
 use App\Tests\Support\FakeFoodReviewer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -89,6 +91,53 @@ class FoodReviewTest extends WebTestCase
         $this->client->request('GET', $this->reviewUrl());
         self::assertCount(2, $this->reviewer()->received, 'a meal added to the week: reviewed again');
         self::assertCount(1, $this->em()->getRepository(WeeklyFoodReview::class)->findAll(), 'updated, not duplicated');
+    }
+
+    public function testAtMost5AiReviewsPerDayThenTheStoredOneIsShownAsItIs(): void
+    {
+        foreach ([1, 2, 3] as $daysAgo) {
+            $this->storeMeal($daysAgo, 'Lunch');
+        }
+        $this->reviewer()->willFail(); // failed requests count too
+        $this->client->request('GET', $this->reviewUrl());
+        $this->reviewer()->willReturn(new FoodReview('good', 'Review number two.', [], [], []));
+        for ($i = 2; $i <= 5; ++$i) {
+            $this->storeMeal(2, "Snack $i"); // the week's food changed: ask again
+            $crawler = $this->client->request('GET', $this->reviewUrl());
+        }
+        self::assertCount(5, $this->reviewer()->received);
+        self::assertCount(0, $crawler->filter('.food-outdated'));
+
+        $this->storeMeal(2, 'Snack 6');
+        $crawler = $this->client->request('GET', $this->reviewUrl());
+
+        self::assertCount(5, $this->reviewer()->received, 'the 6th change today is not sent');
+        self::assertStringContainsString('Review number two.', $crawler->filter('.food-summary')->text(), 'the stored review is still shown');
+        self::assertStringContainsString("From before your latest changes to this week: you've used today's 5 food reviews", $crawler->filter('.food-outdated')->text());
+
+        // Another week (browsing a past day) has nothing stored yet.
+        $this->storeMeal(4, 'Breakfast'); // its 3rd logged day
+        $crawler = $this->client->request('GET', '/week/food-review?to='.$this->user->today()->modify('-2 days')->format('Y-m-d'));
+        self::assertCount(5, $this->reviewer()->received);
+        self::assertStringContainsString("You've used today's 5 food reviews. Come back tomorrow", $crawler->filter('turbo-frame#food-review')->text());
+    }
+
+    public function testTheLimitIsPerLocalDay(): void
+    {
+        foreach ([1, 2, 3] as $daysAgo) {
+            $this->storeMeal($daysAgo, 'Lunch');
+        }
+        $user = $this->em()->find(User::class, $this->user->getId());
+        $usage = new AiUsage($user, WeeklyFoodReviews::USAGE_FEATURE, $user->today()->modify('-1 day')->format('Y-m-d'));
+        for ($i = 0; $i < 5; ++$i) {
+            $usage->increment();
+        }
+        $this->em()->persist($usage);
+        $this->em()->flush();
+
+        $this->client->request('GET', $this->reviewUrl());
+
+        self::assertCount(1, $this->reviewer()->received, "yesterday's 5 don't count today");
     }
 
     public function testTooFewLoggedDaysAreNotReviewed(): void

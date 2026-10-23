@@ -26,20 +26,23 @@ final class FoodReviewController extends AbstractController
             throw $this->createNotFoundException('Use ?to=YYYY-MM-DD.');
         }
 
-        $review = null;
+        $result = null;
         $failed = false;
         try {
-            $review = $reviews->forWeek($user, $lastDay);
+            $result = $reviews->forWeek($user, $lastDay);
         } catch (FoodReviewException $e) {
             $logger->warning('Food review failed: {message}', ['message' => $e->getMessage()]);
             $failed = true;
         }
 
         return $this->render('dashboard/_food_review.html.twig', [
-            'review' => $review,
+            'review' => $result?->review,
+            'tooFewDays' => $result?->tooFewDays ?? false,
+            'limitReached' => $result?->limitReached ?? false,
             'failed' => $failed,
             'to' => $to,
             'minDays' => WeeklyFoodReviews::MIN_DAYS,
+            'dailyLimit' => WeeklyFoodReviews::DAILY_LIMIT,
         ]);
     }
 }
