@@ -7,12 +7,12 @@ use App\Entity\WeeklyFoodReview;
 use App\Repository\AiUsageRepository;
 use App\Repository\MealEntryRepository;
 use App\Repository\WeeklyFoodReviewRepository;
-use App\Summary\WeeklySummary;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
 /**
- * The food review shown in the weekly overview: collects every item eaten in the 7 days, and asks the AI
+ * The food review shown in the weekly overview: collects every item eaten in the week (7 days; 6 for the
+ * latest week, which leaves out today), and asks the AI
  * only when there's no stored review for exactly that food yet (so about once a day, or after a past meal
  * in the week is changed). At most DAILY_LIMIT AI requests per user per local day; past that, the stored
  * review (if any) is shown as it is.
@@ -37,10 +37,8 @@ final class WeeklyFoodReviews
     ) {
     }
 
-    public function log(User $user, \DateTimeImmutable $lastDay): FoodLog
+    public function log(User $user, \DateTimeImmutable $first, \DateTimeImmutable $lastDay): FoodLog
     {
-        $first = $lastDay->modify(sprintf('-%d days', WeeklySummary::DAYS - 1));
-
         return new FoodLog(
             $first->format('Y-m-d'),
             $lastDay->format('Y-m-d'),
@@ -52,18 +50,18 @@ final class WeeklyFoodReviews
     }
 
     /**
-     * The review of the week ending on $lastDay.
+     * The review of the days from $first to $lastDay.
      *
      * @throws FoodReviewException when the AI fails
      */
-    public function forWeek(User $user, \DateTimeImmutable $lastDay): WeeklyFoodReviewResult
+    public function forWeek(User $user, \DateTimeImmutable $first, \DateTimeImmutable $lastDay): WeeklyFoodReviewResult
     {
-        $log = $this->log($user, $lastDay);
+        $log = $this->log($user, $first, $lastDay);
         if ($log->loggedDays() < self::MIN_DAYS) {
             return new WeeklyFoodReviewResult(null, tooFewDays: true);
         }
 
-        $stored = $this->reviews->findForWeek($user, $log->to);
+        $stored = $this->reviews->findForWeek($user, $log->from, $log->to);
         if (null !== $stored && $stored->isFor($log->hash())) {
             return new WeeklyFoodReviewResult($stored);
         }
@@ -75,7 +73,7 @@ final class WeeklyFoodReviews
         $this->usage->record($user, self::USAGE_FEATURE, $today);
 
         $result = $this->reviewer->review($log, self::TIME_LIMIT);
-        $stored ??= new WeeklyFoodReview($user, $log->to);
+        $stored ??= new WeeklyFoodReview($user, $log->from, $log->to);
         $stored->update($log->hash(), $result->review, $result->reviewedBy, $this->clock->now());
         $this->em->persist($stored);
         $this->em->flush();

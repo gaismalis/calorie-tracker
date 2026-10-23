@@ -31,6 +31,12 @@ final readonly class FoodLog
         return count($this->days);
     }
 
+    /** Days covered, from $from to $to inclusive. */
+    public function dayCount(): int
+    {
+        return (int) (new \DateTimeImmutable($this->from))->diff(new \DateTimeImmutable($this->to))->days + 1;
+    }
+
     public function toText(): string
     {
         $about = array_filter([
@@ -44,7 +50,7 @@ final readonly class FoodLog
         ]);
         $lines = [
             'Person: '.implode(', ', $about).'.',
-            sprintf('Food log from %s to %s (%d of 7 days logged; days not listed were not logged).', $this->from, $this->to, $this->loggedDays()),
+            sprintf('Food log from %s to %s (%d of %d days logged; days not listed were not logged).', $this->from, $this->to, $this->loggedDays(), $this->dayCount()),
         ];
         $number = fn (float $value) => rtrim(rtrim(number_format($value, 1, '.', ''), '0'), '.');
         foreach ($this->days as $day => $items) {

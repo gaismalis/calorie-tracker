@@ -25,6 +25,8 @@ final readonly class WeeklySummary
 
     private function __construct(
         public string $from,
+        /** Days covered: 7, or 6 when the week shown ends today (today is left out until it's over). */
+        public int $days,
         public string $to,
         public int $loggedDays,
         public ?float $averageEaten,
@@ -49,12 +51,13 @@ final readonly class WeeklySummary
      * @param string               $to       last day of the week ('Y-m-d', inclusive)
      * @param array<string, float> $alcohol  kcal of alcoholic drinks by date
      * @param array<string, float> $snacks   kcal of snacks by date
+     * @param int                  $days     days covered, ending on $to
      */
-    public static function calculate(array $eaten, array $exercise, array $trend, ?float $baseline, string $to, float $goalKgPerWeek, array $alcohol = [], array $snacks = []): self
+    public static function calculate(array $eaten, array $exercise, array $trend, ?float $baseline, string $to, float $goalKgPerWeek, array $alcohol = [], array $snacks = [], int $days = self::DAYS): self
     {
         $last = new \DateTimeImmutable($to);
         $dates = [];
-        for ($i = self::DAYS - 1; $i >= 0; --$i) {
+        for ($i = $days - 1; $i >= 0; --$i) {
             $dates[] = $last->modify("-$i days")->format('Y-m-d');
         }
 
@@ -65,13 +68,14 @@ final readonly class WeeklySummary
 
         return new self(
             from: $dates[0],
+            days: $days,
             to: $to,
             loggedDays: count($logged),
             averageEaten: $average(array_map(fn (string $date) => $eaten[$date], $logged)),
             averageBurned: null === $baseline ? null : $average(array_map(fn (string $date) => $baseline + ($exercise[$date] ?? 0.0), $logged)),
             exerciseKcal: round(array_sum($exerciseInWeek)),
             exerciseDays: count($exerciseInWeek),
-            trendChangeKg: self::trendChange($trend, $last->modify('-'.self::DAYS.' days')->format('Y-m-d'), $to),
+            trendChangeKg: self::trendChange($trend, $last->modify('-'.$days.' days')->format('Y-m-d'), $to),
             goalKgPerWeek: $goalKgPerWeek,
             eatenKcal: round(array_sum(array_map(fn (string $date) => $eaten[$date], $logged))),
             alcoholKcal: round(array_sum(array_intersect_key($alcohol, array_flip($dates)))),

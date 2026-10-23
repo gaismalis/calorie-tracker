@@ -26,8 +26,11 @@
         <a href="{{ path('app_weight_quick', dateParam) }}" class="button secondary" data-action="entry-dialog#open">＋ Weight</a>
     </div>
     {{ include('dashboard/_overview.html.twig') }}
-    {{ include('dashboard/_chart.html.twig') }}
-    {{ include('dashboard/_week.html.twig') }}
+    {# One period for both cards: Week/Month/All and ‹ › (?chart=…&chartTo=…) reload just this frame, so they change together. #}
+    <turbo-frame id="period">
+        {{ include('dashboard/_chart.html.twig') }}
+        {{ include('dashboard/_week.html.twig') }}
+    </turbo-frame>
     {{ include('dashboard/_log.html.twig') }}
     {{ include('dashboard/_add.html.twig') }}
 </div>

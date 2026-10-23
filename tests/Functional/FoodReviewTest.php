@@ -32,7 +32,7 @@ class FoodReviewTest extends WebTestCase
         $this->client->loginUser($this->user);
     }
 
-    public function testTheWeeklyOverviewLoadsTheReviewForTheLast7FullDays(): void
+    public function testTheWeeklyOverviewLoadsTheReviewOfTheChartsWeekWithoutToday(): void
     {
         $this->storeMeal(1, 'Porridge');
 
@@ -40,8 +40,13 @@ class FoodReviewTest extends WebTestCase
 
         $frame = $crawler->filter('section.week turbo-frame#food-review');
         self::assertSame('lazy', $frame->attr('loading'), 'only when scrolled into view, without slowing the page');
-        $yesterday = $this->user->today()->modify('-1 day')->format('Y-m-d');
-        self::assertSame('/week/food-review?to='.$yesterday, $frame->attr('src'));
+        self::assertSame($this->reviewUrl(), $frame->attr('src'), 'the 6 days before today (the chart shows today too)');
+
+        $earlier = $this->user->today()->modify('-7 days');
+        $this->storeMeal(7, 'Dinner');
+        $crawler = $this->client->request('GET', '/?chart=week&chartTo='.$earlier->format('Y-m-d'));
+        self::assertSame('/week/food-review?from='.$earlier->modify('-6 days')->format('Y-m-d').'&to='.$earlier->format('Y-m-d'),
+            $crawler->filter('turbo-frame#food-review')->attr('src'), 'an earlier page: the same 7 days as the chart');
     }
 
     public function testEveryItemOfTheWeekIsSentAndTheReviewIsShown(): void
@@ -49,7 +54,7 @@ class FoodReviewTest extends WebTestCase
         $this->storeMeal(1, 'Porridge', [new EstimatedItem('Oat porridge', 300, 250, 8, 40, 5), new EstimatedItem('Beer', 500, 215, 2, 18, 0, category: FoodCategory::Alcohol)]);
         $this->storeMeal(3, 'Pizza');
         $this->storeMeal(6, 'Chocolate', [new EstimatedItem('Milk chocolate', 50, 270, 4, 28, 15, category: FoodCategory::Snack)]);
-        $this->storeMeal(8, 'Last week, not included');
+        $this->storeMeal(7, 'On the previous page, not included');
         $this->storeMeal(0, 'Today, not included (the day is not over)');
         $this->reviewer()->willReturn(new FoodReview('mixed', 'Good protein, but few vegetables.', ['Protein at breakfast'], ['Add a side salad to dinner', 'Have fruit instead of chocolate'], [['name' => 'Fibre', 'status' => 'low', 'note' => 'Little veg or whole grain.']]));
 
@@ -117,7 +122,7 @@ class FoodReviewTest extends WebTestCase
 
         // Another week (browsing a past day) has nothing stored yet.
         $this->storeMeal(4, 'Breakfast'); // its 3rd logged day
-        $crawler = $this->client->request('GET', '/week/food-review?to='.$this->user->today()->modify('-2 days')->format('Y-m-d'));
+        $crawler = $this->client->request('GET', '/week/food-review?from='.$this->user->today()->modify('-8 days')->format('Y-m-d').'&to='.$this->user->today()->modify('-2 days')->format('Y-m-d'));
         self::assertCount(5, $this->reviewer()->received);
         self::assertStringContainsString("You've used today's 5 food reviews. Come back tomorrow", $crawler->filter('turbo-frame#food-review')->text());
     }
@@ -148,7 +153,7 @@ class FoodReviewTest extends WebTestCase
         $crawler = $this->client->request('GET', $this->reviewUrl());
 
         self::assertSame([], $this->reviewer()->received);
-        self::assertStringContainsString('Log meals on at least 3 of these 7 days', $crawler->filter('turbo-frame#food-review')->text());
+        self::assertStringContainsString('Log meals on at least 3 of these 6 days', $crawler->filter('turbo-frame#food-review')->text());
     }
 
     public function testAFailedReviewOffersToTryAgain(): void
@@ -166,16 +171,19 @@ class FoodReviewTest extends WebTestCase
         self::assertCount(0, $this->em()->getRepository(WeeklyFoodReview::class)->findAll());
     }
 
-    public function testAnInvalidDateIsNotFound(): void
+    public function testAnInvalidDateOrRangeIsNotFound(): void
     {
-        $this->client->request('GET', '/week/food-review?to=last-week');
-
-        self::assertResponseStatusCodeSame(404);
+        foreach (['from=2026-10-01&to=last-week', 'to=2026-10-07', 'from=2026-10-01&to=2026-10-08', 'from=2026-10-07&to=2026-10-01'] as $query) {
+            $this->client->request('GET', '/week/food-review?'.$query);
+            self::assertResponseStatusCodeSame(404, $query);
+        }
     }
 
     private function reviewUrl(): string
     {
-        return '/week/food-review?to='.$this->user->today()->modify('-1 day')->format('Y-m-d');
+        $today = $this->user->today();
+
+        return '/week/food-review?from='.$today->modify('-6 days')->format('Y-m-d').'&to='.$today->modify('-1 day')->format('Y-m-d');
     }
 
     /** @param list<EstimatedItem>|null $items */

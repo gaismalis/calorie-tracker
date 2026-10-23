@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Review\FoodReviewException;
 use App\Review\WeeklyFoodReviews;
+use App\Summary\WeeklySummary;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,19 +18,25 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class FoodReviewController extends AbstractController
 {
     #[Route('/week/food-review', name: 'app_food_review', methods: ['GET'])]
-    public function show(WeeklyFoodReviews $reviews, LoggerInterface $logger, #[MapQueryParameter] string $to = ''): Response
+    public function show(WeeklyFoodReviews $reviews, LoggerInterface $logger, #[MapQueryParameter] string $from = '', #[MapQueryParameter] string $to = ''): Response
     {
         /** @var User $user */
         $user = $this->getUser();
-        $lastDay = \DateTimeImmutable::createFromFormat('!Y-m-d', $to, $user->getDateTimeZone());
-        if (false === $lastDay || $lastDay->format('Y-m-d') !== $to) {
-            throw $this->createNotFoundException('Use ?to=YYYY-MM-DD.');
+        $parse = function (string $date) use ($user): ?\DateTimeImmutable {
+            $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date, $user->getDateTimeZone());
+
+            return false !== $parsed && $parsed->format('Y-m-d') === $date ? $parsed : null;
+        };
+        $firstDay = $parse($from);
+        $lastDay = $parse($to);
+        if (null === $firstDay || null === $lastDay || $firstDay > $lastDay || $firstDay->diff($lastDay)->days >= WeeklySummary::DAYS) {
+            throw $this->createNotFoundException('Use ?from=YYYY-MM-DD&to=YYYY-MM-DD, at most 7 days.');
         }
 
         $result = null;
         $failed = false;
         try {
-            $result = $reviews->forWeek($user, $lastDay);
+            $result = $reviews->forWeek($user, $firstDay, $lastDay);
         } catch (FoodReviewException $e) {
             $logger->warning('Food review failed: {message}', ['message' => $e->getMessage()]);
             $failed = true;
@@ -40,7 +47,9 @@ final class FoodReviewController extends AbstractController
             'tooFewDays' => $result?->tooFewDays ?? false,
             'limitReached' => $result?->limitReached ?? false,
             'failed' => $failed,
+            'from' => $from,
             'to' => $to,
+            'days' => $firstDay->diff($lastDay)->days + 1,
             'minDays' => WeeklyFoodReviews::MIN_DAYS,
             'dailyLimit' => WeeklyFoodReviews::DAILY_LIMIT,
         ]);

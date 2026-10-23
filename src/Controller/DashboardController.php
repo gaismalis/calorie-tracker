@@ -30,7 +30,8 @@ class DashboardController extends AbstractController
 
     /**
      * Chart periods (?chart=…) and their length in days; "all" starts at the first logged meal. Not stored: a refresh shows the week again.
-     * Week and month can be paged back (?chartTo=Y-m-d, the last day shown), one period at a time.
+     * Week and month can be paged back (?chartTo=Y-m-d, the last day shown), one period at a time. The weekly
+     * overview below always shows the last 7 days of the chart, so both change together.
      */
     public const CHART_PERIODS = ['week' => 7, 'month' => 30, 'all' => null];
     private const DEFAULT_CHART_PERIOD = 'week';
@@ -82,10 +83,8 @@ class DashboardController extends AbstractController
         $needsAttention = array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending() || $e->isFailed());
         $chartPeriod = array_key_exists($request->query->getString('chart'), self::CHART_PERIODS) ? $request->query->getString('chart') : self::DEFAULT_CHART_PERIOD;
         $firstMeal = $mealRepository->firstMealDay($user);
-        // Paging: the last day of the chart (?chartTo=…) and of the weekly overview (?weekTo=…), never later than the default.
+        // Paging: the last day of the chart and the weekly overview (?chartTo=…), never later than the day shown.
         $chartTo = 'all' === $chartPeriod ? $day : $this->pageEnd($user, $request->query->getString('chartTo'), $day);
-        $weekLatest = $day == $today ? $day->modify('-1 day') : $day; // today isn't over, so for today the week ends yesterday
-        $weekTo = $this->pageEnd($user, $request->query->getString('weekTo'), $weekLatest);
         $charts = $this->charts($user, $mealRepository, $exerciseRepository, $energy, $chartTo, $today, $chartPeriod, $firstMeal);
         $pageUrl = fn (array $query) => $day == $today ? $this->generateUrl('app_dashboard', $query) : $this->generateUrl('app_day', ['date' => $day->format('Y-m-d')] + $query);
         // Coming back from an action inside the log (delete, retry, adjust): keep it open on that tab.
@@ -112,11 +111,11 @@ class DashboardController extends AbstractController
                 $chartTo, $day, count($charts[0]->days), $firstMeal,
                 fn (?\DateTimeImmutable $to) => $pageUrl(['chart' => $chartPeriod] + (null === $to ? [] : ['chartTo' => $to->format('Y-m-d')])),
             ),
-            'week' => $this->week($user, $mealRepository, $exerciseRepository, $weightRepository, $energy, $weekTo),
-            'weekIsLatest' => $weekTo == $weekLatest,
+            'week' => $this->week($user, $mealRepository, $exerciseRepository, $weightRepository, $energy, $chartTo, $today),
+            // The overview's ‹ › move by a week, and the chart with it (in Month view by a week too; from All to Week).
             'weekPages' => $this->pages(
-                $weekTo, $weekLatest, WeeklySummary::DAYS, $firstMeal,
-                fn (?\DateTimeImmutable $to) => $pageUrl(null === $to ? [] : ['weekTo' => $to->format('Y-m-d')]),
+                $chartTo, $day, WeeklySummary::DAYS, $firstMeal,
+                fn (?\DateTimeImmutable $to) => $pageUrl(['chart' => 'all' === $chartPeriod ? 'week' : $chartPeriod] + (null === $to ? [] : ['chartTo' => $to->format('Y-m-d')])),
             ),
             'retryAt' => $retryAt,
             'hasPending' => array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending()),
@@ -156,10 +155,11 @@ class DashboardController extends AbstractController
         );
     }
 
-    /** The 7 full days ending on $last. */
-    private function week(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, WeightEntryRepository $weights, EnergyEstimate $energy, \DateTimeImmutable $last): WeeklySummary
+    /** The 7 days ending on $to; when that's today, only the 6 days before it (today isn't over). */
+    private function week(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, WeightEntryRepository $weights, EnergyEstimate $energy, \DateTimeImmutable $to, \DateTimeImmutable $today): WeeklySummary
     {
-        $first = $last->modify(sprintf('-%d days', WeeklySummary::DAYS - 1));
+        $first = $to->modify(sprintf('-%d days', WeeklySummary::DAYS - 1));
+        $last = $to < $today ? $to : $today->modify('-1 day');
         $end = $last->modify('+1 day');
         // Warm the trend up with earlier weigh-ins, as on the weight page.
         $trend = WeightTrend::daily($weights->weightsByDate($user, $first->modify('-60 days')));
@@ -173,10 +173,11 @@ class DashboardController extends AbstractController
             $user->getWeeklyGoalKg(),
             $meals->dailyCategoryIntake($user, FoodCategory::Alcohol, $first, $end),
             $meals->dailyCategoryIntake($user, FoodCategory::Snack, $first, $end),
+            (int) $first->diff($last)->days + 1,
         );
     }
 
-    /** The last day of a page from ?chartTo= / ?weekTo=: the latest page when missing, invalid or later than that. */
+    /** The last day of a page from ?chartTo=: the latest page when missing, invalid or later than that. */
     private function pageEnd(User $user, string $date, \DateTimeImmutable $latest): \DateTimeImmutable
     {
         $parsed = $this->parseLocalDate($user, $date);

@@ -1,14 +1,13 @@
-{# The last 7 full days at a glance (App\Summary\WeeklySummary), or an earlier 7 days (‹ ›, ?weekTo=…; only this frame reloads,
-   and the food review below follows). Dates are plain 'Y-m-d', so no timezone conversion. #}
+{# The last 7 days of the chart above at a glance (App\Summary\WeeklySummary); today is left out until it's over. ‹ › move
+   both cards by a week (same "period" frame), and the food review below follows. Dates are plain 'Y-m-d', so no timezone conversion. #}
 {% import 'dashboard/_macros.html.twig' as m %}
 <section class="card week">
-<turbo-frame id="week-overview">
     <div class="week-header">
-        <h2>{{ weekIsLatest ? 'Last 7 days' : 'Earlier week' }}</h2>
-        {{ m.pager(weekPages, m.date_range(week.from, week.to), 'Weeks') }}
+        <h2>Weekly overview</h2>
+        {{ m.pager(weekPages, chartIsLatest ? 'Last 7 days' : m.date_range(week.from, week.to), 'Weeks') }}
     </div>
     {% if week.empty %}
-        <p class="muted">Nothing logged in these 7 days yet.</p>
+        <p class="muted">Nothing logged in these days yet{% if week.days < 7 %} (today counts once it's over){% endif %}.</p>
     {% else %}
         {% set balance = week.dailyBalance %}
         <div class="week-stats">
@@ -58,15 +57,14 @@
                 {% endif %}
             {% endfor %}
             <li>Exercise: {% if week.exerciseDays > 0 %}<strong>{{ week.exerciseKcal|number_format(0, '.', ' ') }} kcal</strong> on {{ week.exerciseDays }} {{ week.exerciseDays == 1 ? 'day' : 'days' }}{% else %}none logged{% endif %}</li>
-            <li>Meals logged on <strong>{{ week.loggedDays }} of 7 days</strong>{% if week.loggedDays > 0 and week.rough %}, so these averages are rough{% endif %}</li>
+            <li>Meals logged on <strong>{{ week.loggedDays }} of {{ week.days }} days</strong>{% if week.loggedDays > 0 and week.rough %}, so these averages are rough{% endif %}{% if week.days < 7 %} (today counts once it's over){% endif %}</li>
         </ul>
 
         {% if week.loggedDays > 0 %}
             {# Loaded separately (it may ask the AI), only when scrolled into view. #}
-            <turbo-frame id="food-review" src="{{ path('app_food_review', {to: week.to}) }}" loading="lazy">
+            <turbo-frame id="food-review" src="{{ path('app_food_review', {from: week.from, to: week.to}) }}" loading="lazy">
                 <div class="food-review"><h3>Food quality</h3><p class="muted">Looking at what you ate…</p></div>
             </turbo-frame>
         {% endif %}
     {% endif %}
-</turbo-frame>
 </section>

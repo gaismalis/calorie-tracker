@@ -31,6 +31,24 @@ class WeeklySummaryTest extends TestCase
         self::assertFalse($week->isEmpty());
     }
 
+    public function testTheLatestWeekCanLeaveOutToday(): void
+    {
+        $week = WeeklySummary::calculate(
+            eaten: ['2026-10-05' => 1000.0 /* a day earlier than 6 days */, '2026-10-06' => 2000.0, '2026-10-11' => 2400.0],
+            exercise: [],
+            trend: [],
+            baseline: 2100.0,
+            to: '2026-10-11',
+            goalKgPerWeek: 0.0,
+            days: 6,
+        );
+
+        self::assertSame('2026-10-06', $week->from);
+        self::assertSame(6, $week->days);
+        self::assertSame(2, $week->loggedDays);
+        self::assertSame(2200.0, $week->averageEaten);
+    }
+
     public function testAlcoholAndSnacksForTheWeek(): void
     {
         $week = WeeklySummary::calculate(

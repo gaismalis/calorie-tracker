@@ -8,11 +8,12 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * The stored AI review of one user's food for the 7 days ending on $lastDay. Reused while the food log it
+ * The stored AI review of one user's food from $firstDay to $lastDay (7 days; 6 for the latest week, which
+ * leaves out today). Reused while the food log it
  * was made from (its hash) is unchanged, so the AI is asked again only when meals in that week change.
  */
 #[ORM\Entity(repositoryClass: WeeklyFoodReviewRepository::class)]
-#[ORM\UniqueConstraint(name: 'weekly_food_review_user_last_day', columns: ['user_id', 'last_day'])]
+#[ORM\UniqueConstraint(name: 'weekly_food_review_user_days', columns: ['user_id', 'first_day', 'last_day'])]
 class WeeklyFoodReview
 {
     #[ORM\Id]
@@ -23,6 +24,10 @@ class WeeklyFoodReview
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $user;
+
+    /** First day of the week ('Y-m-d', the user's local date). */
+    #[ORM\Column(length: 10)]
+    private string $firstDay;
 
     /** Last day of the week ('Y-m-d', the user's local date). */
     #[ORM\Column(length: 10)]
@@ -41,9 +46,10 @@ class WeeklyFoodReview
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(User $user, string $lastDay)
+    public function __construct(User $user, string $firstDay, string $lastDay)
     {
         $this->user = $user;
+        $this->firstDay = $firstDay;
         $this->lastDay = $lastDay;
     }
 

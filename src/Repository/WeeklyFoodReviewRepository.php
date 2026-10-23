@@ -15,8 +15,8 @@ class WeeklyFoodReviewRepository extends ServiceEntityRepository
         parent::__construct($registry, WeeklyFoodReview::class);
     }
 
-    public function findForWeek(User $user, string $lastDay): ?WeeklyFoodReview
+    public function findForWeek(User $user, string $firstDay, string $lastDay): ?WeeklyFoodReview
     {
-        return $this->findOneBy(['user' => $user, 'lastDay' => $lastDay]);
+        return $this->findOneBy(['user' => $user, 'firstDay' => $firstDay, 'lastDay' => $lastDay]);
     }
 }

@@ -1,8 +1,7 @@
 {% import 'dashboard/_macros.html.twig' as m %}
 {# What was eaten each day (bars) against what was burned that day (dark mark; not the goal-adjusted target). Less = accent green, more = series-2 orange plus a "+N" label, so colour isn't the only cue. #}
 <section class="card energy">
-{# Week / Month / All and ‹ › reload just this frame (same page with ?chart=…&chartTo=…); nothing is stored, so a refresh shows the latest week again. #}
-<turbo-frame id="energy-chart">
+{# Week / Month / All and ‹ › reload the "period" frame (index.html.twig) with the weekly overview; nothing is stored, so a refresh shows the latest week again. #}
     {% set first = charts|first %}
     <div class="chart-header">
         <h2>Eaten vs burned</h2>
@@ -90,5 +89,4 @@
     {% elseif charts|first.days|filter(day => day.today and day.bar)|length > 0 %}
         <p class="muted chart-note">Today is shown faded until the day is over.</p>
     {% endif %}
-</turbo-frame>
 </section>

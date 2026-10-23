@@ -23,6 +23,7 @@ class FoodLogTest extends TestCase
 
         self::assertStringContainsString('Person: female, 34 years old, wants to lose 0.5 kg/week.', $text);
         self::assertStringContainsString('(2 of 7 days logged; days not listed were not logged)', $text);
+        self::assertSame(7, $log->dayCount());
         self::assertStringContainsString("Wednesday 2026-10-14:\n- 08:05 Oatmeal: 250 g, 310.5 kcal, protein 12 g, carbs 40.3 g, fat 9 g\n- 20:00 Beer: 250 g, 310.5 kcal, protein 12 g, carbs 40.3 g, fat 9 g (alcohol)", $text);
         self::assertStringContainsString('Chocolate: 250 g, 310.5 kcal, protein 12 g, carbs 40.3 g, fat 9 g (snack)', $text);
         self::assertSame(2, $log->loggedDays());

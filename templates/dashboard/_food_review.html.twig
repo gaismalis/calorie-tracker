@@ -3,10 +3,10 @@
     <div class="food-review">
         {% if failed %}
             <h3>Food quality</h3>
-            <p class="muted">Couldn't review your food right now. <a href="{{ path('app_food_review', {to: to}) }}">Try again</a></p>
+            <p class="muted">Couldn't review your food right now. <a href="{{ path('app_food_review', {from: from, to: to}) }}">Try again</a></p>
         {% elseif tooFewDays %}
             <h3>Food quality</h3>
-            <p class="muted">Log meals on at least {{ minDays }} of these 7 days to get a review of what you eat.</p>
+            <p class="muted">Log meals on at least {{ minDays }} of these {{ days }} days to get a review of what you eat.</p>
         {% elseif review is null %}
             <h3>Food quality</h3>
             <p class="muted">You've used today's {{ dailyLimit }} food reviews. Come back tomorrow for this one.</p>
