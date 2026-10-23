@@ -390,10 +390,21 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .recipe-item-numbers input { width: 100%; min-width: 0; padding: 0.35rem; font: inherit; font-size: 0.95rem; text-align: right; border: 1px solid var(--border); border-radius: 6px; }
 .recipe-form .add-food { color: var(--accent); padding: 0.3rem 0; font-size: 0.9rem; }
 .recipe-total { margin: 0.5rem 0 0; border-top: 2px solid var(--border); padding-top: 0.5rem; }
-.recipe-picks { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 0.6rem; }
-.recipe-picks > span { flex-basis: 100%; }
-.recipe-picks .recipe-pick { margin: 0; padding: 0.3rem 0.65rem; font-size: 0.9rem; border-radius: 999px; }
-.recipe-picks .recipe-pick .muted { font-size: 0.8rem; }
+.recipe-picks { margin-top: 0.5rem; }
+.recipe-picks-title { display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.8rem; }
+/* About 4 recipes tall, then it scrolls. Matches go first while typing (order set by recipe_pick_controller.js). */
+.recipe-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 9.5rem; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.recipe-list li + li { border-top: 1px solid var(--border); }
+.recipe-list li[hidden] { display: none; }
+.recipe-option { display: flex; justify-content: space-between; gap: 0.75rem; width: 100%; margin: 0; padding: 0.5rem 0.7rem; background: none; color: var(--text); text-align: left; border-radius: 0; font-size: 0.95rem; }
+.recipe-option:hover, .recipe-option:focus-visible { background: var(--bg); }
+.recipe-option .muted { white-space: nowrap; font-size: 0.85rem; }
+.recipe-base { border: 1px solid var(--accent); border-radius: 8px; padding: 0.5rem 0.7rem; margin-bottom: 0.5rem; }
+.recipe-base-head { display: flex; align-items: center; gap: 0.5rem; }
+.recipe-base-head strong { flex: 1; }
+.recipe-base-head button.link { margin: 0; }
+.recipe-base-icon { color: var(--accent); line-height: 1; }
+.recipe-base .small { margin-top: 0.15rem; font-size: 0.8rem; }
 .entry .bookmark { color: var(--muted); line-height: 1; }
 .entry a.bookmark:hover { color: var(--accent); }
 .entry .bookmark.saved { color: var(--accent); }

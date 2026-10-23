@@ -28,7 +28,7 @@
                         {% else %}
                             <span class="kcal">{{ entry.kcal|round }} kcal</span>
                             <a href="{{ path('app_meal_edit', {id: entry.id}) }}" class="adjust-link" title="Adjust amounts" data-action="entry-dialog#open:prevent">Adjust</a>
-                            {% if entry.estimatedBy == constant('App\\Entity\\Recipe::ESTIMATED_BY') %}
+                            {% if entry.plainRecipe %}
                                 <span class="bookmark saved" title="From My recipes">{{ m.bookmark_icon(true) }}</span>
                             {% else %}
                                 <a href="{{ path('app_recipe_new', {fromMeal: entry.id}) }}" class="bookmark" title="Save as a recipe" aria-label="Save as a recipe"

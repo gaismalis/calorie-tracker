@@ -18,9 +18,14 @@
 {% macro signed(value, decimals) %}{{ (value < 0 ? '−' : (value > 0 ? '+' : '')) ~ value|abs|number_format(decimals, '.', ' ') }}{% endmacro %}
 
 {# How a meal is shown: what was typed (“2 eggs…”); for photo meals the meal's name, then the note if any:
-   "📷 Spaghetti bolognese with salad · “large plate”". "📷 Photo" only until the photo is estimated. #}
+   "📷 Spaghetti bolognese with salad · “large plate”". "📷 Photo" only until the photo is estimated.
+   From a recipe: its name, then what was added: "Greek yogurt bowl + “40 g granola”". #}
 {% macro meal_text(entry) %}
-    {%- if entry.fromPhoto -%}
+    {%- if entry.recipeName -%}
+        <span class="recipe-name">{{ entry.recipeName }}</span>
+        {%- if entry.fromPhoto %} + 📷{% endif -%}
+        {%- if entry.rawText is not empty %} + “{{ entry.rawText }}”{% endif -%}
+    {%- elseif entry.fromPhoto -%}
         <span class="photo-mark" title="Logged with a photo">📷</span>{{ entry.title ?? 'Photo' }}
         {%- if entry.rawText is not empty %} <span class="photo-note">· “{{ entry.rawText }}”</span>{% endif -%}
     {%- else -%}

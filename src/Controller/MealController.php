@@ -36,7 +36,7 @@ class MealController extends AbstractController
     }
 
     #[Route('/meals', name: 'app_meal_create', methods: ['POST'])]
-    public function create(#[CurrentUser] User $user, Request $request, MealEstimation $estimation): Response
+    public function create(#[CurrentUser] User $user, Request $request, MealEstimation $estimation, RecipeRepository $recipes): Response
     {
         if (!$this->isCsrfTokenValid('meal_create', $request->request->getString('_token'))) {
             throw $this->createAccessDeniedException('Invalid CSRF token.');
@@ -50,7 +50,15 @@ class MealController extends AbstractController
         if (is_string($photo)) {
             return $this->flashAndGoToDay($user, $formDay, 'error', $photo);
         }
-        if ('' === $description && null === $photo) {
+        // A recipe picked as the base: the text is then only what was added (optional).
+        $recipe = null;
+        if ('' !== $request->request->getString('recipe')) {
+            $recipe = $recipes->find($request->request->getInt('recipe'));
+            if (null === $recipe || $recipe->getUser() !== $user) {
+                throw $this->createNotFoundException();
+            }
+        }
+        if ('' === $description && null === $photo && null === $recipe) {
             return $this->flashAndGoToDay($user, $formDay, 'error', 'Tell me what you ate, or add a photo.');
         }
         if (mb_strlen($description) > self::MAX_DESCRIPTION_LENGTH) {
@@ -62,7 +70,7 @@ class MealController extends AbstractController
             return $this->flashAndGoToDay($user, $formDay, 'error', $eatenAt);
         }
 
-        [$entry, $outcome] = $estimation->logMeal($user, $description, $eatenAt, $photo);
+        [$entry, $outcome] = $estimation->logMeal($user, $description, $eatenAt, $photo, $recipe);
         $back = $eatenAt ?? $user->today();
 
         return match ($outcome) {

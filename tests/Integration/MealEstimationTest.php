@@ -3,6 +3,8 @@
 namespace App\Tests\Integration;
 
 use App\Entity\MealEntry;
+use App\Entity\Recipe;
+use App\Recipe\RecipeItem;
 use App\Entity\User;
 use App\Estimation\EstimationOutcome;
 use App\Meal\MealEstimation;
@@ -232,6 +234,66 @@ class MealEstimationTest extends KernelTestCase
 
         $this->expectException(\LogicException::class);
         $this->estimation()->retryManually($entry);
+    }
+
+    public function testARecipeWithNothingAddedIsLoggedWithoutTheAi(): void
+    {
+        [$entry, $outcome] = $this->estimation()->logMeal($this->user, '', null, null, $this->recipe());
+
+        self::assertSame(EstimationOutcome::Estimated, $outcome);
+        self::assertSame([], $this->estimator()->received, 'no AI');
+        self::assertSame('recipe', $entry->getEstimatedBy());
+        self::assertSame(['Whey', 'Milk'], $entry->getItems()->map(fn ($item) => $item->getName())->getValues());
+        self::assertSame(235.0, $entry->getKcal());
+        self::assertSame('Shake', $entry->getTitle());
+        self::assertTrue($entry->isPlainRecipe());
+        self::assertNotNull($this->reload($entry), 'stored');
+    }
+
+    public function testWithARecipeTheAiOnlyEstimatesWhatWasAdded(): void
+    {
+        $this->estimator()->willReturn(self::apple());
+
+        [$entry, $outcome] = $this->estimation()->logMeal($this->user, 'an apple', null, null, $this->recipe());
+
+        self::assertSame(EstimationOutcome::Estimated, $outcome);
+        self::assertSame(['an apple'], $this->estimator()->received, 'only the extras');
+        self::assertSame(['Whey', 'Milk', 'Apple'], $entry->getItems()->map(fn ($item) => $item->getName())->getValues(), "the recipe's foods exactly, then the extras");
+        self::assertSame(330.0, $entry->getKcal());
+        self::assertSame('Shake + Apple', $entry->getTitle());
+        self::assertSame('Shake', $entry->getRecipeName());
+        self::assertFalse($entry->isPlainRecipe(), 'with extras it could be saved as a new recipe');
+    }
+
+    public function testWithARecipeExtrasWithoutFoodStillLogTheRecipe(): void
+    {
+        $this->estimator()->willReturn(new MealEstimate([], 'test'));
+
+        [$entry, $outcome] = $this->estimation()->logMeal($this->user, 'nothing else', null, null, $this->recipe());
+
+        self::assertSame(EstimationOutcome::Estimated, $outcome);
+        self::assertSame(235.0, $this->reload($entry)->getKcal());
+    }
+
+    public function testWithARecipeABackgroundRetryKeepsTheRecipeOnce(): void
+    {
+        $this->estimator()->willFail();
+        [$entry, $outcome] = $this->estimation()->logMeal($this->user, 'an apple', null, null, $this->recipe());
+        self::assertSame(EstimationOutcome::Retrying, $outcome);
+
+        $this->estimator()->willReturn(self::apple());
+        self::assertSame(EstimationOutcome::Estimated, $this->estimation()->runScheduledAttempt($entry->getId()));
+
+        self::assertSame(['Whey', 'Milk', 'Apple'], $this->reload($entry)->getItems()->map(fn ($item) => $item->getName())->getValues());
+    }
+
+    private function recipe(): Recipe
+    {
+        $recipe = new Recipe($this->user, 'Shake', [new RecipeItem('Whey', 30, 120, 24, 2, 1.5), new RecipeItem('Milk', 250, 115, 8.5, 12, 3.8)]);
+        $this->em()->persist($recipe);
+        $this->em()->flush();
+
+        return $recipe;
     }
 
     private function failedMeal(): MealEntry

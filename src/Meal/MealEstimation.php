@@ -5,11 +5,13 @@ namespace App\Meal;
 use App\Ai\Photo;
 use App\Entity\MealEntry;
 use App\Entity\PendingMealPhoto;
+use App\Entity\Recipe;
 use App\Entity\User;
 use App\Estimation\Estimable;
 use App\Estimation\EstimationOutcome;
 use App\Estimation\EstimationWorkflow;
 use App\Message\EstimateMeal;
+use App\Nutrition\MealEstimate;
 use App\Nutrition\NutritionEstimator;
 use App\Repository\MealEntryRepository;
 use App\Repository\PendingMealPhotoRepository;
@@ -41,11 +43,24 @@ final class MealEstimation extends EstimationWorkflow
      * Saves a new meal (eaten now unless $eatenAt is given) and tries to estimate it right away.
      * A meal without any food is not kept. A photo is kept only until the meal is estimated.
      *
+     * With a recipe, its foods are the base and the description/photo is only what was added: the AI
+     * estimates just that. A recipe with nothing added is logged as it is, without the AI.
+     *
      * @return array{MealEntry, EstimationOutcome}
      */
-    public function logMeal(User $user, string $description, ?\DateTimeImmutable $eatenAt = null, ?Photo $photo = null): array
+    public function logMeal(User $user, string $description, ?\DateTimeImmutable $eatenAt = null, ?Photo $photo = null, ?Recipe $recipe = null): array
     {
         $entry = new MealEntry($user, $description, $eatenAt ?? $this->clock->now());
+        if (null !== $recipe) {
+            $entry->startFromRecipe($recipe);
+            if ('' === trim($description) && null === $photo) {
+                $entry->applyEstimate(new MealEstimate([], Recipe::ESTIMATED_BY), $this->clock->now());
+                $this->entityManager->persist($entry);
+                $this->entityManager->flush();
+
+                return [$entry, EstimationOutcome::Estimated];
+            }
+        }
         if (null !== $photo) {
             $entry->markFromPhoto();
             $this->entityManager->persist(new PendingMealPhoto($entry, $photo));
@@ -62,8 +77,8 @@ final class MealEstimation extends EstimationWorkflow
             // Estimated (or nothing to estimate): the photo isn't needed any more.
             $this->entityManager->remove($pending);
         }
-        if ([] === $estimate->items) {
-            return false;
+        if ([] === $estimate->items && !$entry->hasBaseItems()) {
+            return false; // with a recipe, the recipe is still a meal
         }
         $entry->applyEstimate($estimate, $now);
 

@@ -9,7 +9,7 @@
     <form method="post" action="{{ path('app_meal_edit', {id: entry.id}) }}" class="review" data-controller="portion-slider"
           {% if isNew %}data-reload-on-close{% endif %}>
         <p class="raw">{{ m.meal_text(entry) }}</p>
-        {% set fromRecipe = entry.estimatedBy == constant('App\\Entity\\Recipe::ESTIMATED_BY') %}
+        {% set fromRecipe = entry.plainRecipe %}
         <h2 id="entry-title" class="review-headline">
             {{ fromRecipe ? 'From your recipe:' : (isNew ? "We think it's about" : 'About') }}
             <strong><span data-portion-slider-target="total">{{ entry.kcal|round }}</span> kcal</strong>

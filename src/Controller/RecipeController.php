@@ -18,7 +18,7 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 /**
  * "My recipes": meals the user eats often, with their own exact numbers. Created on the recipes page or
- * from a logged meal (🔖 in the day's log), and logged from the meal dialog without asking the AI.
+ * from a logged meal (🔖 in the day's log), and picked in the meal dialog as the base of a meal (see MealEstimation::logMeal()).
  * The form opens in the same dialog as meals (Turbo frame "entry-panel").
  */
 class RecipeController extends AbstractController
@@ -105,32 +105,6 @@ class RecipeController extends AbstractController
         $em->flush();
 
         return $this->redirectToRoute('app_recipes');
-    }
-
-    /**
-     * Log a recipe as a meal, from the meal dialog (its date, time and token come along): no AI, the
-     * recipe's own numbers. Then the usual review, to adjust the amount if it was more or less this time.
-     */
-    #[Route('/recipes/{id}/log', name: 'app_recipe_log', methods: ['POST'])]
-    public function log(#[CurrentUser] User $user, Recipe $recipe, Request $request, EntityManagerInterface $em): Response
-    {
-        $this->denyUnlessRecipeOwner($user, $recipe);
-        $this->checkToken($request, 'meal_create');
-
-        $eatenAt = $this->loggedAt($user, $request->request->getString('date'), $request->request->getString('time'));
-        if (is_string($eatenAt)) {
-            $formDay = $this->parseLocalDate($user, $request->request->getString('date')) ?? $user->today();
-
-            return $this->flashAndGoToDay($user, $formDay, 'error', $eatenAt);
-        }
-
-        $now = new \DateTimeImmutable();
-        $entry = new MealEntry($user, $recipe->getName(), $eatenAt ?? $now);
-        $entry->applyEstimate($recipe->toMealEstimate(), $now);
-        $em->persist($entry);
-        $em->flush();
-
-        return $this->redirectToRoute('app_meal_edit', ['id' => $entry->getId(), 'new' => 1]);
     }
 
     /** @param list<array<string, string>> $rows */

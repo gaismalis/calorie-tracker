@@ -35,8 +35,10 @@ export default class extends Controller {
         if (this.imageTarget.src) URL.revokeObjectURL(this.imageTarget.src);
         this.imageTarget.removeAttribute('src');
         this.previewTarget.hidden = true;
-        this.textTarget.required = true;
-        this.textTarget.placeholder = this.placeholderValue;
+        // With a recipe picked (recipe_pick_controller.js) the text stays optional: it's what was added.
+        const recipe = this.element.querySelector('input[name=recipe]')?.value;
+        this.textTarget.required = !recipe;
+        this.textTarget.placeholder = recipe ? this.element.dataset.recipePickExtrasPlaceholderValue : this.placeholderValue;
     }
 
     async shrink(file) {

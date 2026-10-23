@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Nutrition\EstimatedItem;
 use App\Nutrition\FoodCategory;
 use App\Nutrition\MealEstimate;
+use App\Nutrition\NutritionEstimator;
 use App\Recipe\RecipeItem;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -107,31 +108,61 @@ class RecipeTest extends WebTestCase
         self::assertSame(196.0, $this->em()->getRepository(Recipe::class)->findOneBy(['name' => 'My yogurt'])->getKcal());
     }
 
-    public function testLogARecipeFromTheMealDialogWithoutTheAi(): void
+    public function testTheMealDialogListsRecipesToPickAsTheBase(): void
     {
         $recipe = $this->storeRecipe('Protein shake', [new RecipeItem('Whey', 30, 120, 24, 2, 1.5), new RecipeItem('Milk', 250, 115, 8.5, 12, 3.8)]);
 
         $crawler = $this->client->request('GET', '/meals/new');
-        $pick = $crawler->filter('button.recipe-pick');
-        self::assertStringContainsString('Protein shake', $pick->text());
-        self::assertStringContainsString('235 kcal', $pick->text());
-        self::assertSame('/recipes/'.$recipe->getId().'/log', $pick->attr('formaction'), 'part of the meal form: its time goes along');
 
-        $this->client->request('POST', '/recipes/'.$recipe->getId().'/log', ['date' => $this->user->today()->modify('-1 day')->format('Y-m-d'), 'time' => '08:15', '_token' => $crawler->filter('form.meal-form input[name=_token]')->attr('value')]);
+        self::assertSame('meal-photo recipe-pick', $crawler->filter('form.meal-form')->attr('data-controller'));
+        self::assertSame('input->recipe-pick#filter', $crawler->filter('form.meal-form textarea')->attr('data-action'), 'typing searches the recipes');
+        $option = $crawler->filter('.recipe-list li');
+        self::assertSame((string) $recipe->getId(), $option->attr('data-id'));
+        self::assertSame('Protein shake Whey Milk', $option->attr('data-search'), 'found by its name and its foods');
+        self::assertSame('Whey 30 g, Milk 250 g', $option->attr('data-items'), 'shown once picked');
+        self::assertStringContainsString('235 kcal', $option->text());
+        self::assertCount(1, $crawler->filter('input[type=hidden][name=recipe]'));
+    }
+
+    public function testLogARecipeAsItIsWithoutTheAi(): void
+    {
+        $recipe = $this->storeRecipe('Protein shake', [new RecipeItem('Whey', 30, 120, 24, 2, 1.5), new RecipeItem('Milk', 250, 115, 8.5, 12, 3.8)]);
+        $crawler = $this->client->request('GET', '/meals/new');
+        $yesterday = $this->user->today()->modify('-1 day')->format('Y-m-d');
+
+        $this->client->request('POST', '/meals', ['recipe' => $recipe->getId(), 'description' => '', 'date' => $yesterday, 'time' => '08:15', '_token' => $this->mealToken($crawler)]);
 
         $meal = $this->em()->getRepository(MealEntry::class)->findOneBy([]);
         self::assertResponseRedirects('/meals/'.$meal->getId().'/edit?new=1', null, 'the usual review, to adjust the amount');
         self::assertSame('recipe', $meal->getEstimatedBy());
-        self::assertSame('Protein shake', $meal->getRawText());
+        self::assertSame('Protein shake', $meal->getRecipeName());
         self::assertSame(235.0, $meal->getKcal());
-        self::assertSame($this->user->today()->modify('-1 day')->format('Y-m-d').' 08:15', $meal->getEatenAt()->setTimezone($this->user->getDateTimeZone())->format('Y-m-d H:i'), 'the day and time of the meal form');
+        self::assertSame($yesterday.' 08:15', $meal->getEatenAt()->setTimezone($this->user->getDateTimeZone())->format('Y-m-d H:i'), 'the day and time of the meal form');
         self::assertSame(400.0, $meal->getItems()->first()->getPer100g()->kcal);
 
         $crawler = $this->client->followRedirect();
         self::assertStringContainsString('From your recipe:', $crawler->filter('h2')->text());
-        $crawler = $this->client->request('GET', '/day/'.$this->user->today()->modify('-1 day')->format('Y-m-d').'?log=food');
+        $crawler = $this->client->request('GET', '/day/'.$yesterday.'?log=food');
+        self::assertSame('Protein shake', $crawler->filter('#panel-food .raw')->text());
         self::assertCount(1, $crawler->filter('#panel-food .bookmark.saved'), 'marked as from My recipes, nothing to save');
         self::assertCount(0, $crawler->filter('#panel-food a.bookmark'));
+    }
+
+    public function testLogARecipeWithExtras(): void
+    {
+        $this->client->disableReboot(); // keep the fake AI's answer across requests
+        $recipe = $this->storeRecipe('Greek yogurt with jam', [new RecipeItem('Greek yogurt', 200, 146, 20, 8, 4), new RecipeItem('Jam', 30, 75, 0, 18, 0)]);
+        $crawler = $this->client->request('GET', '/meals/new');
+        static::getContainer()->get(NutritionEstimator::class)->willReturn(new MealEstimate([new EstimatedItem('Granola', 40, 180, 4, 26, 6.4)], 'test'));
+
+        $this->client->request('POST', '/meals', ['recipe' => $recipe->getId(), 'description' => '40 g granola', '_token' => $this->mealToken($crawler)]);
+
+        self::assertSame(['40 g granola'], static::getContainer()->get(NutritionEstimator::class)->received, 'the AI only sees the extras');
+        $meal = $this->em()->getRepository(MealEntry::class)->findOneBy([]);
+        self::assertSame(401.0, $meal->getKcal());
+        $crawler = $this->client->request('GET', '/?log=food');
+        self::assertSame('Greek yogurt with jam + “40 g granola”', $crawler->filter('#panel-food .raw')->text());
+        self::assertCount(1, $crawler->filter('#panel-food a.bookmark'), 'with extras it can be saved as a new recipe');
     }
 
     public function testNoRecipesNoPicks(): void
@@ -175,7 +206,7 @@ class RecipeTest extends WebTestCase
         $this->client->request('GET', '/recipes/new?fromMeal='.$meal->getId());
         self::assertResponseStatusCodeSame(404);
         $crawler = $this->client->request('GET', '/meals/new');
-        $this->client->request('POST', '/recipes/'.$recipe->getId().'/log', ['_token' => $crawler->filter('form.meal-form input[name=_token]')->attr('value')]);
+        $this->client->request('POST', '/meals', ['recipe' => $recipe->getId(), 'description' => '', '_token' => $this->mealToken($crawler)]);
         self::assertResponseStatusCodeSame(404);
         self::assertStringNotContainsString('Theirs', $this->client->request('GET', '/recipes')->text());
     }
@@ -201,6 +232,11 @@ class RecipeTest extends WebTestCase
         $this->client->request('POST', '/recipes/new', ['name' => 'X', 'items' => []]);
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    private function mealToken($crawler): string
+    {
+        return $crawler->filter('form.meal-form input[name=_token]')->attr('value');
     }
 
     private function token($crawler): string
