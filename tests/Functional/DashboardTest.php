@@ -294,7 +294,7 @@ class DashboardTest extends WebTestCase
         $crawler = $this->client->request('GET', '/');
 
         $week = $crawler->filter('section.week');
-        self::assertStringContainsString($today->modify('-1 day')->format('j M'), $week->filter('.week-range')->text());
+        self::assertStringContainsString($today->modify('-1 day')->format('j M'), $week->filter('.week .pager-label')->text());
         self::assertSame('1 600', $week->filter('.week-stats > div')->eq(0)->filter('strong')->text());
         self::assertStringStartsWith('−', $week->filter('.week-balance strong')->text(), 'ate less than burned');
         self::assertStringContainsString('goal lose 0.5 kg/week', $week->filter('.week-pace')->text());
@@ -335,9 +335,76 @@ class DashboardTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/day/'.$day->format('Y-m-d'));
 
-        self::assertStringEndsWith($day->format('j M'), $crawler->filter('.week-range')->text());
+        self::assertStringEndsWith($day->format('j M'), $crawler->filter('.week .pager-label')->text());
         self::assertStringContainsString('Meals logged on 1 of 7 days, so these averages are rough', $crawler->filter('section.week')->text());
         self::assertStringContainsString('"Burned" appears once', $crawler->filter('section.week')->text(), 'no profile yet');
+    }
+
+    public function testChartWeeksAndMonthsCanBePagedBackToTheFirstMeal(): void
+    {
+        $today = $this->user->today();
+        $this->storeMeal('long ago', $today->modify('-40 days')->setTime(12, 0));
+
+        $crawler = $this->client->request('GET', '/');
+        $pager = $crawler->filter('turbo-frame#energy-chart .pager');
+        self::assertSame('Last 7 days', $pager->filter('.pager-label')->text());
+        $earlier = $today->modify('-7 days')->format('Y-m-d');
+        self::assertSame('/?chart=week&chartTo='.$earlier, $pager->filter('a.pager-prev')->attr('href'));
+        self::assertCount(0, $pager->filter('a.pager-next'), 'nothing after today');
+
+        $crawler = $this->client->request('GET', '/?chart=week&chartTo='.$earlier);
+        $pager = $crawler->filter('turbo-frame#energy-chart .pager');
+        $bars = json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true);
+        self::assertCount(7, $bars);
+        self::assertSame((new \DateTimeImmutable($earlier))->format('D, j M'), end($bars)['label']);
+        self::assertStringEndsWith((new \DateTimeImmutable($earlier))->format('j M'), $pager->filter('.pager-label')->text());
+        self::assertSame('/?chart=week', $pager->filter('a.pager-next')->attr('href'), 'the latest page has no date');
+
+        $monthBack = $today->modify('-30 days')->format('Y-m-d');
+        $crawler = $this->client->request('GET', '/?chart=month');
+        self::assertSame('/?chart=month&chartTo='.$monthBack, $crawler->filter('turbo-frame#energy-chart a.pager-prev')->attr('href'));
+        $crawler = $this->client->request('GET', '/?chart=month&chartTo='.$monthBack);
+        self::assertCount(30, json_decode($crawler->filter('.energy-chart.chart-wide')->attr('data-chart-hover-days-value'), true));
+        self::assertCount(0, $crawler->filter('turbo-frame#energy-chart a.pager-prev'), 'the first meal is on this page');
+        self::assertCount(0, $this->client->request('GET', '/?chart=all')->filter('turbo-frame#energy-chart .pager'), 'all is one page');
+    }
+
+    public function testChartPagesNeverGoPastTheShownDayAndIgnoreBadDates(): void
+    {
+        $day = $this->user->today()->modify('-3 days');
+        $this->storeMeal('food', $day->modify('-20 days')->setTime(12, 0));
+
+        $crawler = $this->client->request('GET', '/day/'.$day->format('Y-m-d').'?chart=week&chartTo='.$this->user->today()->format('Y-m-d'));
+        self::assertSame('Last 7 days', $crawler->filter('turbo-frame#energy-chart .pager-label')->text(), 'later than the day shown: its latest page');
+        self::assertSame('/day/'.$day->format('Y-m-d').'?chart=week&chartTo='.$day->modify('-7 days')->format('Y-m-d'), $crawler->filter('turbo-frame#energy-chart a.pager-prev')->attr('href'));
+
+        $crawler = $this->client->request('GET', '/?chart=week&chartTo=2026-02-31');
+        self::assertSame('Last 7 days', $crawler->filter('turbo-frame#energy-chart .pager-label')->text());
+    }
+
+    public function testWeeklyOverviewCanBePagedBackAndTheFoodReviewFollows(): void
+    {
+        $today = $this->user->today();
+        $this->storeMeal('old food', $today->modify('-12 days')->setTime(12, 0), 1000);
+        $this->storeMeal('recent food', $today->modify('-2 days')->setTime(12, 0), 3000);
+
+        $crawler = $this->client->request('GET', '/');
+        $week = $crawler->filter('section.week turbo-frame#week-overview');
+        self::assertSame('Last 7 days', $week->filter('h2')->text());
+        self::assertSame('3 000', $week->filter('.week-stats strong')->first()->text());
+        $earlier = $today->modify('-8 days')->format('Y-m-d');
+        self::assertSame('/?weekTo='.$earlier, $week->filter('a.pager-prev')->attr('href'), '7 days before the week ending yesterday');
+        self::assertCount(0, $week->filter('a.pager-next'));
+
+        $crawler = $this->client->request('GET', '/?weekTo='.$earlier);
+        $week = $crawler->filter('section.week turbo-frame#week-overview');
+        self::assertSame('Earlier week', $week->filter('h2')->text());
+        self::assertStringEndsWith((new \DateTimeImmutable($earlier))->format('j M'), $week->filter('.pager-label')->text());
+        self::assertSame('1 000', $week->filter('.week-stats strong')->first()->text());
+        self::assertSame('/week/food-review?to='.$earlier, $week->filter('turbo-frame#food-review')->attr('src'), 'the AI review of that week');
+        self::assertSame('/', $week->filter('a.pager-next')->attr('href'));
+        self::assertCount(0, $week->filter('a.pager-prev'), 'nothing logged before');
+        self::assertSame('Last 7 days', $crawler->filter('turbo-frame#energy-chart .pager-label')->text(), 'the chart pages on its own');
     }
 
     public function testEmptyWeek(): void

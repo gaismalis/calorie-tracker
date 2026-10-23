@@ -301,8 +301,15 @@ a.button:hover, label.button:hover { filter: brightness(0.95); }
 .per100g-edit label { display: flex; flex-direction: column; gap: 0.1rem; margin: 0; font-size: 0.75rem; }
 table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding: 0.2rem 0.3rem; font-size: 0.85rem; }
 /* Weekly summary (dashboard/_week.html.twig). Deficit/surplus use the same green/orange as the chart. */
-.week h2 { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-.week .week-range { font-size: 0.9rem; font-weight: normal; }
+.week-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.week-header h2 { margin: 0; }
+/* ‹ 9 – 15 Oct › paging (chart and weekly overview). */
+.pager { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.9rem; color: var(--muted); }
+.pager a, .pager span.pager-prev, .pager span.pager-next { display: inline-grid; place-items: center; min-width: 2rem; min-height: 2rem; border-radius: 6px; text-decoration: none; font-size: 1.2rem; line-height: 1; }
+.pager a { color: var(--text); }
+.pager a:hover { background: var(--bg); }
+.pager span.pager-prev, .pager span.pager-next { opacity: 0.3; }
+.pager-label { font-variant-numeric: tabular-nums; }
 .week-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
 .week-stats > div { display: flex; flex-direction: column; }
 .week-stats .label, .week-stats .unit { color: var(--muted); font-size: 0.8rem; }

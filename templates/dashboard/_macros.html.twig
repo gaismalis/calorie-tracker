@@ -27,3 +27,15 @@
         “{{ entry.rawText }}”
     {%- endif -%}
 {% endmacro %}
+
+{# "9 – 15 Oct", "28 Sep – 4 Oct" (plain 'Y-m-d' dates, no timezone conversion). #}
+{% macro date_range(from, to) %}{% set fromMonth = from|date('M', false) %}{{ from|date('j', false) }}{{ fromMonth != to|date('M', false) ? ' ' ~ fromMonth }} – {{ to|date('j M', false) }}{% endmacro %}
+
+{# ‹ label › to page through periods (pages: {previous, next} URLs or null). The links stay inside the card's Turbo Frame. #}
+{% macro pager(pages, label, name) %}
+    <nav class="pager" aria-label="{{ name }}">
+        {%- if pages.previous %}<a href="{{ pages.previous }}" class="pager-prev" aria-label="Earlier">‹</a>{% else %}<span class="pager-prev" aria-hidden="true">‹</span>{% endif -%}
+        <span class="pager-label">{{ label }}</span>
+        {%- if pages.next %}<a href="{{ pages.next }}" class="pager-next" aria-label="Later">›</a>{% else %}<span class="pager-next" aria-hidden="true">›</span>{% endif -%}
+    </nav>
+{% endmacro %}

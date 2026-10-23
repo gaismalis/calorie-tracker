@@ -28,7 +28,10 @@ class DashboardController extends AbstractController
 {
     use DayAwareController;
 
-    /** Chart periods (?chart=…) and their length in days; "all" starts at the first logged meal. Not stored: a refresh shows the week again. */
+    /**
+     * Chart periods (?chart=…) and their length in days; "all" starts at the first logged meal. Not stored: a refresh shows the week again.
+     * Week and month can be paged back (?chartTo=Y-m-d, the last day shown), one period at a time.
+     */
     public const CHART_PERIODS = ['week' => 7, 'month' => 30, 'all' => null];
     private const DEFAULT_CHART_PERIOD = 'week';
     /** Longer ranges get a bar per week instead of per day. */
@@ -78,6 +81,13 @@ class DashboardController extends AbstractController
         }
         $needsAttention = array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending() || $e->isFailed());
         $chartPeriod = array_key_exists($request->query->getString('chart'), self::CHART_PERIODS) ? $request->query->getString('chart') : self::DEFAULT_CHART_PERIOD;
+        $firstMeal = $mealRepository->firstMealDay($user);
+        // Paging: the last day of the chart (?chartTo=…) and of the weekly overview (?weekTo=…), never later than the default.
+        $chartTo = 'all' === $chartPeriod ? $day : $this->pageEnd($user, $request->query->getString('chartTo'), $day);
+        $weekLatest = $day == $today ? $day->modify('-1 day') : $day; // today isn't over, so for today the week ends yesterday
+        $weekTo = $this->pageEnd($user, $request->query->getString('weekTo'), $weekLatest);
+        $charts = $this->charts($user, $mealRepository, $exerciseRepository, $energy, $chartTo, $today, $chartPeriod, $firstMeal);
+        $pageUrl = fn (array $query) => $day == $today ? $this->generateUrl('app_dashboard', $query) : $this->generateUrl('app_day', ['date' => $day->format('Y-m-d')] + $query);
         // Coming back from an action inside the log (delete, retry, adjust): keep it open on that tab.
         $returnToLog = in_array($request->query->get('log'), ['food', 'exercise'], true) ? $request->query->get('log') : null;
 
@@ -93,10 +103,21 @@ class DashboardController extends AbstractController
             'energy' => $energy,
             'burned' => $energy->burnedWith($exerciseKcal),
             'target' => $energy->targetFor($user->getWeeklyGoalKg(), $exerciseKcal),
-            'charts' => $this->charts($user, $mealRepository, $exerciseRepository, $energy, $day, $today, $chartPeriod),
+            'charts' => $charts,
             'chartPeriod' => $chartPeriod,
             'chartPeriods' => array_keys(self::CHART_PERIODS),
-            'week' => $this->week($user, $mealRepository, $exerciseRepository, $weightRepository, $energy, $day, $day == $today),
+            'chartTo' => $chartTo->format('Y-m-d'),
+            'chartIsLatest' => $chartTo == $day,
+            'chartPages' => 'all' === $chartPeriod ? null : $this->pages(
+                $chartTo, $day, count($charts[0]->days), $firstMeal,
+                fn (?\DateTimeImmutable $to) => $pageUrl(['chart' => $chartPeriod] + (null === $to ? [] : ['chartTo' => $to->format('Y-m-d')])),
+            ),
+            'week' => $this->week($user, $mealRepository, $exerciseRepository, $weightRepository, $energy, $weekTo),
+            'weekIsLatest' => $weekTo == $weekLatest,
+            'weekPages' => $this->pages(
+                $weekTo, $weekLatest, WeeklySummary::DAYS, $firstMeal,
+                fn (?\DateTimeImmutable $to) => $pageUrl(null === $to ? [] : ['weekTo' => $to->format('Y-m-d')]),
+            ),
             'retryAt' => $retryAt,
             'hasPending' => array_any([...$meals, ...$exercises], fn (Estimable $e) => $e->isPending()),
             'openLog' => $needsAttention || null !== $returnToLog,
@@ -105,11 +126,10 @@ class DashboardController extends AbstractController
     }
 
     /** @return list<EnergyChart> the full-width chart and the compact one for phones; CSS shows the one that fits */
-    private function charts(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, EnergyEstimate $energy, \DateTimeImmutable $day, \DateTimeImmutable $today, string $period): array
+    private function charts(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, EnergyEstimate $energy, \DateTimeImmutable $day, \DateTimeImmutable $today, string $period, ?\DateTimeImmutable $firstMeal): array
     {
         $days = self::CHART_PERIODS[$period];
         if (null === $days) { // all: from the first logged meal (at least a week)
-            $firstMeal = $meals->firstMealDay($user);
             $days = null === $firstMeal || $firstMeal > $day ? 0 : (int) $firstMeal->diff($day)->days + 1;
             $days = max(self::CHART_PERIODS['week'], $days);
         }
@@ -136,10 +156,9 @@ class DashboardController extends AbstractController
         );
     }
 
-    /** The 7 full days up to the shown day: today isn't over, so for today the week ends yesterday. */
-    private function week(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, WeightEntryRepository $weights, EnergyEstimate $energy, \DateTimeImmutable $day, bool $isToday): WeeklySummary
+    /** The 7 full days ending on $last. */
+    private function week(User $user, MealEntryRepository $meals, ExerciseEntryRepository $exercises, WeightEntryRepository $weights, EnergyEstimate $energy, \DateTimeImmutable $last): WeeklySummary
     {
-        $last = $isToday ? $day->modify('-1 day') : $day;
         $first = $last->modify(sprintf('-%d days', WeeklySummary::DAYS - 1));
         $end = $last->modify('+1 day');
         // Warm the trend up with earlier weigh-ins, as on the weight page.
@@ -155,6 +174,33 @@ class DashboardController extends AbstractController
             $meals->dailyCategoryIntake($user, FoodCategory::Alcohol, $first, $end),
             $meals->dailyCategoryIntake($user, FoodCategory::Snack, $first, $end),
         );
+    }
+
+    /** The last day of a page from ?chartTo= / ?weekTo=: the latest page when missing, invalid or later than that. */
+    private function pageEnd(User $user, string $date, \DateTimeImmutable $latest): \DateTimeImmutable
+    {
+        $parsed = $this->parseLocalDate($user, $date);
+
+        return null === $parsed || $parsed > $latest ? $latest : $parsed;
+    }
+
+    /**
+     * Links to the previous and next page of $days days. No earlier page before the first logged meal,
+     * no later one after $latest (whose URL has no date, so it stays "the latest").
+     *
+     * @param \Closure(?\DateTimeImmutable): string $url URL of the page ending on that day (null: the latest)
+     *
+     * @return array{previous: string|null, next: string|null}
+     */
+    private function pages(\DateTimeImmutable $to, \DateTimeImmutable $latest, int $days, ?\DateTimeImmutable $firstMeal, \Closure $url): array
+    {
+        $previous = $to->modify(sprintf('-%d days', $days));
+        $next = $to->modify(sprintf('+%d days', $days));
+
+        return [
+            'previous' => null !== $firstMeal && $firstMeal <= $previous ? $url($previous) : null,
+            'next' => $to < $latest ? $url($next >= $latest ? null : $next) : null,
+        ];
     }
 
     private function entryKey(Estimable $entry): string

@@ -1,6 +1,7 @@
+{% import 'dashboard/_macros.html.twig' as m %}
 {# What was eaten each day (bars) against what was burned that day (dark mark; not the goal-adjusted target). Less = accent green, more = series-2 orange plus a "+N" label, so colour isn't the only cue. #}
 <section class="card energy">
-{# Week / Month / All reload just this frame (same page with ?chart=…); nothing is stored, so a refresh shows the week again. #}
+{# Week / Month / All and ‹ › reload just this frame (same page with ?chart=…&chartTo=…); nothing is stored, so a refresh shows the latest week again. #}
 <turbo-frame id="energy-chart">
     {% set first = charts|first %}
     <div class="chart-header">
@@ -12,13 +13,13 @@
             {% endfor %}
         </nav>
     </div>
-    <p class="muted chart-period">
+    <div class="muted chart-period">
         {%- if chartPeriod == 'all' -%}
             Since {{ first.from|date('j M Y', false) }}{% if first.daysPerBar == 7 %} · one bar per week, averages per logged day{% endif %}
         {%- else -%}
-            Last {{ first.days|length }} days
+            {{ m.pager(chartPages, chartIsLatest ? 'Last ' ~ first.days|length ~ ' days' : m.date_range(first.from, chartTo), 'Chart pages') }}
         {%- endif -%}
-    </p>
+    </div>
     {# Wide and compact (phone) versions; CSS shows the one that fits the screen. #}
     {% for chart in charts %}
         <div class="viz-root energy-chart {{ chart.compact ? 'chart-compact' : 'chart-wide' }}" data-controller="chart-hover" data-chart-hover-days-value="{{ chart.hover|json_encode }}">

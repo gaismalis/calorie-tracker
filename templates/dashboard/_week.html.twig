@@ -1,8 +1,12 @@
-{# The last 7 full days at a glance (App\Summary\WeeklySummary). Dates are plain 'Y-m-d', so no timezone conversion. #}
+{# The last 7 full days at a glance (App\Summary\WeeklySummary), or an earlier 7 days (‹ ›, ?weekTo=…; only this frame reloads,
+   and the food review below follows). Dates are plain 'Y-m-d', so no timezone conversion. #}
 {% import 'dashboard/_macros.html.twig' as m %}
-{% set fromMonth = week.from|date('M', false) %}
 <section class="card week">
-    <h2>Last 7 days <span class="muted week-range">{{ week.from|date('j', false) }}{{ fromMonth != week.to|date('M', false) ? ' ' ~ fromMonth }} – {{ week.to|date('j M', false) }}</span></h2>
+<turbo-frame id="week-overview">
+    <div class="week-header">
+        <h2>{{ weekIsLatest ? 'Last 7 days' : 'Earlier week' }}</h2>
+        {{ m.pager(weekPages, m.date_range(week.from, week.to), 'Weeks') }}
+    </div>
     {% if week.empty %}
         <p class="muted">Nothing logged in these 7 days yet.</p>
     {% else %}
@@ -64,4 +68,5 @@
             </turbo-frame>
         {% endif %}
     {% endif %}
+</turbo-frame>
 </section>
