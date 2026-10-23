@@ -79,6 +79,54 @@ class MealEntryRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every item of the estimated meals in a date range, by local day, in the order they were eaten (for the
+     * weekly food review).
+     *
+     * @param \DateTimeImmutable $from first local date (inclusive)
+     * @param \DateTimeImmutable $to   last local date (exclusive)
+     *
+     * @return array<string, list<array{time: string, name: string, grams: float, kcal: float, protein: float, carbs: float, fat: float, category: string}>>
+     */
+    public function itemsByDay(User $user, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $timezone = $user->getDateTimeZone();
+        $utc = new \DateTimeZone('UTC');
+
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.eatenAt, i.name, i.grams, i.kcal, i.protein, i.carbs, i.fat, i.category')
+            ->join('m.items', 'i')
+            ->where('m.user = :user')
+            ->andWhere('m.status = :estimated')
+            ->andWhere('m.eatenAt >= :start AND m.eatenAt < :end')
+            ->orderBy('m.eatenAt')
+            ->addOrderBy('i.id')
+            ->setParameter('user', $user)
+            ->setParameter('estimated', EstimationStatus::Estimated)
+            ->setParameter('start', (new \DateTimeImmutable($from->format('Y-m-d'), $timezone))->setTimezone($utc))
+            ->setParameter('end', (new \DateTimeImmutable($to->format('Y-m-d'), $timezone))->setTimezone($utc))
+            ->getQuery()
+            ->getArrayResult();
+
+        $byDay = [];
+        foreach ($rows as $row) {
+            $local = $row['eatenAt']->setTimezone($timezone);
+            $byDay[$local->format('Y-m-d')][] = [
+                'time' => $local->format('H:i'),
+                'name' => $row['name'],
+                'grams' => (float) $row['grams'],
+                'kcal' => (float) $row['kcal'],
+                'protein' => (float) $row['protein'],
+                'carbs' => (float) $row['carbs'],
+                'fat' => (float) $row['fat'],
+                // Items from before categories existed count as food, as everywhere else.
+                'category' => ($row['category'] instanceof FoodCategory ? $row['category']->value : $row['category']) ?? FoodCategory::Food->value,
+            ];
+        }
+
+        return $byDay;
+    }
+
+    /**
      * kcal per day of the items in one category (e.g. alcohol), for estimated meals.
      *
      * @param \DateTimeImmutable $from first local date (inclusive)

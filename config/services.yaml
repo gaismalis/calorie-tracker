@@ -31,6 +31,9 @@ services:
     App\Nutrition\Categorize\FoodCategorizer:
         factory: ['@App\Nutrition\Categorize\FoodCategorizerFactory', 'create']
 
+    App\Review\FoodReviewer:
+        factory: ['@App\Review\FoodReviewerFactory', 'create']
+
 when@test:
     services:
         App\Nutrition\NutritionEstimator:
@@ -41,3 +44,6 @@ when@test:
             public: true
         App\Nutrition\Categorize\FoodCategorizer:
             class: App\Nutrition\Categorize\KeywordFoodCategorizer
+        App\Review\FoodReviewer:
+            class: App\Tests\Support\FakeFoodReviewer
+            public: true

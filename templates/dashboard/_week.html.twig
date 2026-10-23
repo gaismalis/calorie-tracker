@@ -56,5 +56,12 @@
             <li>Exercise: {% if week.exerciseDays > 0 %}<strong>{{ week.exerciseKcal|number_format(0, '.', ' ') }} kcal</strong> on {{ week.exerciseDays }} {{ week.exerciseDays == 1 ? 'day' : 'days' }}{% else %}none logged{% endif %}</li>
             <li>Meals logged on <strong>{{ week.loggedDays }} of 7 days</strong>{% if week.loggedDays > 0 and week.rough %}, so these averages are rough{% endif %}</li>
         </ul>
+
+        {% if week.loggedDays > 0 %}
+            {# Loaded separately (it may ask the AI), only when scrolled into view. #}
+            <turbo-frame id="food-review" src="{{ path('app_food_review', {to: week.to}) }}" loading="lazy">
+                <div class="food-review"><h3>Food quality</h3><p class="muted">Looking at what you ate…</p></div>
+            </turbo-frame>
+        {% endif %}
     {% endif %}
 </section>

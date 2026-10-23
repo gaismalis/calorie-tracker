@@ -1,0 +1,33 @@
+{# AI review of the quality of the week's food (App\Review\WeeklyFoodReviews), inside the weekly overview. #}
+<turbo-frame id="food-review">
+    <div class="food-review">
+        {% if failed %}
+            <h3>Food quality</h3>
+            <p class="muted">Couldn't review your food right now. <a href="{{ path('app_food_review', {to: to}) }}">Try again</a></p>
+        {% elseif review is null %}
+            <h3>Food quality</h3>
+            <p class="muted">Log meals on at least {{ minDays }} of these 7 days to get a review of what you eat.</p>
+        {% else %}
+            {% set r = review.review %}
+            <h3>Food quality <span class="food-rating food-rating-{{ r.rating }}">{{ r.rating|capitalize }}</span></h3>
+            <p class="food-summary">{{ r.summary }}</p>
+            {% if r.strengths is not empty %}
+                <p class="food-heading">👍 Going well</p>
+                <ul>{% for text in r.strengths %}<li>{{ text }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% if r.suggestions is not empty %}
+                <p class="food-heading">💡 Try</p>
+                <ul class="food-suggestions">{% for text in r.suggestions %}<li>{{ text }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% if r.nutrients is not empty %}
+                <p class="food-heading">🔎 Keep an eye on</p>
+                <ul class="food-nutrients">
+                    {% for nutrient in r.nutrients %}
+                        <li><strong>{{ nutrient.name }}</strong> <span class="nutrient-{{ nutrient.status }}">{{ nutrient.status == 'low' ? '↓ likely low' : '↑ likely high' }}</span>{% if nutrient.note %}: {{ nutrient.note }}{% endif %}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            <p class="muted small">An AI's review of what you logged: a rough guide, not medical advice.</p>
+        {% endif %}
+    </div>
+</turbo-frame>

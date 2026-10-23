@@ -313,6 +313,18 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .week-status-on_track { color: var(--accent); font-weight: 600; }
 .week-facts { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
 .week-facts strong { color: var(--text); font-weight: 600; }
+/* AI food review in the weekly overview (_food_review.html.twig). */
+.food-review { border-top: 1px solid var(--border); margin-top: 0.9rem; padding-top: 0.75rem; }
+.food-review h3 { margin: 0 0 0.4rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.food-review ul { margin: 0 0 0.5rem; padding-left: 1.1rem; font-size: 0.9rem; color: var(--text); } /* not the red of form-error lists */
+.food-review li { margin-bottom: 0.2rem; }
+.food-summary { margin: 0 0 0.5rem; }
+.food-heading { margin: 0.5rem 0 0.2rem; font-size: 0.85rem; font-weight: 600; }
+.food-rating { font-size: 0.75rem; font-weight: 600; padding: 0.05rem 0.45rem; border-radius: 999px; }
+.food-rating-great, .food-rating-good { background: #e3f3e8; color: #22663d; }
+.food-rating-mixed { background: #fff3d6; color: #7a5600; }
+.food-rating-poor { background: #fbe4e4; color: #a3201b; }
+.nutrient-low, .nutrient-high { font-size: 0.8rem; color: var(--muted); }
 .energy .chart-header h2 { margin-bottom: 0.15rem; }
 .energy .chart-period { margin: 0 0 0.5rem; font-size: 0.85rem; }
 /* Food categories: snack and alcohol items are marked in the log, in the chart's purple and red. */
