@@ -41,6 +41,22 @@ class MealEntryRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** @return list<MealEntry> all of the user's estimated meals with their foods, oldest first */
+    public function findEstimatedForUser(User $user): array
+    {
+        return $this->createQueryBuilder('m')
+            ->addSelect('i')
+            ->leftJoin('m.items', 'i')
+            ->where('m.user = :user')
+            ->andWhere('m.status = :estimated')
+            ->setParameter('user', $user)
+            ->setParameter('estimated', EstimationStatus::Estimated)
+            ->orderBy('m.eatenAt', 'ASC')
+            ->addOrderBy('i.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     /**
      * Total kcal of estimated meals per calendar day in the user's timezone.
      *

@@ -17,4 +17,10 @@
         <button type="submit">Save</button>
     {{ form_end(form) }}
 </section>
+
+<section class="card narrow">
+    <h2>Your data</h2>
+    <p class="muted">Download everything you've logged as a JSON file: every day with its foods, grams, calories and macros.</p>
+    <a href="{{ path('app_profile_export') }}" class="button secondary" data-turbo="false" download>Export foods (JSON)</a>
+</section>
 {% endblock %}
