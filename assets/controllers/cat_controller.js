@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { WAKE_KEY } from './cat_call_controller.js';
 
 // Just for fun: when you open the app, a cat walks onto the screen within a few seconds, waves, and sits on
 // top of things. Tap it a random number of times (1 to maxTaps): it pulls a grumpy or smug face each time,
@@ -11,6 +12,7 @@ import { Controller } from '@hotwired/stimulus';
 //
 // The 🐾 button (cat_call_controller.js) calls it: if the cat left at least callCooldownMinutes ago it
 // answers ("Lasagna?") and comes; called too soon, it answers with an excuse and stays away.
+// Turned back on with the 🐾 (the cat was switched off), it answers and comes right away, whatever the cooldown.
 //
 // Frames: public/cat/cat-sprite.png, one row of 111x128 cells made from the CC0 "Orange Fat Cat"
 // (megupets.com) with bin/build-cat-sprite.php.
@@ -45,7 +47,14 @@ export default class extends Controller {
     static values = { gapMinutes: Number, maxTaps: Number, callCooldownMinutes: Number };
 
     connect() {
+        const woken = sessionStorage.getItem(WAKE_KEY);
+        sessionStorage.removeItem(WAKE_KEY);
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (woken) {
+            this.answer(pick(COMING), document.querySelector('.cat-call'));
+            this.timer = setTimeout(() => this.arrive(), 800);
+            return;
+        }
 
         const due = Number(localStorage.getItem(NEXT_VISIT_KEY)) || 0;
         const wait = Math.max(due - Date.now(), between(...ARRIVAL_SECONDS) * 1000);

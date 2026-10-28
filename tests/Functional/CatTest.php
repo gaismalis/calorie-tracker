@@ -51,7 +51,7 @@ class CatTest extends WebTestCase
         self::assertStringContainsString("this.dispatch('call', { prefix: 'cat'", file_get_contents(__DIR__.'/../../assets/controllers/cat_call_controller.js'));
     }
 
-    public function testTheSwitchAboveThePawTurnsTheCatOffAndOnAgain(): void
+    public function testTheSwitchAboveThePawTurnsTheCatOffAndThePawTurnsItBackOn(): void
     {
         $client = static::createClient();
         $user = (new User())->setEmail('me@example.com')->setPassword('x');
@@ -64,7 +64,7 @@ class CatTest extends WebTestCase
         $switch = $crawler->filter('.cat-controls form.cat-toggle button[role=switch]');
         self::assertSame('true', $switch->attr('aria-checked'));
         self::assertSame('Turn the cat off', $switch->attr('title'));
-        self::assertCount(1, $crawler->filter('.cat-controls .cat-call'), 'the switch is above the paw');
+        self::assertSame('cat-call#call', $crawler->filter('.cat-controls .cat-call')->attr('data-action'), 'the switch is above the paw');
 
         $client->submit($switch->form());
         self::assertResponseRedirects('/?date=2026-10-20', 303, 'back to the same day');
@@ -72,17 +72,22 @@ class CatTest extends WebTestCase
 
         $crawler = $client->request('GET', '/');
         self::assertCount(0, $crawler->filter('[data-controller=cat]'), 'no visits');
-        self::assertCount(0, $crawler->filter('.cat-call'), 'no paw');
-        $switch = $crawler->filter('.cat-toggle button[role=switch]');
-        self::assertSame('false', $switch->attr('aria-checked'));
-        self::assertSame('Turn the cat on', $switch->attr('title'));
-        $crawler = $client->request('GET', '/weight');
-        self::assertCount(0, $crawler->filter('[data-controller=cat]'), 'off on every page');
+        self::assertCount(0, $crawler->filter('.cat-toggle'), 'no switch');
+        $paw = $crawler->filter('.cat-controls .cat-call');
+        self::assertCount(1, $paw, 'the paw stays');
+        self::assertSame('submit', $paw->attr('type'), 'and turns the cat back on');
+        self::assertSame('cat-call#wake', $paw->attr('data-action'), 'and calls it');
+        self::assertCount(0, $client->request('GET', '/weight')->filter('[data-controller=cat]'), 'off on every page');
 
-        $client->request('GET', '/');
-        $client->submit($client->getCrawler()->filter('.cat-toggle button')->form());
+        $client->submit($client->request('GET', '/')->filter('.cat-call')->form());
         self::assertTrue($this->catEnabled($user));
         self::assertCount(1, $client->request('GET', '/')->filter('[data-controller=cat]'));
+        self::assertCount(1, $client->getCrawler()->filter('.cat-toggle'), 'the switch is back');
+
+        $calling = file_get_contents(__DIR__.'/../../assets/controllers/cat_call_controller.js');
+        self::assertStringContainsString('sessionStorage.setItem(WAKE_KEY', $calling);
+        $cat = file_get_contents(__DIR__.'/../../assets/controllers/cat_controller.js');
+        self::assertStringContainsString('sessionStorage.getItem(WAKE_KEY)', $cat, 'the cat comes when the page is back');
     }
 
     public function testTheSwitchNeedsAValidTokenAndOnlyGoesBackWithinTheSite(): void

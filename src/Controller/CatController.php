@@ -10,7 +10,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
-/** The toggle above the 🐾 button: switches the cat off (no visits, no 🐾) or back on, for all of the user's devices.
+/** The switch above the 🐾 button turns the cat off (no visits, no switch; only the 🐾 stays); the 🐾 then turns it back on
+ * (and calls it, see cat_call_controller.js). Saved per user, so it applies on all of their devices.
  * Not under /cat/: that's public/cat/ (the sprite), which the web server serves as static files. */
 class CatController extends AbstractController
 {
@@ -21,7 +22,7 @@ class CatController extends AbstractController
             throw $this->createAccessDeniedException('Invalid CSRF token.');
         }
 
-        $user->setCatEnabled(!$user->isCatEnabled());
+        $user->setCatEnabled($request->request->getBoolean('enabled'));
         $em->flush();
 
         // Back to the page (and day) the toggle was on; only paths on this site.
