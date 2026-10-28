@@ -51,6 +51,59 @@ class CatTest extends WebTestCase
         self::assertStringContainsString("this.dispatch('call', { prefix: 'cat'", file_get_contents(__DIR__.'/../../assets/controllers/cat_call_controller.js'));
     }
 
+    public function testTheSwitchAboveThePawTurnsTheCatOffAndOnAgain(): void
+    {
+        $client = static::createClient();
+        $user = (new User())->setEmail('me@example.com')->setPassword('x');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->persist($user);
+        $em->flush();
+        $client->loginUser($user);
+
+        $crawler = $client->request('GET', '/?date=2026-10-20');
+        $switch = $crawler->filter('.cat-controls form.cat-toggle button[role=switch]');
+        self::assertSame('true', $switch->attr('aria-checked'));
+        self::assertSame('Turn the cat off', $switch->attr('title'));
+        self::assertCount(1, $crawler->filter('.cat-controls .cat-call'), 'the switch is above the paw');
+
+        $client->submit($switch->form());
+        self::assertResponseRedirects('/?date=2026-10-20', 303, 'back to the same day');
+        self::assertFalse($this->catEnabled($user));
+
+        $crawler = $client->request('GET', '/');
+        self::assertCount(0, $crawler->filter('[data-controller=cat]'), 'no visits');
+        self::assertCount(0, $crawler->filter('.cat-call'), 'no paw');
+        $switch = $crawler->filter('.cat-toggle button[role=switch]');
+        self::assertSame('false', $switch->attr('aria-checked'));
+        self::assertSame('Turn the cat on', $switch->attr('title'));
+        $crawler = $client->request('GET', '/weight');
+        self::assertCount(0, $crawler->filter('[data-controller=cat]'), 'off on every page');
+
+        $client->request('GET', '/');
+        $client->submit($client->getCrawler()->filter('.cat-toggle button')->form());
+        self::assertTrue($this->catEnabled($user));
+        self::assertCount(1, $client->request('GET', '/')->filter('[data-controller=cat]'));
+    }
+
+    public function testTheSwitchNeedsAValidTokenAndOnlyGoesBackWithinTheSite(): void
+    {
+        $client = static::createClient();
+        $user = (new User())->setEmail('me@example.com')->setPassword('x');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->persist($user);
+        $em->flush();
+        $client->loginUser($user);
+
+        $client->request('POST', '/settings/cat', ['_token' => 'wrong']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertTrue($this->catEnabled($user));
+
+        $form = $client->request('GET', '/')->filter('.cat-toggle button')->form();
+        $form['back']->setValue('//evil.example.com/');
+        $client->submit($form);
+        self::assertResponseRedirects('/', 303);
+    }
+
     public function testNoCatOnTheLoginPage(): void
     {
         $client = static::createClient();
@@ -85,5 +138,13 @@ class CatTest extends WebTestCase
         self::assertSame((int) $height[1], $sheetHeight);
         self::assertLessThan(500_000, filesize($sheet), 'small enough for mobile data');
         self::assertStringContainsString('CC0', file_get_contents(__DIR__.'/../../public/cat/README.txt'), 'licence noted');
+    }
+
+    private function catEnabled(User $user): bool
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+
+        return $em->find(User::class, $user->getId())->isCatEnabled();
     }
 }

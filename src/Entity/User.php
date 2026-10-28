@@ -69,6 +69,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(options: ['default' => false])]
     private bool $onboardingRequired = false;
 
+    /** Just for fun: the cat visits and can be called (🐾). Switched off with the toggle above the 🐾 button. */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $catEnabled = true;
+
     /** Desired weight change in kg per week: negative = lose, 0 = maintain. */
     #[ORM\Column(options: ['default' => 0])]
     #[Assert\Choice(choices: self::WEEKLY_GOALS, message: 'Choose one of the listed goals.')]
@@ -252,6 +256,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setOnboardingRequired(bool $required): static
     {
         $this->onboardingRequired = $required;
+
+        return $this;
+    }
+
+    public function isCatEnabled(): bool
+    {
+        return $this->catEnabled;
+    }
+
+    public function setCatEnabled(bool $enabled): static
+    {
+        $this->catEnabled = $enabled;
 
         return $this;
     }

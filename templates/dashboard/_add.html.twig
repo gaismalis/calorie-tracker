@@ -8,9 +8,19 @@
     <button type="button" class="fab" aria-label="Add a meal, exercise or weight" aria-expanded="false" aria-haspopup="true"
             data-entry-dialog-target="toggle" data-action="entry-dialog#toggle">+</button>
 </div>
-{# Just for fun: call the cat (at most every 5 minutes, see The Cat in the wiki). #}
-<button type="button" class="cat-call" aria-label="Call the cat" title="Call the cat"
-        data-controller="cat-call" data-action="cat-call#call"><span aria-hidden="true">🐾</span></button>
+{# Just for fun: call the cat (at most every 5 minutes, see The Cat in the wiki). The switch above it turns the cat off (and on again). #}
+<div class="cat-controls">
+    <form method="post" action="{{ path('app_cat_toggle') }}" class="cat-toggle">
+        <input type="hidden" name="_token" value="{{ csrf_token('cat_toggle') }}">
+        <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+        <button type="submit" role="switch" aria-checked="{{ app.user.catEnabled ? 'true' : 'false' }}"
+                aria-label="Cat" title="{{ app.user.catEnabled ? 'Turn the cat off' : 'Turn the cat on' }}"><span class="cat-toggle-knob"></span></button>
+    </form>
+    {% if app.user.catEnabled %}
+        <button type="button" class="cat-call" aria-label="Call the cat" title="Call the cat"
+                data-controller="cat-call" data-action="cat-call#call"><span aria-hidden="true">🐾</span></button>
+    {% endif %}
+</div>
 
 <dialog class="entry-dialog" data-entry-dialog-target="dialog" aria-labelledby="entry-title"
         data-action="pointerdown->entry-dialog#pressed click->entry-dialog#backdrop close->entry-dialog#closed">
