@@ -5,6 +5,7 @@ namespace App\Tests\Functional;
 use App\Entity\User;
 use App\Profile\ActivityLevel;
 use App\Profile\Sex;
+use App\Profile\Theme;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -101,6 +102,60 @@ class ProfileTest extends WebTestCase
         self::assertSelectorTextContains('form[name=profile_form]', 'Height must be between 100 and 250 cm');
         self::assertSelectorTextContains('form[name=profile_form]', 'You must be at least 13 years old');
         self::assertNull($this->reloadUser()->getHeightCm());
+    }
+
+    public function testThePageUsesTheGardenThemeUntilAnotherIsPicked(): void
+    {
+        $crawler = $this->client->request('GET', '/');
+
+        self::assertSame('garden', $crawler->filter('html')->attr('data-theme'));
+        self::assertSame('#2f855a', $crawler->filter('meta[name=theme-color]')->attr('content'));
+    }
+
+    public function testPickingAColourTheme(): void
+    {
+        $crawler = $this->client->request('GET', '/profile');
+        $options = $crawler->filter('.theme-picker label')->each(fn ($label) => trim($label->text()));
+        self::assertSame(['Garden', 'Olive', 'Beach', 'Plum', 'Blossom'], $options);
+        self::assertSame('garden', $crawler->filter('.theme-picker input:checked')->attr('value'));
+        self::assertSame('change->theme-preview#preview', $crawler->filter('.theme-picker')->attr('data-action'), 'shown right away while picking');
+
+        $this->client->submitForm('Save', ['profile_form[theme]' => 'olive']);
+        self::assertSame(Theme::Olive, $this->reloadUser()->getTheme());
+
+        $crawler = $this->client->request('GET', '/weight');
+        self::assertSame('olive', $crawler->filter('html')->attr('data-theme'), 'on every page');
+        self::assertSame('#606c38', $crawler->filter('meta[name=theme-color]')->attr('content'), 'the phone\'s toolbar too');
+    }
+
+    public function testAnUnknownThemeIsRejected(): void
+    {
+        $crawler = $this->client->request('GET', '/profile');
+        $form = $crawler->selectButton('Save')->form();
+        $form['profile_form[theme]']->disableValidation()->setValue('neon');
+        $this->client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(Theme::Garden, $this->reloadUser()->getTheme());
+    }
+
+    public function testEveryThemeDefinesEveryColour(): void
+    {
+        $css = file_get_contents(__DIR__.'/../../assets/styles/themes.css');
+        preg_match('/:root, \[data-theme=garden\] \{(.*?)\}/s', $css, $garden);
+        preg_match_all('/(--[a-z-]+):/', $garden[1], $names);
+        foreach (Theme::cases() as $theme) {
+            self::assertTrue((bool) preg_match('/\[data-theme='.$theme->value.'\] \{(.*?)\}/s', $css, $block), $theme->value);
+            preg_match_all('/(--[a-z-]+):/', $block[1], $defined);
+            self::assertSame($names[1], $defined[1], $theme->value.' defines the same colours as garden');
+        }
+    }
+
+    public function testLoggingOutFromTheProfile(): void
+    {
+        $crawler = $this->client->request('GET', '/profile');
+
+        self::assertSame('/logout', $crawler->filter('.profile-leave a')->attr('href'));
     }
 
     private function reloadUser(): User

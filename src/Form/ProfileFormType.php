@@ -5,6 +5,7 @@ namespace App\Form;
 use App\Entity\User;
 use App\Profile\ActivityLevel;
 use App\Profile\Sex;
+use App\Profile\Theme;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\BirthdayType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -53,6 +54,12 @@ class ProfileFormType extends AbstractType
             ])
             ->add('timezone', TimezoneType::class, [
                 'help' => 'Decides when your day starts and ends.',
+            ])
+            ->add('theme', EnumType::class, [
+                'label' => 'Colour theme',
+                'class' => Theme::class,
+                'choice_label' => fn (Theme $theme) => $theme->label(),
+                'expanded' => true,
             ]);
     }
 

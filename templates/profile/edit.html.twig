@@ -14,6 +14,19 @@
         {{ form_row(form.activityLevel) }}
         {{ form_row(form.weeklyGoalKg) }}
         {{ form_row(form.timezone) }}
+        <fieldset class="theme-field">
+            <legend><label>{{ form.theme.vars.label }}</label></legend>
+            <div class="theme-picker" data-controller="theme-preview" data-action="change->theme-preview#preview">
+                {% for choice in form.theme %}
+                    {% set theme = enum('App\\Profile\\Theme').from(choice.vars.value) %}
+                    <label>
+                        {{ form_widget(choice) }}
+                        <span class="swatch" aria-hidden="true">{% for colour in theme.swatches %}<i style="background: {{ colour }}"></i>{% endfor %}</span>
+                        {{ theme.label }}
+                    </label>
+                {% endfor %}
+            </div>
+        </fieldset>
         <button type="submit">Save</button>
     {{ form_end(form) }}
 </section>
@@ -22,5 +35,10 @@
     <h2>Your data</h2>
     <p class="muted">Download everything you've logged as a JSON file: every day with its foods, grams, calories and macros.</p>
     <a href="{{ path('app_profile_export') }}" class="button secondary" data-turbo="false" download>Export foods (JSON)</a>
+</section>
+
+<section class="card narrow profile-leave">
+    <span class="muted">{{ app.user.demo ? 'Demo account' : 'Logged in as ' ~ app.user.email }}</span>
+    <a href="{{ path('app_logout') }}" class="button secondary">Log out</a>
 </section>
 {% endblock %}

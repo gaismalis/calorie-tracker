@@ -1,0 +1,49 @@
+/*
+ * Colour themes (App\Profile\Theme, picked in the profile): <html data-theme="garden|olive|beach|plum|blossom">.
+ * Every colour in app.css comes from these variables. Each theme keeps "ate less" (--under) and "ate more" (--over)
+ * far apart in lightness, so the chart reads without colour vision too, and --accent dark enough for white text.
+ */
+:root, [data-theme=garden] {
+    --bg: #f7f3ee; --card: #fffdfa; --text: #1d2a24; --muted: #737c77; --border: #ebe4da; --track: #efe9e1;
+    --accent: #2f855a; --on-accent: #fff; --accent-soft: #e3f1e8; --accent-ink: #23573c;
+    --under: #2f855a; --over: #e9a85a; --over-ink: #a8661c; --unknown: #8a9a92; --snack: #a48bcf; --alcohol: #cf6f80; --burn: #1d2a24;
+    --snack-soft: #f1ecf8; --snack-ink: #634a92; --alcohol-soft: #f9e8eb; --alcohol-ink: #9b3f50;
+    --warn-soft: #fbefdc; --warn-ink: #8a5a12; --danger: #c53030; --danger-soft: #fbe6e4; --danger-ink: #8a1f1f;
+    --info-soft: #e6eef9; --info-ink: #1a4a7a; --avatar: #f2d9bf; --avatar-ink: #8a5a2b; --shadow: 60 40 20;
+}
+/* Olive Garden Feast: 606C38 283618 FEFAE0 DDA15E BC6C25 */
+[data-theme=olive] {
+    --bg: #fbf6d9; --card: #fffdf0; --text: #283618; --muted: #6f7259; --border: #ebe3bf; --track: #efe8c8;
+    --accent: #606c38; --on-accent: #fefae0; --accent-soft: #eceed8; --accent-ink: #3e4724;
+    --under: #606c38; --over: #dda15e; --over-ink: #8f4f17; --unknown: #9a9c84; --snack: #bc6c25; --alcohol: #7d3c2b; --burn: #283618;
+    --snack-soft: #f6e5d3; --snack-ink: #8f4f17; --alcohol-soft: #f2e1dc; --alcohol-ink: #7d3c2b;
+    --warn-soft: #f7ebcd; --warn-ink: #7a5410; --danger: #a83a26; --danger-soft: #f6e2da; --danger-ink: #7d2a1b;
+    --info-soft: #e9eedc; --info-ink: #3e4724; --avatar: #f3dfb5; --avatar-ink: #8a5419; --shadow: 70 60 20;
+}
+/* Sunny Beach Day: 264653 2A9D8F E9C46A F4A261 E76F51 (buttons a shade deeper than 2A9D8F for white text) */
+[data-theme=beach] {
+    --bg: #faf6ec; --card: #ffffff; --text: #264653; --muted: #687c84; --border: #ebe3d1; --track: #efe8d8;
+    --accent: #238b7e; --on-accent: #fff; --accent-soft: #e0f1ee; --accent-ink: #1d6b62;
+    --under: #2a9d8f; --over: #f4a261; --over-ink: #b5591f; --unknown: #93a7ad; --snack: #e9c46a; --alcohol: #e76f51; --burn: #264653;
+    --snack-soft: #fbf0d3; --snack-ink: #7d5f10; --alcohol-soft: #fbe5df; --alcohol-ink: #a8442b;
+    --warn-soft: #fbf0d3; --warn-ink: #7d5f10; --danger: #c4452b; --danger-soft: #fbe5df; --danger-ink: #8f2f1b;
+    --info-soft: #e3edf1; --info-ink: #264653; --avatar: #f8e3b0; --avatar-ink: #8a6413; --shadow: 38 70 83;
+}
+/* Earthy Tones: 584B53 9D5C63 D6E3F8 FEF5EF E4BB97 (snacks a deeper version of D6E3F8, which is too pale for a chart) */
+[data-theme=plum] {
+    --bg: #fef5ef; --card: #fffaf7; --text: #3a3036; --muted: #82747c; --border: #efdfd6; --track: #f2e5dd;
+    --accent: #9d5c63; --on-accent: #fff; --accent-soft: #f4e4e4; --accent-ink: #763f46;
+    --under: #9d5c63; --over: #e4bb97; --over-ink: #94592c; --unknown: #a89aa2; --snack: #8aa5d6; --alcohol: #584b53; --burn: #584b53;
+    --snack-soft: #e3ebf9; --snack-ink: #3c5584; --alcohol-soft: #ece6ea; --alcohol-ink: #584b53;
+    --warn-soft: #f8eadb; --warn-ink: #87542a; --danger: #b23a48; --danger-soft: #f8e1e3; --danger-ink: #872a35;
+    --info-soft: #e3ebf9; --info-ink: #3c5584; --avatar: #d6e3f8; --avatar-ink: #3c5584; --shadow: 88 75 83;
+}
+/* FFCED8 FFDDDD FFF4DE FFE8C4, plus a deeper pink and peach: the pastels alone are too pale for buttons and charts */
+[data-theme=blossom] {
+    --bg: #fff4de; --card: #fffaf1; --text: #4a3439; --muted: #8a7176; --border: #fbe1cf; --track: #ffdddd;
+    --accent: #c24e6b; --on-accent: #fff; --accent-soft: #ffe3e8; --accent-ink: #a23c57;
+    --under: #d4607c; --over: #f2b66d; --over-ink: #a8651c; --unknown: #c4a9ae; --snack: #b998d6; --alcohol: #8c4a5c; --burn: #4a3439;
+    --snack-soft: #f2e9fa; --snack-ink: #6e4c96; --alcohol-soft: #f6e3e8; --alcohol-ink: #8c4a5c;
+    --warn-soft: #ffeccf; --warn-ink: #8a5a12; --danger: #c0392b; --danger-soft: #ffe1dd; --danger-ink: #8f2a20;
+    --info-soft: #eaeefa; --info-ink: #3c4f84; --avatar: #ffced8; --avatar-ink: #a23c57; --shadow: 120 60 60;
+}

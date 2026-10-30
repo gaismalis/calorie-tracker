@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Profile\ActivityLevel;
 use App\Profile\Sex;
+use App\Profile\Theme;
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
@@ -72,6 +73,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /** Just for fun: the cat visits and can be called (🐾). Switched off with the toggle above the 🐾 button. */
     #[ORM\Column(options: ['default' => true])]
     private bool $catEnabled = true;
+
+    /** Colour theme of the app (picked in the profile). */
+    #[ORM\Column(length: 16, enumType: Theme::class, options: ['default' => 'garden'])]
+    private Theme $theme = Theme::Garden;
 
     /** The shared demo account (see App\Demo\DemoAccount): read-only, logged into from the landing page. */
     #[ORM\Column(options: ['default' => false])]
@@ -276,6 +281,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setCatEnabled(bool $enabled): static
     {
         $this->catEnabled = $enabled;
+
+        return $this;
+    }
+
+    public function getTheme(): Theme
+    {
+        return $this->theme;
+    }
+
+    public function setTheme(Theme $theme): static
+    {
+        $this->theme = $theme;
 
         return $this;
     }

@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+{% set theme = app.user ? app.user.theme : enum('App\\Profile\\Theme').Garden %}
+{% set route = app.request.attributes.get('_route') %}
+<html lang="en" data-theme="{{ theme.value }}">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +10,7 @@
         <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
         {# Installable as a phone/desktop app (PWA): public/manifest.webmanifest, public/sw.js, public/icons/. #}
         <link rel="manifest" href="/manifest.webmanifest">
-        <meta name="theme-color" content="#2f855a">
+        <meta name="theme-color" content="{{ theme.browserColor }}">
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
         <meta name="apple-mobile-web-app-title" content="Calories">
         <meta name="mobile-web-app-capable" content="yes">
@@ -22,16 +24,20 @@
     </head>
     <body>
         <header class="topbar">
-            <a href="{{ path('app_dashboard') }}" class="brand">🥗 Calorie Tracker</a>
+            <a href="{{ path('app_dashboard') }}" class="brand"><span class="brand-mark" aria-hidden="true">🥗</span>Calorie Tracker</a>
             {% if app.user %}
-                <nav>
-                    <a href="{{ path('app_dashboard') }}">Today</a>
-                    <a href="{{ path('app_weight') }}">Weight</a>
-                    <a href="{{ path('app_recipes') }}">Recipes</a>
-                    <a href="{{ path('app_profile') }}">Profile</a>
+                {% set section = route in ['app_dashboard', 'app_day'] ? 'today' : (route starts with 'app_weight' ? 'weight' : (route starts with 'app_recipe' ? 'recipes' : (route == 'app_profile' ? 'profile' : null))) %}
+                {% if route != 'app_onboarding' %}<nav class="main-nav" aria-label="Menu">
+                    <a href="{{ path('app_dashboard') }}"{% if section == 'today' %} aria-current="page"{% endif %}>Today</a>
+                    <a href="{{ path('app_weight') }}"{% if section == 'weight' %} aria-current="page"{% endif %}>Weight</a>
+                    <a href="{{ path('app_recipes') }}"{% if section == 'recipes' %} aria-current="page"{% endif %}>Recipes</a>
+                    <a href="{{ path('app_profile') }}"{% if section == 'profile' %} aria-current="page"{% endif %}>Profile</a>
+                </nav>{% endif %}
+                <div class="account">
                     <span class="muted user-email">{{ app.user.demo ? 'Demo' : app.user.email }}</span>
                     <a href="{{ path('app_logout') }}" class="logout">Log out</a>
-                </nav>
+                    <a href="{{ path('app_profile') }}" class="avatar" title="Profile" aria-label="Profile">{{ app.user.demo ? 'A' : app.user.email|first }}</a>
+                </div>
             {% else %}
                 {% block topnav %}{% endblock %}
             {% endif %}
@@ -60,6 +66,16 @@
             {% endfor %}
             {% block body %}{% endblock %}
         </main>
+        {% if app.user and route != 'app_onboarding' %}
+            {# Phones: the menu at the bottom, with the ＋ in the middle (on the main page its add menu sits there, see _add.html.twig). #}
+            <nav class="tabbar" aria-label="Menu">
+                <a href="{{ path('app_dashboard') }}"{% if section == 'today' %} aria-current="page"{% endif %}><span aria-hidden="true">🏠</span>Today</a>
+                <a href="{{ path('app_weight') }}"{% if section == 'weight' %} aria-current="page"{% endif %}><span aria-hidden="true">⚖️</span>Weight</a>
+                {% if section == 'today' %}<span class="tabbar-gap"></span>{% else %}<a href="{{ path('app_meal_new') }}" class="tabbar-add" aria-label="Log a meal">＋</a>{% endif %}
+                <a href="{{ path('app_recipes') }}"{% if section == 'recipes' %} aria-current="page"{% endif %}><span aria-hidden="true">🔖</span>Recipes</a>
+                <a href="{{ path('app_profile') }}"{% if section == 'profile' %} aria-current="page"{% endif %}><span aria-hidden="true">👤</span>Profile</a>
+            </nav>
+        {% endif %}
         {% if app.user and app.user.catEnabled %}
             {# Just for fun: when you open the app (at most every 30 minutes) a cat sits on the screen until tapped away (assets/controllers/cat_controller.js). #}
             <div class="cat-layer" data-controller="cat" data-cat-gap-minutes-value="30" data-cat-max-taps-value="5"
