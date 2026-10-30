@@ -215,23 +215,24 @@ button.link.danger svg { vertical-align: -3px; }
 .eaten-at ul { flex-basis: 100%; margin: 0; }
 .viz-root .empty-label { text-anchor: middle; dominant-baseline: middle; font-size: 13px; fill: var(--text-secondary); }
 
-/* Energy chart (dashboard): eaten per day as bars, green = less than burned, orange (series 2) = more; burned = dark mark. */
-.energy-chart .bar-under { fill: var(--accent); }
-.energy-chart .bar-over { fill: var(--series-2); }
-.energy-chart .bar-unknown { fill: var(--series-1); }
+/* Energy chart (dashboard): eaten per day as bars, burned as a dark mark. A calm palette that goes with the weight page:
+   deep green = ate less than burned, soft amber = more (lighter than the green, so they stay apart without colour too),
+   snacks lavender and alcohol dusty rose as the top parts of the bar, with a thin white gap. */
+.energy-chart { --under: #3f8f62; --over: #e9a85a; --unknown: #8a9a92; --snack: #a48bcf; --alcohol: #cf6f80; }
+.energy-chart .bar-under { fill: var(--under); }
+.energy-chart .bar-over { fill: var(--over); }
+.energy-chart .bar-unknown { fill: var(--unknown); }
 .energy-chart .bar-today { opacity: 0.45; }
-/* Alcohol: the top part of the bar, deep red (darker than the orange of "ate more", so they stay apart), with a thin gap below. */
-.energy-chart .bar-alcohol { fill: #b3261e; stroke: var(--surface-1); stroke-width: 1; }
-.energy-chart .tooltip .tip-alcohol .key { background: #b3261e; }
-/* Snacks: right below the alcohol part, purple (apart from green, orange and red). */
-.energy-chart .bar-snack { fill: #7b4fb3; stroke: var(--surface-1); stroke-width: 1; }
-.energy-chart .tooltip .tip-snacks .key { background: #7b4fb3; }
-.energy-chart .burned-mark { stroke: var(--text-primary); stroke-width: 2; stroke-linecap: round; }
-.energy-chart .over-label { text-anchor: middle; fill: #b84a1f; font-weight: 600; }
+.energy-chart .bar-alcohol { fill: var(--alcohol); stroke: var(--surface-1); stroke-width: 1; }
+.energy-chart .tooltip .tip-alcohol .key { background: var(--alcohol); }
+.energy-chart .bar-snack { fill: var(--snack); stroke: var(--surface-1); stroke-width: 1; }
+.energy-chart .tooltip .tip-snacks .key { background: var(--snack); }
+.energy-chart .burned-mark { stroke: var(--text-primary); stroke-width: 2.5; stroke-linecap: round; }
+.energy-chart .over-label { text-anchor: middle; fill: #b7791f; font-weight: 600; }
 .energy-chart .tooltip .key { height: 8px; width: 8px; border-radius: 2px; }
-.energy-chart .tooltip .tip-eaten-under .key { background: var(--accent); }
-.energy-chart .tooltip .tip-eaten-over .key { background: var(--series-2); }
-.energy-chart .tooltip .tip-eaten-unknown .key { background: var(--series-1); }
+.energy-chart .tooltip .tip-eaten-under .key { background: var(--under); }
+.energy-chart .tooltip .tip-eaten-over .key { background: var(--over); }
+.energy-chart .tooltip .tip-eaten-unknown .key { background: var(--unknown); }
 .energy-chart .tooltip .tip-burned .key { background: var(--text-primary); height: 2px; border-radius: 0; }
 .energy-chart .tooltip .tip-balance .key, .energy-chart .tooltip .tip-eaten-none .key { background: none; }
 .chart-note { margin: 0.5rem 0 0; }
@@ -383,10 +384,10 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .nutrient-low, .nutrient-high { font-size: 0.8rem; color: var(--muted); }
 .energy .chart-header h2 { margin-bottom: 0.15rem; }
 .energy .chart-period { margin: 0 0 0.5rem; font-size: 0.85rem; }
-/* Food categories: snack and alcohol items are marked in the log, in the chart's purple and red. */
+/* Food categories: snack and alcohol items are marked in the log, in the chart's lavender and rose. */
 .category-tag { display: inline-block; font-size: 0.7rem; padding: 0 0.35rem; border-radius: 4px; margin-left: 0.25rem; white-space: nowrap; vertical-align: 0.1em; }
-.category-snack { background: #efe6f8; color: #5e3a8c; }
-.category-alcohol { background: #fbe4e4; color: #a3201b; }
+.category-snack { background: #f1ecf8; color: #634a92; }
+.category-alcohol { background: #f9e8eb; color: #9b3f50; }
 .category-select { display: block; margin: 0.2rem 0; font-size: 0.8rem; padding: 0.1rem 0.2rem; border: 1px solid var(--border); border-radius: 4px; background: var(--card); }
 /* Meal photo in the add-meal form (meal_photo_controller.js). */
 .meal-photo { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0.5rem 0 0.25rem; }
