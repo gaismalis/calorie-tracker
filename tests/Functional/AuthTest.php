@@ -18,7 +18,7 @@ class AuthTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Just say what you ate.');
         self::assertSame('/register', $crawler->selectLink('Start tracking')->attr('href'));
-        self::assertSame('/login', $crawler->selectLink('I have an account')->attr('href'));
+        self::assertSame('/demo', $crawler->filter('.hero form.demo-form')->attr('action'));
         self::assertSame('/register', $crawler->filter('.topbar .landing-nav')->selectLink('Sign up')->attr('href'));
         self::assertSame('/login', $crawler->filter('.topbar .landing-nav')->selectLink('Log in')->attr('href'));
         self::assertCount(0, $crawler->filter('[data-controller=cat], .cat-call, .overview'), 'none of the app');

@@ -27,9 +27,11 @@
         <p class="lead">Type “two eggs, toast and a latte” or snap a photo of your plate. AI turns it into calories and macros in seconds, and your daily target learns from how your weight actually moves.</p>
         <div class="cta">
             <a href="{{ path('app_register') }}" class="button big">Start tracking</a>
-            <a href="{{ path('app_login') }}" class="button big secondary">I have an account</a>
+            <form method="post" action="{{ path('app_demo') }}" class="demo-form">
+                <button type="submit" class="button big secondary">Try the demo</button>
+            </form>
         </div>
-        <p class="fine">Works in the browser and installs on your phone like an app.</p>
+        <p class="fine">No sign-up needed for the demo. Works in the browser and installs on your phone like an app.</p>
     </div>
 
     <div class="hero-visual" aria-hidden="true">
@@ -83,6 +85,39 @@
             <p>Eaten vs burned, day by day. After a couple of weeks your target comes from your own data.</p>
         </li>
     </ol>
+</section>
+
+<section class="demo-story" id="demo">
+    <div class="demo-story-text">
+        <p class="eyebrow">Live demo</p>
+        <h2>{{ constant('App\\Demo\\DemoAccount::NAME') }} lost {{ demo.lostKg|number_format(1) }} kg in {{ demo.weeks }} weeks. Just by logging.</h2>
+        <p>Meet {{ constant('App\\Demo\\DemoAccount::NAME') }}, our demo account: every meal, workout and weigh-in of the last {{ demo.weeks }} weeks, logged the way you would. Pizza on Fridays, beers included. About {{ demo.averageKcal|number_format(0, '.', ' ') }} kcal a day turned into a steady line down.</p>
+        <dl class="demo-stats">
+            <div><dt>Weight</dt><dd>{{ demo.startKg|number_format(1) }} → {{ demo.endKg|number_format(1) }} kg</dd></div>
+            <div><dt>Average day</dt><dd>{{ demo.averageKcal|number_format(0, '.', ' ') }} kcal</dd></div>
+            <div><dt>Meals logged</dt><dd>{{ demo.meals }}</dd></div>
+        </dl>
+        <form method="post" action="{{ path('app_demo') }}" class="demo-form">
+            <button type="submit" class="button big">Explore the demo</button>
+        </form>
+        <p class="fine">{{ constant('App\\Demo\\DemoAccount::NAME') }} is made up, but the numbers add up: the weight follows from what was eaten and burned. Look around as much as you like; nothing you change is saved.</p>
+    </div>
+    <figure class="demo-chart">
+        <svg viewBox="-34 -10 {{ constant('App\\Demo\\DemoStory::WIDTH') + 44 }} {{ constant('App\\Demo\\DemoStory::HEIGHT') + 34 }}" role="img"
+             aria-label="Weight from {{ demo.startKg|number_format(1) }} to {{ demo.endKg|number_format(1) }} kg over {{ demo.weeks }} weeks, with weekly average calories">
+            {% for tick in demo.kgTicks %}
+                <line x1="0" x2="{{ constant('App\\Demo\\DemoStory::WIDTH') }}" y1="{{ tick.y }}" y2="{{ tick.y }}" class="grid"/>
+                <text x="-8" y="{{ tick.y + 4 }}" class="tick">{{ tick.kg }}</text>
+            {% endfor %}
+            {% for bar in demo.bars %}
+                <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}" rx="4" class="kcal-bar"><title>{{ bar.kcal }} kcal a day</title></rect>
+            {% endfor %}
+            <polyline points="{{ demo.weightPoints }}" class="weight-line"/>
+            <text x="0" y="{{ constant('App\\Demo\\DemoStory::HEIGHT') + 22 }}" class="axis">{{ demo.weeks }} weeks ago</text>
+            <text x="{{ constant('App\\Demo\\DemoStory::WIDTH') }}" y="{{ constant('App\\Demo\\DemoStory::HEIGHT') + 22 }}" class="axis end">today</text>
+        </svg>
+        <figcaption><span class="key-line"></span> weight (kg) <span class="key-bar"></span> average kcal a day, by week</figcaption>
+    </figure>
 </section>
 
 <section class="features">

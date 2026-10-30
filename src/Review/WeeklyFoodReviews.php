@@ -2,6 +2,7 @@
 
 namespace App\Review;
 
+use App\Demo\DemoFoodReviewer;
 use App\Entity\User;
 use App\Entity\WeeklyFoodReview;
 use App\Repository\AiUsageRepository;
@@ -15,7 +16,7 @@ use Psr\Clock\ClockInterface;
  * latest week, which leaves out today), and asks the AI
  * only when there's no stored review for exactly that food yet (so about once a day, or after a past meal
  * in the week is changed). At most DAILY_LIMIT AI requests per user per local day; past that, the stored
- * review (if any) is shown as it is.
+ * review (if any) is shown as it is. The demo account's reviews are written by DemoFoodReviewer, never the AI.
  */
 final class WeeklyFoodReviews
 {
@@ -34,6 +35,7 @@ final class WeeklyFoodReviews
         private readonly FoodReviewer $reviewer,
         private readonly EntityManagerInterface $em,
         private readonly ClockInterface $clock,
+        private readonly DemoFoodReviewer $demoReviewer,
     ) {
     }
 
@@ -66,13 +68,16 @@ final class WeeklyFoodReviews
             return new WeeklyFoodReviewResult($stored);
         }
 
-        $today = $user->today($this->clock->now())->format('Y-m-d');
-        if ($this->usage->usedOn($user, self::USAGE_FEATURE, $today) >= self::DAILY_LIMIT) {
-            return new WeeklyFoodReviewResult($stored, limitReached: true);
+        if ($user->isDemo()) {
+            $result = $this->demoReviewer->review($log);
+        } else {
+            $today = $user->today($this->clock->now())->format('Y-m-d');
+            if ($this->usage->usedOn($user, self::USAGE_FEATURE, $today) >= self::DAILY_LIMIT) {
+                return new WeeklyFoodReviewResult($stored, limitReached: true);
+            }
+            $this->usage->record($user, self::USAGE_FEATURE, $today);
+            $result = $this->reviewer->review($log, self::TIME_LIMIT);
         }
-        $this->usage->record($user, self::USAGE_FEATURE, $today);
-
-        $result = $this->reviewer->review($log, self::TIME_LIMIT);
         $stored ??= new WeeklyFoodReview($user, $log->from, $log->to);
         $stored->update($log->hash(), $result->review, $result->reviewedBy, $this->clock->now());
         $this->em->persist($stored);

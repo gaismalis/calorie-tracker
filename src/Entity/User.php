@@ -73,6 +73,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(options: ['default' => true])]
     private bool $catEnabled = true;
 
+    /** The shared demo account (see App\Demo\DemoAccount): read-only, logged into from the landing page. */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $demo = false;
+
+    /** When the demo account's data was last rebuilt up to "now". */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $demoRefreshedAt = null;
+
     /** Desired weight change in kg per week: negative = lose, 0 = maintain. */
     #[ORM\Column(options: ['default' => 0])]
     #[Assert\Choice(choices: self::WEEKLY_GOALS, message: 'Choose one of the listed goals.')]
@@ -268,6 +276,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setCatEnabled(bool $enabled): static
     {
         $this->catEnabled = $enabled;
+
+        return $this;
+    }
+
+    public function isDemo(): bool
+    {
+        return $this->demo;
+    }
+
+    public function markDemo(): static
+    {
+        $this->demo = true;
+
+        return $this;
+    }
+
+    public function getDemoRefreshedAt(): ?\DateTimeImmutable
+    {
+        return $this->demoRefreshedAt;
+    }
+
+    public function setDemoRefreshedAt(\DateTimeImmutable $at): static
+    {
+        $this->demoRefreshedAt = $at;
 
         return $this;
     }

@@ -29,7 +29,7 @@
                     <a href="{{ path('app_weight') }}">Weight</a>
                     <a href="{{ path('app_recipes') }}">Recipes</a>
                     <a href="{{ path('app_profile') }}">Profile</a>
-                    <span class="muted user-email">{{ app.user.email }}</span>
+                    <span class="muted user-email">{{ app.user.demo ? 'Demo' : app.user.email }}</span>
                     <a href="{{ path('app_logout') }}" class="logout">Log out</a>
                 </nav>
             {% else %}
@@ -44,6 +44,13 @@
                         <input type="hidden" name="_token" value="{{ csrf_token('verify_email_resend') }}">
                         <button type="submit" class="link">Send it again</button>
                     </form>
+                </div>
+            {% endif %}
+            {% if app.user and app.user.demo %}
+                {# The shared demo account (App\Demo\DemoAccount): look around, nothing is saved. #}
+                <div class="demo-banner">
+                    <span>👋 You're exploring <strong>{{ constant('App\\Demo\\DemoAccount::NAME') }}'s</strong> last 3 months: real-looking meals, workouts and weigh-ins. Look around; changes aren't saved.</span>
+                    <a href="{{ path('app_demo_sign_up') }}" class="button">Sign up</a>
                 </div>
             {% endif %}
             {% for type, messages in app.flashes %}

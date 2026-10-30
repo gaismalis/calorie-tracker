@@ -266,6 +266,10 @@ a.button:hover, label.button:hover { filter: brightness(0.95); }
     .add-entry { display: none; }
     main.container { padding-bottom: 0; }
 }
+/* The demo account (shared, read-only): what it is and the way out. */
+.demo-banner { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; justify-content: space-between; background: #e6f2ea; color: #1f4d33; border: 1px solid #c6e3d0; border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 1rem; font-size: 0.9rem; }
+.demo-banner span { flex: 1 1 22rem; }
+.demo-banner .button { padding: 0.45rem 1rem; white-space: nowrap; }
 .verify-banner { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; justify-content: space-between; background: #fff8e1; color: #6b5200; border: 1px solid #f3e2a6; border-radius: 6px; padding: 0.6rem 0.9rem; margin-bottom: 1rem; font-size: 0.9rem; }
 .verify-banner form { margin: 0; }
 .verify-banner button.link { color: var(--accent); text-decoration: underline; font-size: 0.9rem; }

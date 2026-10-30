@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Chart\EnergyChart;
+use App\Demo\DemoAccount;
+use App\Demo\DemoStory;
 use App\Energy\EnergyCalculator;
 use App\Energy\EnergyEstimate;
 use App\Energy\WeightTrend;
@@ -49,10 +51,12 @@ class DashboardController extends AbstractController
         MealEstimation $mealEstimation,
         ExerciseEstimation $exerciseEstimation,
         Request $request,
+        DemoAccount $demo,
         ?string $date = null,
     ): Response {
         if (null === $user) {
-            return $this->render('landing/index.html.twig'); // only "/" is open to visitors (security.yaml)
+            // only "/" is open to visitors (security.yaml)
+            return $this->render('landing/index.html.twig', ['demo' => new DemoStory($demo->plan())]);
         }
         $today = $user->today();
         $day = null === $date ? $today : $this->parseLocalDate($user, $date);

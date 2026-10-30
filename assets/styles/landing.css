@@ -121,3 +121,40 @@
 @media (prefers-reduced-motion: reduce) {
     .landing *, .landing *::before { animation: none !important; transition: none !important; }
 }
+
+/* Demo: Alex's three months (DemoStory) and the way in. */
+.demo-form { display: inline; margin: 0; }
+.demo-form button { margin: 0; font: inherit; cursor: pointer; }
+.landing .button.big.secondary { color: var(--text); background: var(--card); border: 1px solid var(--border); }
+.landing .demo-story {
+    display: grid; grid-template-columns: 1fr 1.15fr; gap: 2.5rem; align-items: center;
+    margin-bottom: 5rem; padding: 2.5rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: 24px; max-width: 1040px;
+    box-shadow: 0 24px 60px rgb(20 50 35 / 0.08);
+}
+.landing .demo-story h2 { text-align: left; margin-bottom: 1rem; }
+.demo-story-text > p { color: #4a544e; line-height: 1.6; margin: 0 0 1.25rem; }
+.demo-stats { display: grid; grid-template-columns: repeat(3, auto); gap: 1rem; margin: 0 0 1.5rem; }
+.demo-stats dt { color: var(--muted); font-size: 0.8rem; }
+.demo-stats dd { margin: 0.15rem 0 0; font-weight: 700; font-size: 1.1rem; color: var(--ink); white-space: nowrap; }
+.demo-story .fine { margin: 1rem 0 0; }
+.demo-chart { margin: 0; }
+.demo-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.demo-chart .grid { stroke: var(--border); stroke-width: 1; }
+.demo-chart .tick, .demo-chart .axis { fill: var(--muted); font-size: 12px; text-anchor: end; }
+.demo-chart .axis { text-anchor: start; }
+.demo-chart .axis.end { text-anchor: end; }
+.demo-chart .kcal-bar { fill: #d9ecdf; }
+.demo-chart .weight-line { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round;
+    stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: draw 2.2s ease-out 0.3s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.demo-chart figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.75rem; color: var(--muted); font-size: 0.82rem; }
+.key-line { display: inline-block; width: 18px; height: 3px; border-radius: 2px; background: var(--accent); }
+.key-bar { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #d9ecdf; margin-left: 0.8rem; }
+@media (max-width: 860px) {
+    .landing .demo-story { grid-template-columns: 1fr; margin: 0 1rem 3rem; gap: 1.5rem; padding: 1.5rem; }
+    .demo-stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .demo-chart .weight-line { stroke-dashoffset: 0; }
+}
