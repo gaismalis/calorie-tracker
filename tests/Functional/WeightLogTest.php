@@ -30,7 +30,7 @@ class WeightLogTest extends WebTestCase
         self::assertResponseRedirects('/weight');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.flash-success', 'Saved 82.5 kg');
-        self::assertSelectorTextContains('table.weights', '82.5');
+        self::assertSelectorTextContains('.weigh-ins', '82.5 kg');
 
         $entries = $this->entries();
         self::assertCount(1, $entries);
@@ -59,29 +59,59 @@ class WeightLogTest extends WebTestCase
         self::assertSame('81.3', $crawler->filter('#weight_entry_form_weightKg')->attr('value'));
     }
 
-    public function testHistoryIsNewestFirstWithChange(): void
+    public function testHistoryIsGroupedByWeekNewestFirst(): void
     {
-        $this->storeWeight($this->user, '2026-09-01', 80.0);
-        $this->storeWeight($this->user, '2026-09-03', 80.6);
+        $this->storeWeight($this->user, '2026-08-31', 80.0); // Monday
         $this->storeWeight($this->user, '2026-09-02', 81.0);
+        $this->storeWeight($this->user, '2026-09-08', 80.2); // the next week
+        $this->storeWeight($this->user, '2026-09-10', 79.6);
 
         $crawler = $this->client->request('GET', '/weight');
 
-        $rows = $crawler->filter('table.weights tbody tr')->each(fn ($tr) => [
-            $tr->filter('td')->eq(1)->text(), $tr->filter('td')->eq(2)->text(),
+        $weeks = $crawler->filter('.weight-week > summary')->each(fn ($summary) => [
+            $summary->filter('.week-dates')->text(), $summary->filter('.week-avg strong')->text(), $summary->filter('.week-change')->text(),
         ]);
-        self::assertSame([['80.6', '-0.4'], ['81.0', '+1.0'], ['80.0', '']], $rows);
+        self::assertSame([['7 – 13 Sep', '79.9', '−0.6'], ['31 Aug – 6 Sep', '80.5', '']], $weeks);
+        self::assertStringContainsString('away', $crawler->filter('.weight-week .week-change')->first()->attr('class'), 'the default goal is to keep the weight: 0.6 kg down is off course');
     }
 
-    public function testHistoryShowsSmoothedTrend(): void
+    public function testTheLatestWeekIsOpenWithItsWeighIns(): void
     {
+        $this->storeWeight($this->user, '2026-09-08', 80.2);
+        $this->storeWeight($this->user, '2026-09-10', 79.6);
         $this->storeWeight($this->user, '2026-09-01', 80.0);
-        $this->storeWeight($this->user, '2026-09-02', 81.0);
 
         $crawler = $this->client->request('GET', '/weight');
 
-        $trend = $crawler->filter('table.weights tbody td.trend')->each(fn ($td) => $td->text());
-        self::assertSame(['80.1', '80.0'], $trend, 'a 1 kg jump moves the trend only 0.1 kg');
+        self::assertNotNull($crawler->filter('.weight-week')->first()->attr('open'));
+        self::assertNull($crawler->filter('.weight-week')->last()->attr('open'));
+        self::assertSame(['Thu, 10 Sep 79.6 kg', 'Tue, 8 Sep 80.2 kg'], $crawler->filter('.weight-week')->first()->filter('.weigh-ins li')->each(
+            fn ($li) => $li->filter('.day')->text().' '.$li->filter('.kg')->text(),
+        ));
+    }
+
+    public function testTheOverviewShowsTheTrendTheChangeAndThePaceAgainstTheGoal(): void
+    {
+        $today = $this->user->today();
+        for ($daysAgo = 30; $daysAgo >= 0; --$daysAgo) {
+            $this->storeWeight($this->user, $today->modify("-$daysAgo days")->format('Y-m-d'), 0 === $daysAgo ? 80.4 : 80.0);
+        }
+
+        $this->client->request('GET', '/weight');
+
+        self::assertSelectorTextContains('.weight-now .value strong', '80.0', 'the trend: one heavier morning barely moves it');
+        self::assertSelectorTextContains('.weight-now', 'last weigh-in 80.4 kg today');
+        $stats = $this->client->getCrawler()->filter('.weight-stats > div')->each(fn ($div) => $div->text());
+        self::assertSame(['Since '.$today->modify('-30 days')->format('j M').' 0.0 kg', 'Last 4 weeks +0.01 kg/week', 'Goal keep weight On track'], $stats);
+    }
+
+    public function testWithoutWeighInsTheOverviewInvitesTheFirstOne(): void
+    {
+        $this->client->request('GET', '/weight');
+
+        self::assertSelectorTextContains('.weight-summary', 'Log your first weigh-in below');
+        self::assertSelectorNotExists('.weight-stats');
+        self::assertSelectorTextContains('body', 'No weight logged yet.');
     }
 
     public function testChartShowsWeighInsAndTrendForTheChosenRange(): void

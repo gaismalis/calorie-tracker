@@ -79,11 +79,53 @@ select, input[type=date], input[type=number] {
 .inline-form > div { min-width: 0; }
 .inline-form button { margin-bottom: 0; }
 .inline-form ul { grid-column: 1 / -1; }
-table.weights { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-table.weights th { text-align: left; color: var(--muted); font-weight: normal; font-size: 0.8rem; }
-table.weights td { padding: 0.35rem 0; border-top: 1px solid var(--border); }
-table.weights td form { margin: 0; text-align: right; }
-table.weights .change { color: var(--muted); }
+/* Weight page: overview, weigh-in form, history by week. */
+.weight-summary { display: grid; grid-template-columns: auto 1fr; gap: 1.25rem 2rem; align-items: center; }
+.weight-summary > h1, .weight-summary > p { grid-column: 1 / -1; margin-bottom: 0; }
+.weight-now .label { font-size: 0.9rem; font-weight: normal; color: var(--muted); margin: 0; }
+.weight-now .value { margin: 0.1rem 0 0.2rem; font-size: 1.2rem; color: var(--muted); }
+.weight-now .value strong { font-size: 3rem; line-height: 1; color: var(--text); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.weight-now p.small { margin: 0; }
+.weight-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 0; }
+.weight-stats > div { background: var(--bg); border-radius: 8px; padding: 0.65rem 0.8rem; }
+.weight-stats dt { color: var(--muted); font-size: 0.8rem; }
+.weight-stats dd { margin: 0.2rem 0 0; font-weight: 600; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.weight-stats dd .status { display: block; width: fit-content; margin-top: 0.25rem; font-size: 0.78rem; }
+.toward { color: var(--accent); }
+.away { color: #b7791f; }
+.status { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-weight: 600; background: #fdf3e1; color: #975a16; }
+.status.status-on_track { background: #e6f2ea; color: var(--accent); }
+.log-weight { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 1rem; }
+.log-weight h2 { font-size: 1rem; margin-bottom: 0.25rem; }
+.log-weight label { margin-top: 0.4rem; }
+.log-weight p.small { margin: 0.4rem 0 0; }
+.chart-note { margin: 0.75rem 0 0; }
+.weight-weeks { border-top: 1px solid var(--border); }
+.weight-week { border-bottom: 1px solid var(--border); }
+.weight-week > summary { display: grid; grid-template-columns: 1.2fr 1fr 0.7fr 1fr; align-items: baseline; gap: 0.5rem; padding: 0.7rem 0 0.7rem 1.2rem; cursor: pointer; list-style: none; position: relative; font-variant-numeric: tabular-nums; }
+.weight-week > summary::-webkit-details-marker { display: none; }
+.weight-week > summary::before { content: '▸'; position: absolute; left: 0.1rem; top: 0.8rem; color: var(--muted); }
+.weight-week[open] > summary::before { content: '▾'; }
+.weight-week > summary:hover { background: var(--bg); }
+.week-dates { font-weight: 600; }
+.week-avg strong { font-size: 1.05rem; }
+.week-change { font-weight: 600; }
+.week-count { text-align: right; font-size: 0.85rem; }
+.weigh-ins { list-style: none; margin: 0 0 0.6rem; padding: 0 0 0 1.2rem; color: var(--text); font-size: 0.92rem; }
+.weigh-ins li { display: grid; grid-template-columns: 1.2fr 1fr 0.7fr 1fr; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px dashed var(--border); font-variant-numeric: tabular-nums; }
+.weigh-ins .day { color: var(--muted); }
+.weigh-ins form { margin: 0; grid-column: 4; justify-self: end; }
+@media (max-width: 600px) {
+    .weight-summary { grid-template-columns: 1fr; }
+    .weight-stats { grid-template-columns: 1fr 1fr; }
+    .weight-stats > div:last-child { grid-column: 1 / -1; }
+    .weight-stats dd .status { display: inline-block; margin: 0 0 0 0.4rem; }
+    .weight-week > summary { grid-template-columns: 1fr auto auto; }
+    .week-count { display: none; }
+    .weigh-ins li { grid-template-columns: 1fr auto auto; }
+    .log-weight .inline-form { grid-template-columns: 5.5rem 1fr auto; }
+    .weigh-ins form { grid-column: auto; }
+}
 .target { margin-bottom: 1rem; }
 .target p { margin: 0.4rem 0 0; }
 .target .bar { height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
@@ -146,8 +188,11 @@ button.link.danger svg { vertical-align: -3px; }
 }
 .viz-root .y-tick { text-anchor: end; dominant-baseline: middle; }
 .viz-root .x-tick { text-anchor: middle; }
-.weight-chart .trend-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.weight-chart .weigh-in { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 2; }
+/* Weight chart in the app's colours: green trend with a soft fill, grey weigh-ins behind it. */
+.weight-chart { --series-1: #2f855a; --series-2: #a3aca6; }
+.weight-chart .trend-area { fill: #2f855a; opacity: 0.08; }
+.weight-chart .trend-line { fill: none; stroke: var(--series-1); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.weight-chart .weigh-in { fill: var(--series-2); stroke: var(--surface-1); stroke-width: 1.5; }
 .weight-chart .trend-end { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
 .weight-chart .end-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; dominant-baseline: middle; }
 .viz-root .crosshair { stroke: var(--text-muted); stroke-width: 1; }

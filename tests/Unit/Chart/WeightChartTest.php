@@ -134,4 +134,13 @@ class WeightChartTest extends TestCase
         self::assertLessThanOrEqual(60, $ticks[0]);
         self::assertGreaterThanOrEqual(400, end($ticks));
     }
+
+    public function testTheTrendHasASoftFillDownToTheAxis(): void
+    {
+        $chart = WeightChart::build(['2026-09-02' => 80.0, '2026-10-01' => 79.0], ['2026-09-02' => 80.0, '2026-10-01' => 79.4], '2026-10-01', 30);
+
+        self::assertStringStartsWith($chart->trendPath.' L', $chart->trendArea);
+        self::assertStringEndsWith(sprintf('L%s %s L%s %s Z', $chart->trendEnd['x'], $chart->plotBottom, $chart->dots[0]['x'], $chart->plotBottom), $chart->trendArea);
+        self::assertSame('', WeightChart::build([], [], '2026-10-01', 30)->trendArea, 'nothing to fill without a trend');
+    }
 }

@@ -30,6 +30,8 @@ final readonly class WeightChart
      */
     private function __construct(
         public string $trendPath,
+        /** The trend path closed along the bottom, for the soft fill under the line ('' without a trend). */
+        public string $trendArea,
         public array $dots,
         public array $yTicks,
         public array $xTicks,
@@ -76,6 +78,9 @@ final readonly class WeightChart
             $path .= ('' === $path ? 'M' : ' L').$x($date).' '.$y($kg);
         }
 
+        $trendDates = array_keys($trend);
+        $area = '' === $path ? '' : sprintf('%s L%s %s L%s %s Z', $path, $x(end($trendDates)), $bottom, $x($trendDates[0]), $bottom);
+
         $dots = [];
         foreach ($weights as $date => $kg) {
             $dots[] = ['x' => $x($date), 'y' => $y($kg), 'date' => $date, 'kg' => $kg];
@@ -107,7 +112,7 @@ final readonly class WeightChart
         $lastTrendDate = array_key_last($trend);
         $trendEnd = null === $lastTrendDate ? null : ['x' => $x($lastTrendDate), 'y' => $y($trend[$lastTrendDate]), 'kg' => $trend[$lastTrendDate]];
 
-        return new self($path, $dots, $yTicks, $xTicks, array_values($hover), $trendEnd, $left, $right, $top, $bottom, $width);
+        return new self($path, $area, $dots, $yTicks, $xTicks, array_values($hover), $trendEnd, $left, $right, $top, $bottom, $width);
     }
 
     /** @return list<array{x: float, label: string, rows: list<array{series: string, value: string, name: string}>}> tooltip content per day */

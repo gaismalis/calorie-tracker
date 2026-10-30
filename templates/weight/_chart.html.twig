@@ -1,4 +1,4 @@
-{# Weigh-ins (dots, series 2) and trend (line, series 1). Colors validated with the dataviz palette validator. #}
+{# Weigh-ins (grey dots, series 2) and trend (green line with a soft fill, series 1), in the app's colours. #}
 {# Wide and compact (phone) versions; CSS shows the one that fits the screen. #}
 {% for chart in charts %}
     <div class="viz-root weight-chart {{ chart.compact ? 'chart-compact' : 'chart-wide' }}" data-controller="chart-hover" data-chart-hover-days-value="{{ chart.hover|json_encode }}">
@@ -23,10 +23,11 @@
             {% if chart.empty %}
                 <text x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" y="{{ (chart.plotTop + chart.plotBottom) / 2 }}" class="empty-label">{% if chart.compact %}<tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="-0.6em">No weigh-ins in this period yet.</tspan><tspan x="{{ (chart.plotLeft + chart.plotRight) / 2 }}" dy="1.3em">Log your weight above.</tspan>{% else %}No weigh-ins in this period yet. Log your weight above.{% endif %}</text>
             {% endif %}
+            {% if chart.trendArea %}<path d="{{ chart.trendArea }}" class="trend-area"/>{% endif %}
             <path d="{{ chart.trendPath }}" class="trend-line"/>
             <g class="dots">
                 {% for dot in chart.dots %}
-                    <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4" class="weigh-in"/>
+                    <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="3.5" class="weigh-in"/>
                 {% endfor %}
             </g>
             {% if chart.trendEnd %}

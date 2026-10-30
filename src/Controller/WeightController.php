@@ -9,6 +9,7 @@ use App\Entity\WeightEntry;
 use App\Form\WeightEntryFormType;
 use App\Repository\WeightEntryRepository;
 use App\Weight\WeightRecorder;
+use App\Weight\WeightSummary;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +24,9 @@ class WeightController extends AbstractController
     /** Chart ranges in days. */
     private const CHART_RANGES = [30, 90, 365];
     private const DEFAULT_CHART_RANGE = 90;
+    /** Weigh-ins listed in the history (about a year of daily weigh-ins). */
+    private const HISTORY_LIMIT = 400;
+    private const BEGINNING = '2000-01-01';
 
     #[Route('/weight', name: 'app_weight')]
     public function index(
@@ -47,25 +51,15 @@ class WeightController extends AbstractController
             return $this->redirectToRoute('app_weight');
         }
 
-        $entries = $weights->findRecent($user);
-        $oldestShown = end($entries) ?: null;
-        // Warm the trend up with older weigh-ins so the oldest rows shown aren't just the raw weight.
-        $trend = $oldestShown ? WeightTrend::daily($weights->weightsByDate($user, $oldestShown->getDate()->modify('-60 days'))) : [];
-        $rows = [];
-        foreach ($entries as $i => $entry) {
-            $previous = $entries[$i + 1] ?? null;
-            $rows[] = [
-                'entry' => $entry,
-                'change' => $previous ? round($entry->getWeightKg() - $previous->getWeightKg(), 1) : null,
-                'trend' => $trend[$entry->getDate()->format('Y-m-d')] ?? null,
-            ];
-        }
+        // Every weigh-in for the trend and "since you started"; the history lists about the last year.
+        $all = $weights->weightsByDate($user, new \DateTimeImmutable(self::BEGINNING));
+        $summary = WeightSummary::build($weights->findRecent($user, self::HISTORY_LIMIT), $all, WeightTrend::daily($all), $user->getWeeklyGoalKg());
 
         $range = in_array($request->query->getInt('range'), self::CHART_RANGES, true) ? $request->query->getInt('range') : self::DEFAULT_CHART_RANGE;
 
         return $this->render('weight/index.html.twig', [
             'form' => $form,
-            'rows' => $rows,
+            'summary' => $summary,
             'charts' => $this->charts($user, $weights, $range),
             'range' => $range,
             'ranges' => self::CHART_RANGES,

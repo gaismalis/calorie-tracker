@@ -1,16 +1,61 @@
 {% extends 'base.html.twig' %}
+{% import 'dashboard/_macros.html.twig' as m %}
 
 {% block title %}Weight · Calorie Tracker{% endblock %}
 
+{# Overview (trend now, change, pace vs goal) with the weigh-in form, the chart, then the history by week (App\Weight\WeightSummary). #}
+{% set goal = summary.goalPerWeek %}
+{% set today = app.user.today|date('Y-m-d', app.user.timezone) %}
+
 {% block body %}
-<section class="card">
-    <h1>Log your weight</h1>
-    <p class="muted">Weigh yourself in the morning, after the toilet and before eating, for the most consistent numbers. Logging the same day again replaces the earlier value.</p>
-    {{ form_start(form, {attr: {class: 'inline-form'}}) }}
-        {{ form_row(form.weightKg) }}
-        {{ form_row(form.date) }}
-        <button type="submit">Save weight</button>
-    {{ form_end(form) }}
+<section class="card weight-summary">
+    {% if summary.trendKg is null %}
+        <h1>Your weight</h1>
+        <p class="muted">Log your first weigh-in below. Weigh yourself in the morning, after the toilet and before eating, for the most consistent numbers.</p>
+    {% else %}
+        <div class="weight-now">
+            <h1 class="label">Your weight</h1>
+            <p class="value"><strong>{{ summary.trendKg|number_format(1) }}</strong> kg</p>
+            <p class="muted small">
+                Trend{% if summary.latest %} · last weigh-in <strong>{{ summary.latest.weightKg|number_format(1) }} kg</strong>
+                {%- set last = summary.latest.date|date('Y-m-d', 'UTC') %}
+                {{ last == today ? 'today' : (last == today|date_modify('-1 day')|date('Y-m-d') ? 'yesterday' : summary.latest.date|date('D, j M', 'UTC')) }}{% endif %}
+            </p>
+        </div>
+        <dl class="weight-stats">
+            <div>
+                <dt>Since {{ summary.since|date('j M', 'UTC') }}</dt>
+                <dd class="{{ summary.totalChange == 0 ? '' : ((goal < 0 and summary.totalChange < 0) or (goal > 0 and summary.totalChange > 0) ? 'toward' : (goal != 0 ? 'away')) }}">{{ m.signed(summary.totalChange, 1) }} kg</dd>
+            </div>
+            <div>
+                <dt>Last {{ summary.paceDays >= constant('App\\Weight\\WeightSummary::PACE_DAYS') ? '4 weeks' : summary.paceDays ~ ' days' }}</dt>
+                <dd>{% if summary.pacePerWeek is null %}<span class="muted">needs 2 weeks</span>{% else %}{{ m.signed(summary.pacePerWeek, 2) }} kg/week{% endif %}</dd>
+            </div>
+            <div>
+                <dt>Goal</dt>
+                <dd>{{ goal == 0 ? 'keep weight' : m.signed(goal, 2) ~ ' kg/week' }}
+                    {% if summary.status %}
+                        <span class="status status-{{ summary.status }}">
+                            {%- if summary.status == 'on_track' %}On track
+                            {%- elseif summary.status == 'slower' %}Slower than planned
+                            {%- elseif summary.status == 'faster' %}Faster than planned
+                            {%- else %}{{ goal < 0 ? 'Not going down yet' : (goal > 0 ? 'Not going up yet' : (summary.pacePerWeek > 0 ? 'Drifting up' : 'Drifting down')) }}{% endif -%}
+                        </span>
+                    {% endif %}
+                </dd>
+            </div>
+        </dl>
+    {% endif %}
+
+    <div class="log-weight">
+        <h2>Log a weigh-in</h2>
+        {{ form_start(form, {attr: {class: 'inline-form'}}) }}
+            {{ form_row(form.weightKg) }}
+            {{ form_row(form.date) }}
+            <button type="submit">Save weight</button>
+        {{ form_end(form) }}
+        <p class="muted small">Logging the same day again replaces the earlier value.</p>
+    </div>
 </section>
 
 <section class="card">
@@ -23,35 +68,40 @@
         </nav>
     </div>
     {{ include('weight/_chart.html.twig') }}
+    <p class="muted small chart-note">Your weight jumps around by up to 1–2 kg a day from water and food. The <strong>trend</strong> smooths that out, so it moves slowly and sits a little behind the dots; it's what the app uses to work out what you really burn.</p>
 </section>
 
 <section class="card">
     <h2>History</h2>
-    <p class="muted">Your weight jumps around by up to 1–2 kg a day from water and food. <strong>Trend</strong> smooths that out and is what the app uses to work out what you really burn.</p>
-    {% if rows is empty %}
+    {% if summary.weeks is empty %}
         <p class="muted">No weight logged yet.</p>
     {% else %}
-        <table class="weights">
-            <thead><tr><th>Date</th><th>kg</th><th>Change</th><th title="Smoothed weight: ignores day-to-day water swings">Trend</th><th></th></tr></thead>
-            <tbody>
-            {% for row in rows %}
-                <tr>
-                    <td>{{ row.entry.date|date('D, j M Y', 'UTC') }}</td>
-                    <td>{{ row.entry.weightKg|number_format(1) }}</td>
-                    <td class="change">
-                        {% if row.change is not null %}{{ row.change > 0 ? '+' : '' }}{{ row.change|number_format(1) }}{% endif %}
-                    </td>
-                    <td class="trend">{% if row.trend is not null %}{{ row.trend|number_format(1) }}{% endif %}</td>
-                    <td>
-                        <form method="post" action="{{ path('app_weight_delete', {id: row.entry.id}) }}" data-controller="confirm-delete">
-                            <input type="hidden" name="_token" value="{{ csrf_token('weight_delete_' ~ row.entry.id) }}">
-                            <button type="submit" class="link danger" title="Delete" data-confirm-delete-target="button" data-action="confirm-delete#click">✕</button>
-                        </form>
-                    </td>
-                </tr>
+        <div class="weight-weeks">
+            {% for week in summary.weeks %}
+                <details class="weight-week"{% if loop.first %} open{% endif %}>
+                    <summary>
+                        <span class="week-dates">{{ m.date_range(week.from|date('Y-m-d'), week.to|date('Y-m-d')) }}</span>
+                        <span class="week-avg"><strong>{{ week.averageKg|number_format(1) }}</strong> kg <span class="muted">avg</span></span>
+                        <span class="week-change{{ week.toward is null ? '' : (week.toward ? ' toward' : ' away') }}">
+                            {%- if week.change is not null %}{{ m.signed(week.change, 1) }}{% endif -%}
+                        </span>
+                        <span class="week-count muted">{{ week.entries|length }} {{ week.entries|length == 1 ? 'weigh-in' : 'weigh-ins' }}</span>
+                    </summary>
+                    <ul class="weigh-ins">
+                        {% for entry in week.entries %}
+                            <li>
+                                <span class="day">{{ entry.date|date('D, j M', 'UTC') }}</span>
+                                <span class="kg">{{ entry.weightKg|number_format(1) }} kg</span>
+                                <form method="post" action="{{ path('app_weight_delete', {id: entry.id}) }}" data-controller="confirm-delete">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('weight_delete_' ~ entry.id) }}">
+                                    <button type="submit" class="link danger" title="Delete" data-confirm-delete-target="button" data-action="confirm-delete#click">✕</button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </details>
             {% endfor %}
-            </tbody>
-        </table>
+        </div>
     {% endif %}
 </section>
 {% endblock %}
