@@ -333,7 +333,12 @@ details.log .log-title { font-weight: 700; font-size: 1.1rem; }
 .eaten-at label { display: flex; align-items: center; gap: 0.4rem; margin: 0; font-weight: 400; }
 .eaten-at ul { flex-basis: 100%; margin: 0; }
 .meal-photo { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0.5rem 0 0.25rem; }
-.meal-photo .photo-button { cursor: pointer; padding: 0.45rem 0.85rem; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.35rem; }
+/* 📷 Take photo (a label around the file input) and 🎤 Say it (a button): the same look, side by side. */
+.meal-photo label.photo-button, .meal-photo button.voice-button {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin: 0; padding: 0.5rem 0.9rem; cursor: pointer;
+    font: inherit; font-size: 0.9rem; font-weight: 700; line-height: 1.2; border-radius: var(--radius-small);
+    background: var(--card); color: var(--text); box-shadow: inset 0 0 0 1.5px var(--border);
+}
 .photo-preview { position: relative; display: inline-block; }
 .photo-preview[hidden] { display: none; }
 .photo-preview img { display: block; width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
@@ -515,7 +520,6 @@ table.adjust .per100g-edit input { width: 100%; box-sizing: border-box; padding:
 .theme-field { border: 0; padding: 0; margin: 0.75rem 0 0; } .theme-field legend { padding: 0; } .theme-field legend label { margin-bottom: 0.4rem; }
 
 /* 🎤 Say it in the meal dialog (voice_controller.js): recording, then "We got this:" with the foods heard. */
-.voice-button { margin: 0; padding: 0.45rem 0.85rem; font-size: 0.9rem; }
 .voice-button[hidden] { display: none; }
 .voice-recording { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.6rem 0; padding: 0.75rem 0.9rem; border-radius: 14px; background: var(--danger-soft); color: var(--danger-ink); font-weight: 700; }
 .voice-recording[hidden] { display: none; }
