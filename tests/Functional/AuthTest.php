@@ -4,17 +4,49 @@ namespace App\Tests\Functional;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class AuthTest extends WebTestCase
 {
-    public function testAnonymousUserIsRedirectedToLogin(): void
+    public function testVisitorsSeeTheLandingPage(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/');
+        $crawler = $client->request('GET', '/');
 
-        self::assertResponseRedirects('/login');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Just say what you ate.');
+        self::assertSame('/register', $crawler->selectLink('Start tracking')->attr('href'));
+        self::assertSame('/login', $crawler->selectLink('I have an account')->attr('href'));
+        self::assertSame('/register', $crawler->filter('.topbar .landing-nav')->selectLink('Sign up')->attr('href'));
+        self::assertSame('/login', $crawler->filter('.topbar .landing-nav')->selectLink('Log in')->attr('href'));
+        self::assertCount(0, $crawler->filter('[data-controller=cat], .cat-call, .overview'), 'none of the app');
+    }
+
+    public function testOtherPagesStillNeedALogin(): void
+    {
+        $client = static::createClient();
+        foreach (['/day/2026-10-20', '/weight', '/recipes'] as $page) {
+            $client->request('GET', $page);
+            self::assertResponseRedirects('/login', message: $page);
+        }
+    }
+
+    public function testLoggedInUsersGetTheirDayInsteadOfTheLandingPage(): void
+    {
+        $client = static::createClient();
+        $user = (new User())->setEmail('me@example.com')->setPassword('x');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->persist($user);
+        $em->flush();
+        $client->loginUser($user);
+
+        $crawler = $client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('.overview'));
+        self::assertCount(0, $crawler->filter('.landing-nav, .hero'));
     }
 
     public function testRegistrationCreatesUserAndLogsIn(): void

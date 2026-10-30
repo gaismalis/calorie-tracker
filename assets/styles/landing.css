@@ -1,0 +1,123 @@
+/* Landing page for visitors (templates/landing/index.html.twig). Uses the app's colours from app.css. */
+
+.landing { --soft: #e6f2ea; --warm: #f2994a; --ink: #14201a; overflow-x: clip; }
+.landing h1, .landing h2, .landing h3 { color: var(--ink); letter-spacing: -0.02em; }
+.landing section { max-width: 1080px; margin: 0 auto; padding: 0 1.25rem; }
+.landing .button { font-weight: 600; }
+.landing .button.big { padding: 0.85rem 1.5rem; border-radius: 10px; font-size: 1.05rem; box-shadow: 0 6px 18px rgb(47 133 90 / 0.28); }
+.landing .button.big.secondary { box-shadow: none; }
+.landing .fine { color: var(--muted); font-size: 0.85rem; }
+
+.landing-nav { display: flex; gap: 1rem; align-items: center; }
+.landing-nav .button { padding: 0.45rem 1rem; }
+
+/* Hero: text left, app preview right; stacked on phones. */
+.landing .hero {
+    display: grid; grid-template-columns: 1.05fr 1fr; gap: 3rem; align-items: center;
+    padding-top: 4.5rem; padding-bottom: 5rem; position: relative;
+}
+.landing .hero::before {
+    content: ''; position: absolute; inset: -6rem -40vw 0; z-index: -1;
+    background:
+        radial-gradient(40rem 26rem at 78% 30%, #d4eedd 0%, transparent 70%),
+        radial-gradient(30rem 20rem at 10% 0%, #fdf0e1 0%, transparent 70%);
+}
+.eyebrow { display: inline-block; margin: 0 0 1rem; padding: 0.3rem 0.75rem; border-radius: 999px; background: var(--soft); color: var(--accent); font-weight: 600; font-size: 0.85rem; }
+.landing .hero h1 { font-size: clamp(2.5rem, 6vw, 4.2rem); line-height: 1.02; margin: 0 0 1.25rem; }
+.landing .lead { font-size: 1.15rem; line-height: 1.6; color: #3d4741; margin: 0 0 2rem; max-width: 34rem; }
+.landing .cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
+
+.hero-visual { position: relative; min-height: 430px; }
+.preview { position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgb(20 50 35 / 0.14), 0 2px 6px rgb(20 50 35 / 0.06); }
+.preview-meal { top: 0; left: 0; right: 2.5rem; padding: 1.25rem 1.35rem; animation: float 7s ease-in-out infinite; }
+.preview-input { background: var(--bg); border-radius: 12px; padding: 0.8rem 0.95rem; font-size: 0.98rem; color: var(--ink); }
+.caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: -0.15em; background: var(--accent); animation: blink 1.1s steps(1) infinite; }
+.preview-thinking { margin: 0.75rem 0 0.4rem; font-size: 0.82rem; color: var(--accent); font-weight: 600; }
+.preview-items { list-style: none; margin: 0; padding: 0; color: var(--ink); font-size: inherit; } /* not app.css's red error list */
+.preview-items li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+.preview-items small { color: var(--muted); margin-left: 0.3rem; }
+.preview-items b { font-weight: 600; white-space: nowrap; }
+.preview-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.8rem; }
+.preview-total span { color: var(--muted); font-size: 0.9rem; }
+.preview-total strong { font-size: 1.6rem; color: var(--ink); }
+.preview-macros { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+.preview-macros span { padding: 0.2rem 0.55rem; border-radius: 999px; background: var(--soft); color: var(--accent); font-size: 0.78rem; font-weight: 600; }
+
+.preview-today { right: 0; bottom: 0; width: 64%; padding: 1rem 1.15rem; animation: float 7s ease-in-out -3.5s infinite; }
+.today-row { display: flex; justify-content: space-between; gap: 0.5rem; }
+.today-row small { display: block; color: var(--muted); font-size: 0.75rem; }
+.today-row strong { font-size: 1.25rem; color: var(--ink); }
+.today-row .accent { color: var(--accent); }
+.today-bar { height: 8px; margin-top: 0.7rem; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.today-bar div { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #48bb78, var(--accent)); }
+
+/* The app's cat (public/cat/cat-sprite.png: one row of 111x128 frames, 21-30 = waving, 19 = sitting), waving three times. */
+.hero-cat { position: absolute; left: -0.5rem; bottom: 0.25rem; }
+.cat-wave {
+    display: block; width: 83px; height: 96px;
+    background: url('/cat/cat-sprite.png') -1582px 0 / 2997px 96px no-repeat; /* frame 19 */
+    animation: cat-wave 1.1s steps(10) 0.6s 3; /* then back to sitting */
+}
+@keyframes cat-wave { from { background-position-x: -1748.25px; } to { background-position-x: -2580.75px; } }
+.cat-bubble { position: absolute; left: 62px; top: -14px; padding: 0.15rem 0.55rem; border-radius: 999px; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.18); font-size: 0.8rem; white-space: nowrap; animation: pop 4s 1s both; }
+@keyframes pop { 0%, 100% { opacity: 0; transform: translateY(4px); } 10%, 85% { opacity: 1; transform: none; } }
+
+@keyframes float { 50% { transform: translateY(-8px); } }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* How it works */
+.landing .steps { padding-top: 2rem; padding-bottom: 4.5rem; }
+.landing h2 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); text-align: center; margin: 0 0 2.25rem; }
+.steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; counter-reset: none; }
+.steps li { padding: 1.5rem; border-radius: 16px; background: var(--card); border: 1px solid var(--border); }
+.step-number { display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; }
+.steps h3, .feature h3 { font-size: 1.1rem; margin: 0.9rem 0 0.4rem; }
+.steps p, .feature p { margin: 0; color: #4a544e; line-height: 1.55; }
+
+/* Features */
+.landing .features { padding-top: 1rem; padding-bottom: 5rem; }
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.feature { padding: 1.5rem; border-radius: 16px; background: var(--card); border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; }
+.feature:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgb(20 50 35 / 0.08); }
+.feature-icon { display: inline-grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 12px; background: var(--soft); font-size: 1.3rem; }
+.feature.wide { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: center; background: linear-gradient(135deg, #fff 40%, #eef7f1); }
+
+.mini-chart { display: flex; align-items: flex-end; gap: 0.6rem; height: 150px; padding: 0 0.25rem; border-bottom: 1px solid var(--border); }
+.mini-day { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.mini-bar { position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: 100%; border-radius: 6px 6px 2px 2px; background: #48bb78; overflow: hidden; }
+.mini-bar.over { background: #ed8936; }
+.mini-bar i { display: block; width: 100%; }
+.mini-bar .snack { background: #805ad5; }
+.mini-bar .alcohol { background: #c53030; }
+.mini-day.today .mini-bar { opacity: 0.4; }
+.mini-burn { position: absolute; left: -0.3rem; right: -0.3rem; border-top: 2px solid var(--ink); z-index: 1; }
+
+.recipe-chip { display: inline-flex; gap: 0.4rem; align-items: baseline; margin-top: 1rem; padding: 0.4rem 0.75rem; border-radius: 999px; border: 1px solid var(--border); background: var(--bg); font-size: 0.85rem; }
+.recipe-chip small { color: var(--muted); }
+
+/* Last call */
+.landing .final-cta { text-align: center; padding-top: 3.5rem; padding-bottom: 4rem; margin-bottom: 3rem; border-radius: 24px; background: linear-gradient(135deg, #2f855a, #276749); color: #e8f5ed; max-width: 1040px; }
+.landing .final-cta h2 { color: #fff; margin-bottom: 0.75rem; }
+.landing .final-cta p { margin: 0 auto 1.75rem; max-width: 32rem; line-height: 1.55; }
+.landing .final-cta .button { background: #fff; color: var(--accent); box-shadow: 0 8px 24px rgb(0 0 0 / 0.2); }
+.landing .final-cta .fine { color: #b9dcc7; margin: 1.5rem auto 0; }
+
+@media (max-width: 860px) {
+    .landing .hero { grid-template-columns: 1fr; gap: 2.5rem; padding-top: 2.5rem; padding-bottom: 3rem; }
+    .hero-visual { min-height: 410px; max-width: 460px; width: 100%; margin: 0 auto; }
+    .steps ol, .feature-grid { grid-template-columns: 1fr; }
+    .feature.wide { grid-column: auto; grid-template-columns: 1fr; }
+    .landing .final-cta { margin: 0 1rem 2rem; }
+}
+@media (max-width: 600px) {
+    .topbar .landing-nav { flex: 0 0 auto; margin-left: auto; gap: 0.75rem; }
+    /* Cards stacked; the summary card is narrower and the cat sits to its left. */
+    .hero-visual { min-height: 0; }
+    .preview { position: relative; }
+    .preview-meal { right: auto; }
+    .preview-today { width: 66%; margin: 1rem 0 0 auto; }
+    .hero-cat { left: -0.5rem; bottom: -0.25rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .landing *, .landing *::before { animation: none !important; transition: none !important; }
+}

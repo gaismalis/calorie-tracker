@@ -1,0 +1,161 @@
+{% extends 'base.html.twig' %}
+
+{# The front page for visitors who aren't logged in ("/"; logged-in users get their day there instead, see DashboardController).
+   The app previews are plain HTML with made-up example numbers, not screenshots. Styles: assets/styles/landing.css. #}
+
+{% block title %}Calorie Tracker · Just say what you ate{% endblock %}
+
+{% block head %}
+    <meta name="description" content="Log meals by typing or snapping a photo. AI estimates the calories and macros, and your daily target learns from your own weight.">
+    <link rel="stylesheet" href="{{ asset('styles/landing.css') }}">
+{% endblock %}
+
+{% block topnav %}
+    <nav class="landing-nav">
+        <a href="{{ path('app_login') }}">Log in</a>
+        <a href="{{ path('app_register') }}" class="button">Sign up</a>
+    </nav>
+{% endblock %}
+
+{% block main_class %}landing{% endblock %}
+
+{% block body %}
+<section class="hero">
+    <div class="hero-text">
+        <p class="eyebrow">Calorie counting, minus the counting</p>
+        <h1>Just say what you ate.</h1>
+        <p class="lead">Type “two eggs, toast and a latte” or snap a photo of your plate. AI turns it into calories and macros in seconds, and your daily target learns from how your weight actually moves.</p>
+        <div class="cta">
+            <a href="{{ path('app_register') }}" class="button big">Start tracking</a>
+            <a href="{{ path('app_login') }}" class="button big secondary">I have an account</a>
+        </div>
+        <p class="fine">Works in the browser and installs on your phone like an app.</p>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+        <div class="preview preview-meal">
+            <div class="preview-input">“2 eggs, toast with butter and a latte”<span class="caret"></span></div>
+            <div class="preview-thinking"><span class="spark">✨</span> Estimated in 3 seconds</div>
+            <ul class="preview-items">
+                <li><span>Fried eggs <small>110 g</small></span><b>196 kcal</b></li>
+                <li><span>Toast with butter <small>45 g</small></span><b>168 kcal</b></li>
+                <li><span>Latte <small>300 ml</small></span><b>132 kcal</b></li>
+            </ul>
+            <div class="preview-total">
+                <span>Breakfast</span>
+                <strong>496 kcal</strong>
+            </div>
+            <div class="preview-macros"><span>P 24 g</span><span>C 37 g</span><span>F 28 g</span></div>
+        </div>
+
+        <div class="preview preview-today">
+            <div class="today-row">
+                <div><small>Eaten</small><strong>1 480</strong></div>
+                <div><small>Burned</small><strong>2 100</strong></div>
+                <div><small>Left</small><strong class="accent">620</strong></div>
+            </div>
+            <div class="today-bar"><div style="width: 70%"></div></div>
+        </div>
+
+        <div class="hero-cat">
+            <span class="cat-bubble">mrrp?</span>
+            <span class="cat-wave"></span>
+        </div>
+    </div>
+</section>
+
+<section class="steps">
+    <h2>How it works</h2>
+    <ol>
+        <li>
+            <span class="step-number">1</span>
+            <h3>Tell it what you ate</h3>
+            <p>In your own words, like you'd tell a friend. Or take a picture and add a note if you like.</p>
+        </li>
+        <li>
+            <span class="step-number">2</span>
+            <h3>Check the estimate</h3>
+            <p>See every food with its grams and calories. Bigger portion than usual? Slide it up.</p>
+        </li>
+        <li>
+            <span class="step-number">3</span>
+            <h3>Watch the trend</h3>
+            <p>Eaten vs burned, day by day. After a couple of weeks your target comes from your own data.</p>
+        </li>
+    </ol>
+</section>
+
+<section class="features">
+    <h2>Everything you need, nothing you don't</h2>
+    <div class="feature-grid">
+        <article class="feature wide">
+            <div class="feature-text">
+                <span class="feature-icon">🎯</span>
+                <h3>A target that learns</h3>
+                <p>It starts from your height, age and activity. Keep logging meals and weigh-ins, and it recalculates how much you really burn from what you ate and how your weight changed.</p>
+            </div>
+            <div class="mini-chart" aria-hidden="true">
+                {% for day in [{e: 72, b: 80}, {e: 88, b: 78, s: 14}, {e: 64, b: 82}, {e: 79, b: 79}, {e: 95, b: 76, s: 18, a: 10}, {e: 70, b: 84}, {e: 60, b: 80, today: true}] %}
+                    <div class="mini-day{{ day.today ?? false ? ' today' }}">
+                        <span class="mini-burn" style="bottom: {{ day.b }}%"></span>
+                        <span class="mini-bar{{ day.e > day.b ? ' over' }}" style="height: {{ day.e }}%">
+                            {%- if day.a ?? false %}<i class="alcohol" style="height: {{ day.a / day.e * 100 }}%"></i>{% endif -%}
+                            {%- if day.s ?? false %}<i class="snack" style="height: {{ day.s / day.e * 100 }}%"></i>{% endif -%}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="feature">
+            <span class="feature-icon">📷</span>
+            <h3>Text or photo</h3>
+            <p>Describe it, photograph it, or both. Restaurant meals, home cooking, a beer with friends.</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature-icon">🔖</span>
+            <h3>My recipes</h3>
+            <p>Save the breakfast you have every day with exact numbers. Log it in one tap, and add today's extras.</p>
+            <div class="recipe-chip" aria-hidden="true">🔖 Greek yogurt bowl <small>323 kcal</small></div>
+        </article>
+
+        <article class="feature">
+            <span class="feature-icon">🧠</span>
+            <h3>Weekly food review</h3>
+            <p>An AI look at your week: what went well, what was missing, and a few things to try next.</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature-icon">🏃</span>
+            <h3>Exercise and weight</h3>
+            <p>“45 min easy run” is enough. Workouts add to what you can eat; weigh-ins keep the target honest.</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature-icon">🍫</span>
+            <h3>Snacks and alcohol, separately</h3>
+            <p>See how much of each day came from sweets and drinks, right on the chart.</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature-icon">📱</span>
+            <h3>On your home screen</h3>
+            <p>Add it to your phone and it opens like any other app, ready for the next meal.</p>
+        </article>
+
+        <article class="feature">
+            <span class="feature-icon">⬇️</span>
+            <h3>Your data is yours</h3>
+            <p>Export everything you've logged as a JSON file whenever you want.</p>
+        </article>
+    </div>
+</section>
+
+<section class="final-cta">
+    <h2>Your next meal is a sentence away.</h2>
+    <p>Create an account, tell us a little about yourself, and log your first meal.</p>
+    <a href="{{ path('app_register') }}" class="button big">Start tracking</a>
+    <p class="fine">Oh, and there's a cat. 🐈</p>
+</section>
+{% endblock %}

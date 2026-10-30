@@ -48,7 +48,7 @@ class AdminTest extends WebTestCase
         $this->client->loginUser($user, 'admin');  // admin
 
         $this->client->request('GET', '/admin/logout');
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/weight'); // "/" is open to visitors (landing page)
         self::assertResponseIsSuccessful('still logged into the app after admin logout');
         $this->client->request('GET', '/admin');
         self::assertResponseRedirects('/admin/login');
@@ -57,7 +57,7 @@ class AdminTest extends WebTestCase
         $this->client->request('GET', '/logout');
         $this->client->request('GET', '/admin/user');
         self::assertResponseIsSuccessful('still logged into the admin after app logout');
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/weight');
         self::assertResponseRedirects('/login');
     }
 
@@ -87,7 +87,7 @@ class AdminTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Users');
 
-        $this->client->request('GET', '/', server: []);
+        $this->client->request('GET', '/weight', server: []);
         self::assertResponseRedirects('/login', message: 'the admin session does not log you into the app');
 
         $this->client->request('GET', '/admin/logout');

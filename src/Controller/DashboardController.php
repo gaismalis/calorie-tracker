@@ -41,7 +41,7 @@ class DashboardController extends AbstractController
     #[Route('/', name: 'app_dashboard', methods: ['GET'])]
     #[Route('/day/{date}', name: 'app_day', requirements: ['date' => '\d{4}-\d{2}-\d{2}'], methods: ['GET'])]
     public function day(
-        #[CurrentUser] User $user,
+        #[CurrentUser] ?User $user,
         MealEntryRepository $mealRepository,
         ExerciseEntryRepository $exerciseRepository,
         WeightEntryRepository $weightRepository,
@@ -51,6 +51,9 @@ class DashboardController extends AbstractController
         Request $request,
         ?string $date = null,
     ): Response {
+        if (null === $user) {
+            return $this->render('landing/index.html.twig'); // only "/" is open to visitors (security.yaml)
+        }
         $today = $user->today();
         $day = null === $date ? $today : $this->parseLocalDate($user, $date);
         if (null === $day) {

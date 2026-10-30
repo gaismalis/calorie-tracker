@@ -48,6 +48,8 @@ security:
                 lifetime: 2592000
 
     access_control:
+        # "/" is the landing page for visitors and the day for logged-in users (DashboardController)
+        - { path: ^/$, roles: PUBLIC_ACCESS }
         - { path: ^/(login|register)$, roles: PUBLIC_ACCESS }
         - { path: ^/reset-password, roles: PUBLIC_ACCESS }
         - { path: ^/verify/email$, roles: PUBLIC_ACCESS }

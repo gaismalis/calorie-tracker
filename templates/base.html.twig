@@ -32,9 +32,11 @@
                     <span class="muted user-email">{{ app.user.email }}</span>
                     <a href="{{ path('app_logout') }}" class="logout">Log out</a>
                 </nav>
+            {% else %}
+                {% block topnav %}{% endblock %}
             {% endif %}
         </header>
-        <main class="container">
+        <main class="{% block main_class %}container{% endblock %}">
             {% if app.user and not app.user.verified and app.request.attributes.get('_route') starts with 'app_' and app.request.attributes.get('_route') != 'app_onboarding' %}
                 <div class="verify-banner">
                     <span>Please confirm your email address: we sent a link to <strong>{{ app.user.email }}</strong>.</span>
