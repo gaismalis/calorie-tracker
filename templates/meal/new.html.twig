@@ -47,17 +47,38 @@
                     </ul>
                 </div>
             {% endif %}
-            {# The photo is only used to estimate the meal and is deleted once it's estimated. #}
-            <div class="meal-photo">
-                {# capture: phones open the camera straight away; computers show a file picker instead. #}
-                <label class="button secondary photo-button"><span aria-hidden="true">📷</span> Take photo
-                    <input type="file" name="photo" accept="image/*" capture="environment" hidden data-meal-photo-target="input" data-action="change->meal-photo#choose">
-                </label>
-                <span class="photo-preview" data-meal-photo-target="preview" hidden>
-                    <img alt="The meal photo" data-meal-photo-target="image">
-                    <button type="button" class="photo-remove" aria-label="Remove the photo" data-action="meal-photo#clear">×</button>
-                </span>
-                <span class="muted photo-hint">A photo of the plate or the label; add details as text.</span>
+            {# 🎤 Say it: a voice message → "We got this:" with the foods heard → logged as if typed (voice_controller.js, /meals/voice).
+               The photo is only used to estimate the meal and is deleted once it's estimated. #}
+            <div class="voice" data-controller="voice" data-voice-url-value="{{ path('app_meal_voice') }}" data-voice-token-value="{{ csrf_token('meal_voice') }}">
+                <div class="meal-photo">
+                    {# capture: phones open the camera straight away; computers show a file picker instead. #}
+                    <label class="button secondary photo-button"><span aria-hidden="true">📷</span> Take photo
+                        <input type="file" name="photo" accept="image/*" capture="environment" hidden data-meal-photo-target="input" data-action="change->meal-photo#choose">
+                    </label>
+                    <button type="button" class="secondary voice-button" data-voice-target="start" data-action="voice#start"><span aria-hidden="true">🎤</span> Say it</button>
+                    <span class="photo-preview" data-meal-photo-target="preview" hidden>
+                        <img alt="The meal photo" data-meal-photo-target="image">
+                        <button type="button" class="photo-remove" aria-label="Remove the photo" data-action="meal-photo#clear">×</button>
+                    </span>
+                    <span class="muted photo-hint">Photo of the plate or label, or just say what you ate.</span>
+                </div>
+                <div class="voice-recording" data-voice-target="recording" hidden>
+                    <span class="rec-dot" aria-hidden="true"></span> Listening… <span class="voice-timer" data-voice-target="timer">0:00</span>
+                    <span class="muted">e.g. “two eggs, a slice of rye bread and a coffee with milk”</span>
+                    <button type="button" data-action="voice#stop">Done</button>
+                    <button type="button" class="link" data-action="voice#cancel">Cancel</button>
+                </div>
+                <p class="voice-working muted" data-voice-target="working" hidden>Working out what you said…</p>
+                <div class="voice-result" data-voice-target="result" hidden>
+                    <p class="voice-title">We got this:</p>
+                    <ul class="voice-foods" data-voice-target="foods"></ul>
+                    <div class="voice-actions">
+                        <button type="button" data-action="voice#use">Log it</button>
+                        <button type="button" class="secondary" data-action="voice#edit">Fix it</button>
+                        <button type="button" class="link" data-action="voice#again">Try again</button>
+                    </div>
+                </div>
+                <p class="voice-error" role="alert" data-voice-target="error" hidden></p>
             </div>
             <div class="meal-form-row">
                 <label class="time">At <input type="time" name="time" aria-label="Time eaten">

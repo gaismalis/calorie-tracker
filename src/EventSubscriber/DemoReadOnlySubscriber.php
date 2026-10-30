@@ -5,6 +5,7 @@ namespace App\EventSubscriber;
 use App\Entity\User;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
@@ -15,7 +16,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 /**
  * The demo account is shared, so visitors can look around and open every form, but nothing they submit is
  * saved (and nothing reaches the AI): every POST is turned into "back where you were" with a note to sign up.
- * From the meal/exercise dialog it goes through /frame-exit so the whole page reloads.
+ * From the meal/exercise dialog it goes through /frame-exit so the whole page reloads; requests asking for JSON get the note as JSON.
  */
 final class DemoReadOnlySubscriber implements EventSubscriberInterface
 {
@@ -43,6 +44,12 @@ final class DemoReadOnlySubscriber implements EventSubscriberInterface
         }
         $user = $this->security->getUser();
         if (!$user instanceof User || !$user->isDemo()) {
+            return;
+        }
+
+        if ('json' === $request->getPreferredFormat()) { // e.g. the 🎤 in the meal dialog
+            $event->setResponse(new JsonResponse(['error' => self::MESSAGE], 403));
+
             return;
         }
 

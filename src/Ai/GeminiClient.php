@@ -50,7 +50,7 @@ final class GeminiClient
      * @param array<mixed>                $schema    Gemini responseSchema the answer must follow
      * @param callable(array<mixed>): bool $isUsable  false makes the client try the next model
      * @param float|null                  $timeLimit seconds for the whole call including retries; null = no limit
-     * @param list<Photo>                 $photos    sent before the text (e.g. a meal photo)
+     * @param list<Photo|Recording>       $photos    sent before the text (a meal photo, a voice message)
      *
      * @throws AiEstimationException
      */
@@ -103,7 +103,7 @@ final class GeminiClient
                 'json' => [
                     'systemInstruction' => ['parts' => [['text' => $instructions]]],
                     'contents' => [['role' => 'user', 'parts' => [
-                        ...array_map(fn (Photo $photo) => ['inlineData' => ['mimeType' => $photo->mimeType, 'data' => base64_encode($photo->bytes)]], $photos),
+                        ...array_map(fn (Photo|Recording $media) => ['inlineData' => ['mimeType' => $media->mimeType, 'data' => base64_encode($media->bytes)]], $photos),
                         ['text' => $text],
                     ]]],
                     // No temperature/topP/topK or thinkingBudget: newer models reject them (400); defaults are used.

@@ -34,6 +34,9 @@ services:
     App\Review\FoodReviewer:
         factory: ['@App\Review\FoodReviewerFactory', 'create']
 
+    App\Voice\VoiceTranscriber:
+        factory: ['@App\Voice\VoiceTranscriberFactory', 'create']
+
 when@test:
     services:
         App\Nutrition\NutritionEstimator:
@@ -46,4 +49,7 @@ when@test:
             class: App\Nutrition\Categorize\KeywordFoodCategorizer
         App\Review\FoodReviewer:
             class: App\Tests\Support\FakeFoodReviewer
+            public: true
+        App\Voice\VoiceTranscriber:
+            class: App\Tests\Support\FakeVoiceTranscriber
             public: true
